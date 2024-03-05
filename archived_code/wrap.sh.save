@@ -1,0 +1,69 @@
+#!/bin/bash
+email=dje4001@med.cornell.edu
+
+# Directories: Remember to set this up for your data set
+code_directory=~/estrin_lightsheet/ #Where you keep your git repository of code
+scratch_directory=/athena/listonlab/scratch/dje4001/ #Where on the scratch drive you are going to run calculations
+store_directory=/athena/listonlab/store/dje4001/lightsheet/rabies/all/ #Where in storage your data is
+
+#Get subject list
+subjects=$(find $store_directory -mindepth 1 -maxdepth 1 -type d)
+
+# Copy all pending data to the scratch drive
+for i in $subjects
+do
+TMP=$(echo $i)
+sbatch --mem=64G --partition=scu-cpu --wrap="./copy.sh $TMP"
+done
+
+##########################
+#Zip data on scratch drive
+cd $scratch_directory
+now$(date +"%m_%d_%Y")
+ZipFileName=lightsheet_backup_$now.zip
+zip -r $ZipFileName $scratch_directorylightsheet_zip
+
+# Send Zipped folder back to store
+rsync -av $ZipFileName $store_directory/
+
+# Send subjectlist to scratch directory
+rsync -av $store_directorysubjectlist.txt $scratch_directory
+
+# Python script replacing 0 byte files with empty images.
+cd $code_directory
+sbatch --mem=100G --partition=scu-cpu --wrap="python replaceempty.py --pathway /athena/listonlab/scratch/dje4001/lightsheet/raw/"
+
+# Create folder	for destripe output
+mkdir -p $scratch_directorydestriped/
+
+###########################
+
+# Destripe images
+cd $code_directory
+for i in $(cat $scratch_directorysubjectlist.txt)
+do
+TMP=$(echo $i)
+sbatch --mem=64G --partition=scu-cpu --wrap="./estrin_destripe.sh $TMP"
+done
+wait
+
+# Create folder	for terastitcher output
+mkdir -p $scratch_directorystitched/
+
+# Stitch images	using terastitcher
+for i in $(cat $scratch_directorysubjectlist.txt)
+do
+TMP=$(echo $i)
+sbatch --mem=64G --partition=scu-gpu --wrap="./estrin_stitch.sh $TMP"
+done
+wait
+
+# Push everything back to storage
+mkdir -p $store_directory/destriped/
+mkdir -p $store_directory/stitched/
+rsync -av $scratch_directorydestriped/ $store_directory/destriped/
+rsync -av $scratch_directorystitched/ $store_directory/stiched/
+
+echo "Remember to manually inspect data in storage and then manually delete data on scratch drive"
+
+
