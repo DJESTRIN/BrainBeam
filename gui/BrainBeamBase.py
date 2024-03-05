@@ -1,3 +1,6 @@
+""" BrainBeamBase
+The purpose of this script is to set up the basic classes and subsquent GUIs to run BrainBeam
+"""
 #import tkinter as tk
 from tkinter import *
 import tkinter as tk
@@ -8,7 +11,7 @@ import subprocess
 
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
-class lsgui():
+class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
         self.root.geometry("1200x1000+500+10")
@@ -25,10 +28,13 @@ class lsgui():
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Denoise Data",width =8,command=self.copydata).place(relx=0.95,rely=0.20,anchor='e')
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Stitch Data",width =8,command=self.copydata).place(relx=0.95,rely=0.25,anchor='e')
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Convert Data to Neuroglancer",width =8,command=self.copydata).place(relx=0.95,rely=0.30,anchor='e')
+        self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Generate Training Data",width =8,command=self.copydata).place(relx=0.95,rely=0.35,anchor='e')
+        self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Convert data to Syglass",width =8,command=self.copydata).place(relx=0.95,rely=0.35,anchor='e')
+        self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Evalutate Classifier",width =8,command=self.copydata).place(relx=0.95,rely=0.35,anchor='e')
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Apply CloudReg Registration",width =8,command=self.copydata).place(relx=0.95,rely=0.35,anchor='e')
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Apply Ilastik Segmentation",width =8,command=self.copydata).place(relx=0.95,rely=0.40,anchor='e')
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Apply Custom Script",width =8,command=self.copydata).place(relx=0.95,rely=0.45,anchor='e')
-
+        
         #
         self.tabview = ctk.CTkTabview(self.root, width=500,height=700)
         self.tabview.place(relx=0.55, rely=0.4, anchor=CENTER)
@@ -60,5 +66,5 @@ class lsgui():
         print('Copying data')
 
 if __name__=='__main__':
-    guioh=lsgui()
+    guioh=BrainBeamGuiBase()
     guioh()
