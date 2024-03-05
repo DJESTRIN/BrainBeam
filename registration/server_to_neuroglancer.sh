@@ -11,7 +11,7 @@ conda activate cloudreg
 
 init_port=9000
 add_num=1
-if [ "$2" == "directory"]; then
+if [ "$2" == "directory" ]; then
 	#Loop through samples
 	for folder in $1*/
 	do
@@ -28,7 +28,7 @@ if [ "$2" == "directory"]; then
 	done
 fi
 
-if [ "$2" == "channel"]; then
+if [ "$2" == "channel" ]; then
 	#Loop through samples
 	for channel in $1*/
 	do
