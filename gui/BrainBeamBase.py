@@ -15,9 +15,9 @@ ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark
 class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
-        self.root.geometry("1200x1000+500+10")
+        self.root.geometry("900x800+500+100")
         self.root.overrideredirect(True)
-        self.close_button = ctk.CTkButton(self.root, text='X', width=1, font=('Arial bold',15), command=self.root.destroy).place(relx=0.95,rely=0.05,anchor=CENTER)
+        self.close_button = ctk.CTkButton(self.root, text='X', width=1, font=('Arial bold',15), command=self.root.destroy).place(relx=0.95,rely=0.03,anchor=CENTER)
         
         #Side Bar
         self.sidebar_frame = ctk.CTkFrame(self.root, width=200, height=1000, corner_radius=0)
@@ -36,9 +36,9 @@ class BrainBeamGuiBase():
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Apply Ilastik Segmentation",width =8,command=self.copydata).place(relx=0.95,rely=0.40,anchor='e')
         self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Apply Custom Script",width =8,command=self.copydata).place(relx=0.95,rely=0.45,anchor='e')
         
-        #
+        # Set up Tab page
         self.tabview = ctk.CTkTabview(self.root, width=500,height=700)
-        self.tabview.place(relx=0.55, rely=0.4, anchor=CENTER)
+        self.tabview.place(relx=0.6, rely=0.5, anchor=CENTER)
         self.tabview.add("Overview")
         self.tabview.add("Copy")
         self.tabview.add("Denoise")
@@ -51,11 +51,32 @@ class BrainBeamGuiBase():
         self.tabview.tab("Copy").grid_columnconfigure(0, weight=1)
 
 
-        #
+        
         # create textbox
-        self.textbox = ctk.CTkLabel(self.tabview.tab("Stitch"),text="dave is finished")
-        self.textbox.place(relx=0,rely=0.5)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Neuroglancer conversion"),text="View in Neuroglancer",command=self.openneuroglancer)
+        self.webbtn.place(relx=0.75,rely=0.1)
+        self.webbtn.configure(state=DISABLED)
 
+        self.set_up_custom_script()
+
+    def set_up_custom_script(self):
+        self.textbox = ctk.CTkTextbox(self.tabview.tab("Custom Script"), width=600,height=300)
+        self.textbox.insert("0.0", "Implementing Custom Python Scripts in BrainBeam:\n\n" + "To run a custom python script you will need the full path to the sample or directory of samples. \n\n" +
+                            "Please see our example python script (insert location here) in order to match our format. \n\n " +
+                            "An example use case is to apply a custom neural network for image segmentation \n\n" +
+                            "For each stitched sample, data will first be seperated into chunks as specified by you below. \n\n If left empty, the default chunk size is 500x500x500 pixels."+
+                            "Once seperated, your function \n\n will be applied to each chunk. Then, each chunk will be stitched back together.\n\n The modified stitched files will then be saved in the directory of your choosing. \n\n" +
+                            "For advanced use cases, please use our BrainBeam Command Line Interface (CLI)")
+        self.textbox.place(relx=0.02,rely=0.01)
+        self.optionmenu_1 = ctk.CTkOptionMenu(self.tabview.tab("Custom Script"), width=5,values=["Perform on Single Sample", "Perform on Batch of samples"])
+        self.optionmenu_1.place(relx=0.35,rely=0.51)
+        self.entry2 = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text="Full path to single sample's data or directory of samples. Please see our instructions for data org.")
+        self.entry2.place(relx=0.02,rely=0.61)
+        self.entry3 = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Full path to python script. Ex. C:\Users\mypython.py ")
+        self.entry3.place(relx=0.02,rely=0.71)
+        self.entry = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Set cubic volume size. Ex. '200' means stitched volume will be applied to 200x200x200 chunks.")
+        self.entry.place(relx=0.02,rely=0.81)
+        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Run Custom Script",width =8,state=DISABLED,command=self.copydata).place(relx=0.4,rely=0.91)
 
     def __call__(self):
         self.refresh_screen()
