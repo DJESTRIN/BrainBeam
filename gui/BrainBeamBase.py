@@ -184,6 +184,9 @@ class BrainBeamGuiBase():
         self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Decompressing",font=("Arial",15,'bold'),command=self.select_folder)
         self.webbtn.place(relx=0.82,rely=0.55)
 
+        #Check processes
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Check status of code",font=("Arial",15,'bold'),command=self.select_folder,state=DISABLED)
+        self.webbtn.place(relx=0.4,rely=0.75)
 
     def set_up_custom_script(self):
         self.textbox = ctk.CTkTextbox(self.tabview.tab("Custom Script"), width=600,height=300)
