@@ -5,20 +5,22 @@ The purpose of this script is to set up the basic classes and subsquent GUIs to 
 from tkinter import *
 import tkinter as tk
 import customtkinter as ctk
-import subprocess, os
+import subprocess, os, glob
 from threading import Thread
 import subprocess
 import webview 
 from PIL import Image
+from tkinter import filedialog
 
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
 class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
-        self.root.geometry("900x800+500+100")
-        self.root.overrideredirect(True)
-        self.close_button = ctk.CTkButton(self.root, text='Quit', width=1, font=('Arial bold',15), command=self.root.destroy).place(relx=0.95,rely=0.03,anchor=CENTER)
+        self.root.geometry("1250x800+500+100")
+        self.wd=os.getcwd()
+        #self.root.overrideredirect(True)
+        #self.close_button = ctk.CTkButton(self.root, text='Quit', width=1, font=('Arial bold',15), command=self.root.destroy).place(relx=0.95,rely=0.03,anchor=CENTER)
 
         #Side Bar
         self.sidebar_frame = ctk.CTkFrame(self.root, width=180, height=1000, corner_radius=0)
@@ -30,10 +32,10 @@ class BrainBeamGuiBase():
         self.set_up_radio_buttons()
         
         # Set up Tab page
-        self.tabview = ctk.CTkTabview(self.root, width=500,height=700)
-        self.tabview.place(relx=0.6, rely=0.5, anchor=CENTER)
+        self.tabview = ctk.CTkTabview(self.root, width=1000,height=770)
+        self.tabview.place(relx=0.57, rely=0.49, anchor=CENTER)
         self.tabview.add("Overview")
-        self.tabview.add("Copy/Move")
+        self.tabview.add("Copy, Move & Compress")
         self.tabview.add("Denoise")
         self.tabview.add("Stitch")
         self.tabview.add("Neuroglancer conversion")
@@ -45,15 +47,95 @@ class BrainBeamGuiBase():
         # create textbox
         self.webbtn = ctk.CTkButton(self.tabview.tab("Neuroglancer conversion"),text="View in Neuroglancer",command=self.openneuroglancer)
         self.webbtn.place(relx=0.75,rely=0.1)
-        self.webbtn.configure(state=DISABLED)
+        #self.webbtn.configure(state=DISABLED)
 
         self.set_up_custom_script()
         self.call_logo()
         self.set_up_overview()
+        self.set_up_copy()
 
     def set_up_overview(self):
         #Set log image
-        print('here')
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Open data",font=("Arial",15,'bold'),command=self.set_up_samples)
+        self.webbtn.place(relx=0.01,rely=0.01)
+
+    def set_up_samples(self):
+        directory=self.select_folder()
+        self.ystart=1
+        if os.path.exists(os.path.join(directory,'lightsheet')):
+            self.set_up_overview_headers()
+            datapath=directory+r"\lightsheet\raw\*"
+            self.samples=glob.glob(datapath)
+            for sample in self.samples:
+                samplename=os.path.basename(sample)
+                self.samplelabel=ctk.CTkLabel(self.overview_frame,text=samplename,font=('Arial',15,'bold')).grid(row=self.ystart, column=0, padx=5, pady=5)
+                self.set_up_overview_timeline()
+                self.ystart+=1
+
+        elif os.path.exists(os.path.join(directory,'Ex*')):
+            self.set_up_overview_headers()
+            sample=directory
+            samplename=os.path.basename(sample)
+            self.samplelabel=ctk.CTkLabel(self.overview_frame,text=samplename,font=('Arial',15,'bold')).grid(row=0, column=0, padx=5, pady=5)
+            self.ystart+=1
+
+        else:
+            self.throw_error('The selected folder does \n not fit our format :( \n Select a new folder or reformat current folder \n please see our wiki on github.com')
+
+    def set_up_overview_headers(self):
+        self.overview_frame = ctk.CTkFrame(self.tabview.tab("Overview"), corner_radius=0,width=350,height=500)
+        self.overview_frame.place(relx=0.01, rely=0.05)
+        self.overview_frame.grid_rowconfigure(10, weight=1)
+        self.overview_frame.grid_columnconfigure(22, weight=1)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Imported",font=('Arial',12,'bold')).grid(row=0, column=1, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Copied",font=('Arial',12,'bold')).grid(row=0, column=3, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Moved",font=('Arial',12,'bold')).grid(row=0, column=5, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Compressed",font=('Arial',12,'bold')).grid(row=0, column=7, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Converted",font=('Arial',12,'bold')).grid(row=0, column=9, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Denoised",font=('Arial',12,'bold')).grid(row=0, column=11, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Stitched",font=('Arial',12,'bold')).grid(row=0, column=13, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Precomputed",font=('Arial',12,'bold')).grid(row=0, column=15, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Registered",font=('Arial',12,'bold')).grid(row=0, column=17, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Segmented",font=('Arial',12,'bold')).grid(row=0, column=19, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Custom",font=('Arial',12,'bold')).grid(row=0, column=21, padx=5, pady=5)
+
+    def set_up_overview_timeline(self):
+        #Set log image
+        image_path = os.path.join(os.getcwd(), r"gui\images")
+        self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
+        self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
+        self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
+        self.pendingimg = ctk.CTkImage(Image.open(os.path.join(image_path,"pending.png")), size=(20, 20))
+        self.runningimg = ctk.CTkImage(Image.open(os.path.join(image_path,"running.png")), size=(20, 20))
+        #Set up overview frame
+        # self.navigation_frame = ctk.CTkFrame(self.root, corner_radius=0,width=180,height=95)
+        # self.navigation_frame.place(relx=0,rely=0.05)
+        # self.navigation_frame.grid_rowconfigure(4, weight=1)
+
+        for i in range(22):
+            if ( i % 2 ) == 0: 
+                if i==0 or i==22:
+                    continue
+                else:
+                    self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.nextstepimg).grid(row=self.ystart,column=i)
+            else:
+                self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.pendingimg).grid(row=self.ystart,column=i)
+        self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.completeimg).grid(row=self.ystart,column=1)
+
+    def select_folder(self):
+        return filedialog.askdirectory(initialdir=self.wd)
+ 
+    def throw_error(self,message):
+        self.error=ctk.CTk()
+        self.error.geometry("500x100")
+        self.errmessage=ctk.CTkLabel(self.error,text=message).pack()
+        self.error.mainloop()
+
+    def set_up_copy(self):
+        #Set up the copy/move tab
+        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Copy Data to Another Folder",font=("Arial",15,'bold')).place(relx=0.01,rely=0.01)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Copy Data",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn.place(relx=0.01,rely=0.05)
 
     def set_up_custom_script(self):
         self.textbox = ctk.CTkTextbox(self.tabview.tab("Custom Script"), width=600,height=300)
@@ -78,21 +160,19 @@ class BrainBeamGuiBase():
     def set_up_radio_buttons(self):
         # create radiobutton frame
         self.radio_var = tk.StringVar(value=0)
-        self.label_radio_group = ctk.CTkLabel(master=self.sidebar_frame, text="Set Analysis location:",font=('Arial',15,'bold'))
-        self.label_radio_group.place(relx=0.9,rely=0.3,anchor='e')
-        self.radio_button_1 = ctk.CTkRadioButton(master=self.sidebar_frame, text='Local Computer',font=('Arial',15,'bold'),variable=self.radio_var, value=0)
-        self.radio_button_1.place(relx=0.9,rely=0.33,anchor='e')
+        self.label_radio_group = ctk.CTkLabel(master=self.sidebar_frame, text="Analysis Location:",font=('Arial',17,'bold'))
+        self.label_radio_group.place(relx=0.9,rely=0.18,anchor='e')
+        self.radio_button_1 = ctk.CTkRadioButton(master=self.sidebar_frame, text='LOCAL',font=('Arial',15,'bold'),variable=self.radio_var, value=0)
+        self.radio_button_1.place(relx=0.68,rely=0.21,anchor='e')
         self.radio_button_2 = ctk.CTkRadioButton(master=self.sidebar_frame, text='SLURM HPC',font=('Arial',15,'bold'), variable=self.radio_var, value=1)
-        self.radio_button_2.place(relx=0.78,rely=0.36,anchor='e')
+        self.radio_button_2.place(relx=0.78,rely=0.24,anchor='e')
         self.radio_button_3 = ctk.CTkRadioButton(master=self.sidebar_frame,text='AWS',font=('Arial',15,'bold'),variable=self.radio_var, value=2)
-        self.radio_button_3.place(relx=0.68,rely=0.39,anchor='e')
+        self.radio_button_3.place(relx=0.68,rely=0.27,anchor='e')
     
     def call_logo(self):
         #Set log image
-        image_path = os.path.join(os.getcwd(), "gui")
-        image_path = os.path.join(image_path, "images")
+        image_path = os.path.join(self.wd, r"gui\images")
         image_path = os.path.join(image_path,"BBlogoV1.png")
-        print(image_path)
         self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
 
         self.navigation_frame = ctk.CTkFrame(self.root, corner_radius=0,width=180,height=95)
@@ -114,6 +194,7 @@ class BrainBeamGuiBase():
     def openneuroglancer(self):
         webview.create_window('BrainBeam', 'https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22type%22:%22new%22%2C%22source%22:%22%22%2C%22tab%22:%22source%22%2C%22name%22:%22new%20layer%22%7D%5D%2C%22selectedLayer%22:%7B%22visible%22:true%2C%22layer%22:%22new%20layer%22%7D%2C%22layout%22:%224panel%22%7D')
         webview.start()
+
 
 if __name__=='__main__':
     guioh=BrainBeamGuiBase()
