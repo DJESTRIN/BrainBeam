@@ -58,17 +58,20 @@ class BrainBeamGuiBase():
         #Set log image
         self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Create Project",font=("Arial",15,'bold'),command=self.set_up_samples)
         self.webbtn.place(relx=0.01,rely=0.01)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Open Project",font=("Arial",15,'bold'),command=self.set_up_samples)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Open Project",font=("Arial",15,'bold'),command=self.open_project)
         self.webbtn.place(relx=0.17,rely=0.01)
         self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Import New Data to Project",font=("Arial",15,'bold'),command=self.set_up_samples)
         self.webbtn.place(relx=0.33,rely=0.01)
+
+    def open_project(self):
+        json_file=filedialog.askopenfile(initialdir=self.wd,filetypes =[('Brain Beam Json Files', '*.json')])
 
     def set_up_samples(self):
         directory=self.select_folder()
         self.ystart=1
         if os.path.exists(os.path.join(directory,'lightsheet')):
             self.set_up_overview_headers()
-            datapath=directory+r"\lightsheet\raw\*"
+            datapath=os.path.join(directory,"\lightsheet\raw") +'\*'
             self.samples=glob.glob(datapath)
             for sample in self.samples:
                 samplename=os.path.basename(sample)
@@ -105,7 +108,7 @@ class BrainBeamGuiBase():
 
     def set_up_overview_timeline(self):
         #Set log image
-        image_path = os.path.join(os.getcwd(), r"gui\images")
+        image_path = os.path.join(os.getcwd(), "gui\images")
         self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
         self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
         self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
@@ -226,7 +229,7 @@ class BrainBeamGuiBase():
     
     def call_logo(self):
         #Set log image
-        image_path = os.path.join(self.wd, r"gui\images")
+        image_path = os.path.join(self.wd, "gui\images")
         image_path = os.path.join(image_path,"BBlogoV1.png")
         self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
 
