@@ -11,6 +11,8 @@ import subprocess
 import webview 
 from PIL import Image
 from tkinter import filedialog
+import ipdb
+import json
 
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
@@ -56,43 +58,144 @@ class BrainBeamGuiBase():
 
     def set_up_overview(self):
         #Set log image
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Create Project",font=("Arial",15,'bold'),command=self.set_up_samples)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Create Project",font=("Arial",15,'bold'),command=self.set_up_project)
         self.webbtn.place(relx=0.01,rely=0.01)
         self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Open Project",font=("Arial",15,'bold'),command=self.open_project)
         self.webbtn.place(relx=0.17,rely=0.01)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Import New Data to Project",font=("Arial",15,'bold'),command=self.set_up_samples)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Import New Data to Project",font=("Arial",15,'bold'),command=self.AddNewData)
         self.webbtn.place(relx=0.33,rely=0.01)
 
     def open_project(self):
-        json_file=filedialog.askopenfile(initialdir=self.wd,filetypes =[('Brain Beam Json Files', '*.json')])
+        self.projectfiledir=filedialog.askopenfilename(initialdir=self.wd,filetypes =[('json', '*.json')])
+        with open(self.projectfiledir, 'r') as openfile:
+            self.overviewdict = json.load(openfile)
+        self.updateoverview()
 
-    def set_up_samples(self):
-        directory=self.select_folder()
-        self.ystart=1
-        if os.path.exists(os.path.join(directory,'lightsheet')):
-            self.set_up_overview_headers()
-            datapath=os.path.join(directory,"\lightsheet\raw") +'\*'
+    def AddNewData(self):
+        try:
+            #Write json into a file
+            self.overviewdict=json.dumps(self.overviewdict,indent=4)
+            with open(self.projectfiledir, "w") as outfile:
+                outfile.write(self.overviewdict)
+        except AttributeError:
+            self.throw_error('Please open or create a project before adding new data')
+        self.updateoverview()
+
+    def set_up_project(self):
+        #Get Project file info from user
+        self.projectfiledir=filedialog.asksaveasfilename(title="Please save Project File",initialdir=self.wd,filetypes =[('json', '.json')])
+
+        #Set up project files
+        #Collect samples from path
+        directory=self.select_folder('Please select folder containing lightsheet data! Note, please see our wiki regarding dataformating') # get the directory 
+        if os.path.exists(os.path.join(directory,'lightsheet')): # If it is a folder containing samples
+            datapath=os.path.join(directory,"lightsheet")
+            datapath=os.path.join(datapath,"raw") +'\*'
             self.samples=glob.glob(datapath)
-            for sample in self.samples:
+            self.overviewdict={}
+            for i,sample in enumerate(self.samples):
                 samplename=os.path.basename(sample)
-                self.samplelabel=ctk.CTkLabel(self.overview_frame,text=samplename,font=('Arial',15,'bold')).grid(row=self.ystart, column=0, padx=5, pady=5)
-                self.set_up_overview_timeline()
-                self.ystart+=1
-
-        elif os.path.exists(os.path.join(directory,'Ex*')):
-            self.set_up_overview_headers()
-            sample=directory
-            samplename=os.path.basename(sample)
-            self.samplelabel=ctk.CTkLabel(self.overview_frame,text=samplename,font=('Arial',15,'bold')).grid(row=0, column=0, padx=5, pady=5)
-            self.ystart+=1
-
-        else:
+                foldername = os.path.basename(directory)    # Get directory name
+                dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
+                         'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
+                self.overviewdict[i]=dict_oh
+        elif os.path.exists(os.path.join(directory,'Ex*')): #When selecting a simple folder for with one sample
+            samplename=os.path.basename(directory)
+            foldername=None
+            dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
+                         'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
+        else: #Input folder does not fit our format
             self.throw_error('The selected folder does \n not fit our format :( \n Select a new folder or reformat current folder \n please see our wiki on github.com')
+        
+        # Save json dictionary for project to a file. 
+        try:
+            #Write json into a file
+            self.overviewdict=json.dumps(self.overviewdict,indent=4)
+            with open(self.projectfiledir+'.json', "w") as outfile:
+                outfile.write(self.overviewdict)
+            
+            with open(self.projectfiledir+'.json', 'r') as openfile:
+                self.overviewdict = json.load(openfile)
+        except AttributeError:
+            self.throw_error('The Project file was not created')
+        
+        self.updateoverview()
+        
+    def updateoverview(self):
+        self.set_up_overview_headers()
+
+        #Set up gui images path
+        image_path = os.path.join(self.wd, "gui\images")
+        self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
+        self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
+        self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
+        self.pendingimg = ctk.CTkImage(Image.open(os.path.join(image_path,"pending.png")), size=(20, 20))
+        self.runningimg = ctk.CTkImage(Image.open(os.path.join(image_path,"running.png")), size=(20, 20))
+
+        # Destroy previously made images if any
+        try:
+            for label in self.all_overview_images:
+                label.destroy() 
+        except AttributeError:
+            self.all_overview_images=[]
+
+        row_oh=1
+        for sample in self.overviewdict:
+            dict_oh=self.overviewdict[sample]
+            for key,value in dict_oh.items():
+                #Determine value of the key
+                if value=='pending':
+                    image_oh=self.pendingimg
+                elif value=='complete':
+                    image_oh=self.completeimg
+                elif value=='error':
+                    image_oh=self.errorimg
+                elif value=='running':
+                    image_oh=self.runningimg
+
+                #generate image
+                if key=='Imported':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=1)
+                if key=='Copied':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=3)
+                if key=='Moved':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=5)
+                if key=='Compressed':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=7)
+                if key=='Converted':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=9)
+                if key=='Denoise':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=11)
+                if key=='Stitch':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=13)
+                if key=='Neuroglancer conversion':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=15)
+                if key=='Registration':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=17)
+                if key=='Segmentation':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=19)
+                if key=='Custom Script':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=21)
+
+                #Put labels in a common list
+                try:
+                    self.all_overview_images.append(label)
+                except:
+                    continue
+            row_oh+=1
+
+        for row_oh in range(len(self.overviewdict)):
+            for i in range(22):
+                if ( i % 2 ) == 0: 
+                    if i==0 or i==22:
+                        continue
+                    self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.nextstepimg).grid(row=row_oh+1,column=i)
+     
 
     def set_up_overview_headers(self):
         self.overview_frame = ctk.CTkFrame(self.tabview.tab("Overview"), corner_radius=0,width=350,height=500)
         self.overview_frame.place(relx=0.01, rely=0.05)
-        self.overview_frame.grid_rowconfigure(10, weight=1)
+        self.overview_frame.grid_rowconfigure(len(self.overviewdict)+2, weight=1)
         self.overview_frame.grid_columnconfigure(22, weight=1)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Imported",font=('Arial',12,'bold')).grid(row=0, column=1, padx=5, pady=5)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Copied",font=('Arial',12,'bold')).grid(row=0, column=3, padx=5, pady=5)
@@ -106,31 +209,8 @@ class BrainBeamGuiBase():
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Segmented",font=('Arial',12,'bold')).grid(row=0, column=19, padx=5, pady=5)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Custom",font=('Arial',12,'bold')).grid(row=0, column=21, padx=5, pady=5)
 
-    def set_up_overview_timeline(self):
-        #Set log image
-        image_path = os.path.join(os.getcwd(), "gui\images")
-        self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
-        self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
-        self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
-        self.pendingimg = ctk.CTkImage(Image.open(os.path.join(image_path,"pending.png")), size=(20, 20))
-        self.runningimg = ctk.CTkImage(Image.open(os.path.join(image_path,"running.png")), size=(20, 20))
-        #Set up overview frame
-        # self.navigation_frame = ctk.CTkFrame(self.root, corner_radius=0,width=180,height=95)
-        # self.navigation_frame.place(relx=0,rely=0.05)
-        # self.navigation_frame.grid_rowconfigure(4, weight=1)
-
-        for i in range(22):
-            if ( i % 2 ) == 0: 
-                if i==0 or i==22:
-                    continue
-                else:
-                    self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.nextstepimg).grid(row=self.ystart,column=i)
-            else:
-                self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.pendingimg).grid(row=self.ystart,column=i)
-        self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.completeimg).grid(row=self.ystart,column=1)
-
-    def select_folder(self):
-        return filedialog.askdirectory(initialdir=self.wd)
+    def select_folder(self,label='Open Folder'):
+        return filedialog.askdirectory(title=label,initialdir=self.wd)
  
     def throw_error(self,message):
         self.error=ctk.CTk()
