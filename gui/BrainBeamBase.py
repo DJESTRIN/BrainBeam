@@ -21,6 +21,7 @@ class BrainBeamGuiBase():
         self.root=ctk.CTk()
         self.root.geometry("1250x800+500+100")
         self.wd=os.getcwd()
+        self.index=0
         #self.root.overrideredirect(True)
         #self.close_button = ctk.CTkButton(self.root, text='Quit', width=1, font=('Arial bold',15), command=self.root.destroy).place(relx=0.95,rely=0.03,anchor=CENTER)
 
@@ -66,44 +67,58 @@ class BrainBeamGuiBase():
         self.webbtn.place(relx=0.33,rely=0.01)
 
     def open_project(self):
+        # Open a Brain Beam JSON project file
         self.projectfiledir=filedialog.askopenfilename(initialdir=self.wd,filetypes =[('json', '*.json')])
         with open(self.projectfiledir, 'r') as openfile:
             self.overviewdict = json.load(openfile)
+            self.index=len(self.overviewdict)
+
         self.updateoverview()
 
     def AddNewData(self):
-        try:
-            #Write json into a file
-            self.overviewdict=json.dumps(self.overviewdict,indent=4)
-            with open(self.projectfiledir, "w") as outfile:
-                outfile.write(self.overviewdict)
+        # Add New data to a currently opened project
+        try: #Open new directory with new data
+            if len(self.overviewdict)>0:
+                directory=self.select_folder('Please select folder containing NEW lightsheet data! Note, please see our wiki regarding data formating')
+                self.add_folders_to_dict(directory)
+                self.updateoverview() 
+
         except AttributeError:
             self.throw_error('Please open or create a project before adding new data')
-        self.updateoverview()
 
     def set_up_project(self):
         #Get Project file info from user
         self.projectfiledir=filedialog.asksaveasfilename(title="Please save Project File",initialdir=self.wd,filetypes =[('json', '.json')])
 
-        #Set up project files
-        #Collect samples from path
-        directory=self.select_folder('Please select folder containing lightsheet data! Note, please see our wiki regarding dataformating') # get the directory 
+        #Open folder containing the new data
+        directory=self.select_folder('Please select folder containing lightsheet data! Note, please see our wiki regarding dataformating') # get the directory
+        self.add_folders_to_dict(directory)
+        self.updateoverview()
+    
+    def add_folders_to_dict(self,directory):
+        if self.index==0:
+            self.overviewdict={}
         if os.path.exists(os.path.join(directory,'lightsheet')): # If it is a folder containing samples
+            # Search for samples in folder
             datapath=os.path.join(directory,"lightsheet")
             datapath=os.path.join(datapath,"raw") +'\*'
             self.samples=glob.glob(datapath)
-            self.overviewdict={}
+
+            #Loop through folder and add new sample data
             for i,sample in enumerate(self.samples):
                 samplename=os.path.basename(sample)
                 foldername = os.path.basename(directory)    # Get directory name
                 dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
                          'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
-                self.overviewdict[i]=dict_oh
+                self.overviewdict[self.index]=dict_oh
+                self.index+=1
         elif os.path.exists(os.path.join(directory,'Ex*')): #When selecting a simple folder for with one sample
             samplename=os.path.basename(directory)
             foldername=None
             dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
                          'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
+            self.overviewdict[self.index]=dict_oh
+            self.index+=1
         else: #Input folder does not fit our format
             self.throw_error('The selected folder does \n not fit our format :( \n Select a new folder or reformat current folder \n please see our wiki on github.com')
         
@@ -118,8 +133,6 @@ class BrainBeamGuiBase():
                 self.overviewdict = json.load(openfile)
         except AttributeError:
             self.throw_error('The Project file was not created')
-        
-        self.updateoverview()
         
     def updateoverview(self):
         self.set_up_overview_headers()
