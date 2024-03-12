@@ -154,28 +154,30 @@ class BrainBeamGuiBase():
                     image_oh=self.runningimg
 
                 #generate image
+                if key=='samplename':
+                    label=ctk.CTkLabel(self.overview_frame, text=value, font=('Arial',10,'bold')).grid(row=row_oh,column=1)
                 if key=='Imported':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=1)
-                if key=='Copied':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=3)
-                if key=='Moved':
+                if key=='Copied':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=5)
-                if key=='Compressed':
+                if key=='Moved':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=7)
-                if key=='Converted':
+                if key=='Compressed':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=9)
-                if key=='Denoise':
+                if key=='Converted':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=11)
-                if key=='Stitch':
+                if key=='Denoise':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=13)
-                if key=='Neuroglancer conversion':
+                if key=='Stitch':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=15)
-                if key=='Registration':
+                if key=='Neuroglancer conversion':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=17)
-                if key=='Segmentation':
+                if key=='Registration':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=19)
-                if key=='Custom Script':
+                if key=='Segmentation':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=21)
+                if key=='Custom Script':
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=23)
 
                 #Put labels in a common list
                 try:
@@ -185,9 +187,9 @@ class BrainBeamGuiBase():
             row_oh+=1
 
         for row_oh in range(len(self.overviewdict)):
-            for i in range(22):
+            for i in range(23):
                 if ( i % 2 ) == 0: 
-                    if i==0 or i==22:
+                    if i==0 or i==2:
                         continue
                     self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.nextstepimg).grid(row=row_oh+1,column=i)
      
@@ -196,18 +198,18 @@ class BrainBeamGuiBase():
         self.overview_frame = ctk.CTkFrame(self.tabview.tab("Overview"), corner_radius=0,width=350,height=500)
         self.overview_frame.place(relx=0.01, rely=0.05)
         self.overview_frame.grid_rowconfigure(len(self.overviewdict)+2, weight=1)
-        self.overview_frame.grid_columnconfigure(22, weight=1)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Imported",font=('Arial',12,'bold')).grid(row=0, column=1, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Copied",font=('Arial',12,'bold')).grid(row=0, column=3, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Moved",font=('Arial',12,'bold')).grid(row=0, column=5, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Compressed",font=('Arial',12,'bold')).grid(row=0, column=7, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Converted",font=('Arial',12,'bold')).grid(row=0, column=9, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Denoised",font=('Arial',12,'bold')).grid(row=0, column=11, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Stitched",font=('Arial',12,'bold')).grid(row=0, column=13, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Precomputed",font=('Arial',12,'bold')).grid(row=0, column=15, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Registered",font=('Arial',12,'bold')).grid(row=0, column=17, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Segmented",font=('Arial',12,'bold')).grid(row=0, column=19, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Custom",font=('Arial',12,'bold')).grid(row=0, column=21, padx=5, pady=5)
+        self.overview_frame.grid_columnconfigure(23, weight=1)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Imported",font=('Arial',12,'bold')).grid(row=0, column=3, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Copied",font=('Arial',12,'bold')).grid(row=0, column=5, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Moved",font=('Arial',12,'bold')).grid(row=0, column=7, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Compressed",font=('Arial',12,'bold')).grid(row=0, column=9, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Converted",font=('Arial',12,'bold')).grid(row=0, column=11, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Denoised",font=('Arial',12,'bold')).grid(row=0, column=13, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Stitched",font=('Arial',12,'bold')).grid(row=0, column=15, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Precomputed",font=('Arial',12,'bold')).grid(row=0, column=17, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Registered",font=('Arial',12,'bold')).grid(row=0, column=19, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Segmented",font=('Arial',12,'bold')).grid(row=0, column=21, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Custom",font=('Arial',12,'bold')).grid(row=0, column=23, padx=5, pady=5)
 
     def select_folder(self,label='Open Folder'):
         return filedialog.askdirectory(title=label,initialdir=self.wd)
