@@ -19,7 +19,7 @@ ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark
 class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
-        self.root.geometry("1250x800+500+100")
+        self.root.geometry("1250x900+500+100")
         self.wd=os.getcwd()
         self.index=0
         #self.root.overrideredirect(True)
@@ -35,7 +35,7 @@ class BrainBeamGuiBase():
         self.set_up_radio_buttons()
         
         # Set up Tab page
-        self.tabview = ctk.CTkTabview(self.root, width=1000,height=770)
+        self.tabview = ctk.CTkTabview(self.root, width=1000,height=800)
         self.tabview.place(relx=0.57, rely=0.49, anchor=CENTER)
         self.tabview.add("Overview")
         self.tabview.add("Copy, Move & Compress")
@@ -101,7 +101,7 @@ class BrainBeamGuiBase():
         if os.path.exists(os.path.join(directory,'lightsheet')): # If it is a folder containing samples
             # Search for samples in folder
             datapath=os.path.join(directory,"lightsheet")
-            datapath=os.path.join(datapath,"raw") +'\*'
+            datapath=os.path.join(datapath,"raw") +'/*'
             self.samples=glob.glob(datapath)
 
             #Loop through folder and add new sample data
@@ -324,7 +324,7 @@ class BrainBeamGuiBase():
     
     def call_logo(self):
         #Set log image
-        image_path = os.path.join(self.wd, "gui\images")
+        image_path = os.path.join(self.wd, "gui/images")
         image_path = os.path.join(image_path,"BBlogoV1.png")
         self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
 
