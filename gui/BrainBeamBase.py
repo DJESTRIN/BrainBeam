@@ -17,14 +17,23 @@ ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark
 class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
-        self.root.geometry("1250x800+500+100")
+
+        # trials
+        # x = (self.root.winfo_screenwidth() / 2)
+        # y = (self.root.winfo_screenheight() / 2)
+        # self.root.geometry(f'{x}x{y}')
+        # self.root.resizable(True, True)
+
+        # self.root.geometry("1250x800+500+100")
+
         self.wd=os.getcwd()
         #self.root.overrideredirect(True)
         #self.close_button = ctk.CTkButton(self.root, text='Quit', width=1, font=('Arial bold',15), command=self.root.destroy).place(relx=0.95,rely=0.03,anchor=CENTER)
 
         #Side Bar
         self.sidebar_frame = ctk.CTkFrame(self.root, width=180, height=1000, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
+        self.sidebar_frame.place(relx=0.00, rely=0.49, anchor=W)
+        self.sidebar_frame.grid(row=0, column=0, pady=3, rowspan=4, sticky="w")
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
         #self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Start by Adding \n Lightsheet Data", width = 20,font=('Arial',15,'bold'),command=self.copydata).place(relx=0.85,rely=0.25,anchor='e')
     
@@ -34,6 +43,8 @@ class BrainBeamGuiBase():
         # Set up Tab page
         self.tabview = ctk.CTkTabview(self.root, width=1000,height=770)
         self.tabview.place(relx=0.57, rely=0.49, anchor=CENTER)
+        self.tabview.grid(row=0, column=3, sticky="n")
+
         self.tabview.add("Overview")
         self.tabview.add("Copy, Move & Compress")
         self.tabview.add("Denoise")
@@ -42,7 +53,7 @@ class BrainBeamGuiBase():
         self.tabview.add("Registration")
         self.tabview.add("Segmentation")
         self.tabview.add("Custom Script")
-        self.tabview.tab("Overview").grid_columnconfigure(0, weight=1)  # configure grid of individual tabs
+        self.tabview.tab("Overview").grid_columnconfigure(10, weight=1)  # configure grid of individual tabs
 
         # create textbox
         self.webbtn = ctk.CTkButton(self.tabview.tab("Neuroglancer conversion"),text="View in Neuroglancer",command=self.openneuroglancer)
@@ -71,7 +82,7 @@ class BrainBeamGuiBase():
         self.ystart=1
         if os.path.exists(os.path.join(directory,'lightsheet')):
             self.set_up_overview_headers()
-            datapath=os.path.join(directory,"\lightsheet\raw") +'\*'
+            datapath=os.path.join(directory,"/lightsheet/raw") +'\*'
             self.samples=glob.glob(datapath)
             for sample in self.samples:
                 samplename=os.path.basename(sample)
@@ -108,7 +119,7 @@ class BrainBeamGuiBase():
 
     def set_up_overview_timeline(self):
         #Set log image
-        image_path = os.path.join(os.getcwd(), "gui\images")
+        image_path = os.path.join(os.getcwd(), "gui/images")
         self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
         self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
         self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
@@ -229,7 +240,7 @@ class BrainBeamGuiBase():
     
     def call_logo(self):
         #Set log image
-        image_path = os.path.join(self.wd, "gui\images")
+        image_path = os.path.join(self.wd, "gui/images")
         image_path = os.path.join(image_path,"BBlogoV1.png")
         self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
 
