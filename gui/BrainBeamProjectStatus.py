@@ -58,10 +58,20 @@ class ProjectStatus():
         console=Console()
         console.print(table)
 
+class jobstatus():
+    def __init__(self,*argv):
+        self.files=argv
+        for f in self.files:
+            out_file = open(f)
+            lines = out_file.readlines()
+            ipdb.set_trace()
+            out_file.close()
+
 
 if __name__=='__main__':
     exproj=r"C:\\Users\\listo\\test1.json"
     projoh = ProjectStatus(exproj)
     projoh()
+    jobstatus(r"C:\\Users\\listo\\BrainBeam\\gui\\slurm-123106.out")
 
 

@@ -5,72 +5,71 @@ create projects
 from syglass import pyglass
 import syglass as sy
 import time
-import os
+import os,glob
+import argparse
+import ipdb
 
-#example="F:\\rabies_experiment_restain_training\\20221104_10_02_32_CAGE4094795_ANIMAL1_VIRUSRABIES_CORTEXPERIMENTAL\\Ex_647_Em_6800_syglass\\"
-#first_image="F:\\rabies_experiment_restain_training\\20221104_10_02_32_CAGE4094795_ANIMAL1_VIRUSRABIES_CORTEXPERIMENTAL\\Ex_647_Em_6800\\453180_450330_051960.tiff"
+class generate_syglass():
+    def __init__(self,path,outpath):
+        self.path=path
+        self.outpath=outpath
 
-def create_syglass_file(output_dir,output_name,first_image_dir):
-    # create a project by specifing a path and the name of the project to be created. In this case, we'll call the project autoGenProject.
-    project = pyglass.CreateProject(pyglass.path(output_dir), output_name)
-    
-    # create a DirectoryDescriptor to search a folder for TIFFs that match a pattern
-    dd = pyglass.DirectoryDescription()
-    
-    # show the directoryDescriptor the first image of the set, and it will create a file list of matching slices
-    dd.InspectByReferenceFile(first_image_dir)
-    
-    # create a DataProvider to the dataProvider the file list
-    dataProvider = pyglass.OpenTIFFs(dd.GetFileList(), False)
-    
-    # indicate which channels to include; in this case, all channels from the file
-    includedChannels = pyglass.IntList(range(dataProvider.GetChannelsCount()))
-    dataProvider.SetIncludedChannels(includedChannels)
-    
-    # spawn a ConversionDriver to convert the data
-    cd = pyglass.ConversionDriver()
-    
-    # set the ConversionDriver input to the data provider
-    cd.SetInput(dataProvider)
-    
-    # set the ConversionDriver output to the project previously created
-    cd.SetOutput(project)
-    
-    # start the job!
-    cd.StartAsynchronous()
-    
-    # report progress
-    while cd.GetPercentage() != 100:
-            print(cd.GetPercentage())
-            time.sleep(1)
-    print("Finished!")
-    
-Parent_dir="F:\\rabies_experiment_restain_training\\"
-for root,dirs,files in os.walk(Parent_dir):
-    if "syglass" in root:
-        continue
-    
-    if "Ex" in root:        
-        #generate project name
-        _,_,animalname,basename=root.split("\\")
-        finalname=animalname+basename+"syglass"
-        
-        #generate output_dir
-        output=root+animalname+basename+"syglass"
-        
-        for file in files:
-            first_file = root+ "\\" + file
-            break
-        print(output)
-        print(basename)
-        print(first_file)
-        if os.path.exists(output):
-            print("project already created")
-        else:
-            create_syglass_file(output,finalname,first_file)
-        
-#example="F:\\rabies_experiment_restain_training\\20221104_10_02_32_CAGE4094795_ANIMAL1_VIRUSRABIES_CORTEXPERIMENTAL\\Ex_647_Em_6805syglass\\Ex_647_Em_6805syglass\\Ex_647_Em_6805syglass.syg"
-#project = sy.get_project(example)
-# load the multi tracking points into a dict
-#pts = project.get_counting_points()
+    def __call__(self):
+        self.search_for_channels()
+        self.set_filename()
+        self.get_first_image()
+        self.create_syg_file()
 
+    def search_for_channels(self):
+        search_string=os.path.join(self.path,'**/Ex*')
+        self.channels = glob.glob(search_string,recursive=True)
+
+        #Parse out previously made syglass files
+        temp=[]
+        for channel in self.channels:
+            if 'syglass' not in channel:
+                temp.append(channel)
+        self.channels=temp
+    
+    def set_filename(self):
+        self.filenames=[]
+        for channel in self.channels:
+            chnloh = os.path.basename(channel)
+            chnldir = os.path.dirname(channel)
+            anoh = os.path.basename(chnldir)
+            filename = f'{anoh}{chnloh}syglass'
+            self.filenames.append(filename)
+        ipdb.set_trace()
+
+    def get_first_image(self):
+        self.first_images=[]
+        for channel in self.channels:
+            search_string=os.path.join(channel,'/*.tif*')
+            images=glob.glob(search_string)
+            self.first_images.append(images[0])
+
+    def create_syg_file(self):
+        for j,channel in enumerate(self.channels):
+            ipdb.set_trace()
+            project = pyglass.CreateProject(pyglass.path(self.outpath), self.filenames[j])
+            dd = pyglass.DirectoryDescription()
+            dd.InspectByReferenceFile(self.first_images[j])
+            dataProvider = pyglass.OpenTIFFs(dd.GetFileList(), False)
+            includedChannels = pyglass.IntList(range(dataProvider.GetChannelsCount()))
+            dataProvider.SetIncludedChannels(includedChannels)
+            cd = pyglass.ConversionDriver()
+            cd.SetInput(dataProvider)
+            cd.SetOutput(project)
+            cd.StartAsynchronous()
+            while cd.GetPercentage() != 100:
+                    print(cd.GetPercentage())
+                    time.sleep(1)
+            print(f'Finished with channel named:\n {self.filenames[j]}')
+
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--batch_folder",type=str)
+    parser.add_argument("--syglass_drop",type=str,required=True)
+    args=parser.parse_args()
+    generate_syglass(args.sample_folder,args.syglass_drop) 
