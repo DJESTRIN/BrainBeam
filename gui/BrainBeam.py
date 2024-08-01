@@ -2,7 +2,7 @@
 The primary script for running the BrainBeam pipeline 
 """
 from BrainBeamBase import BrainBeamGuiBase
-from BrainBeamAPI import API
+from gui.BrainBeamCLI import API
 import argparse
 
 

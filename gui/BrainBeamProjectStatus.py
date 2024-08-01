@@ -75,3 +75,4 @@ if __name__=='__main__':
     jobstatus(r"C:\\Users\\listo\\BrainBeam\\gui\\slurm-123106.out")
 
 
+
