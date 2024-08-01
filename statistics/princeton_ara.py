@@ -5,15 +5,6 @@
 import graphviz, json
 import tifffile
 
-#atlas_annotation_file = '/Volumes/LightSheetTransfer/atlas/allen_atlas/annotation_template_25_sagittal_forDVscans.tif'
-atlas_json_file = '/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json'
-
-with open(atlas_json_file,'r') as infile:
-    ontology_dict = json.load(infile)
-    
-#atlas_vol = tifffile.imread(atlas_annotation_file)
-#segments = np.unique(atlas_vol)
-
 class Node():
     """ The elements in the graph """
     def __init__(self,name,ID):
@@ -207,7 +198,11 @@ class Graph():
         for child in self.graph[nodename].children:
             self.html_helper(child.name,)
         return
-    
-d=Graph(ontology_dict)
-kids=d.get_progeny(nodename='Thalamus')
-id_oh=d.get_id(nodename='Thalamus')
+
+if __name__=='__main__':
+    atlas_json_file = '/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json'
+    with open(atlas_json_file,'r') as infile:
+        ontology_dict = json.load(infile)
+    d=Graph(ontology_dict)
+    kids=d.get_progeny(nodename='Thalamus')
+    id_oh=d.get_id(nodename='Thalamus')
