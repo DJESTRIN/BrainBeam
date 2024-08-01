@@ -5,7 +5,7 @@ library(nlme)
 library(tidyr)
 
 #Load in dataframe
-df <- read.csv("/athena/listonlab/scratch/dje4001/pseudorabies_dataset")
+df <- read.csv("C:/Users/listo/rabies_cort_cohort2_dataset.csv")
 
 #Revised dataframe
 df<-df[df$lv1!=df$location,]
@@ -17,16 +17,43 @@ df$treatment<-as.factor(df$treatment)
 levels(df$treatment)<-c("Vehicle","ChronicCORT") #rename levels
 df_total_cells<-aggregate(n~uid,data=df,FUN="sum") #Generate total number of cells per brain for normalization
 colnames(df_total_cells)[2]<-"total_cells"
-df_aggregated<-aggregate(n~uid+treatment+lv8+lv4,data=df,FUN="sum")
+df_aggregated<-aggregate(n~uid+treatment+lv7,data=df,FUN="sum")
 df_aggregated<-df_aggregated[!(df_aggregated$n<=1),]#Threshold regions with only 1 cell in them
 df_aggregated<-merge(df_aggregated,df_total_cells,by="uid")
 df_aggregated$uid<-as.factor(df_aggregated$uid)
-df_aggregated$lv8<-as.factor(df_aggregated$lv8)
+df_aggregated$lv7<-as.factor(df_aggregated$lv7)
 df_aggregated$normalized_cell_count<-df_aggregated$n/df_aggregated$total_cells #Normalize by the total number of cells
 
+# Distribution of normalized cell count
+df_aggregated$transformed_normalized_cell_count<-log10(df_aggregated$normalized_cell_count)
+p<-ggplot(data=df_aggregated,aes(x=transformed_normalized_cell_count,group=treatment,color=treatment,fill=treatment))+
+  geom_density(alpha=0.5)
+print(p)
+
+# Run lmer on transformed data
+library(lmerTest)
+lmm <- lmer(data=df_aggregated,transformed_normalized_cell_count~treatment*lv7+(1|uid))
+qqline(residuals(lmm))
+plot(density(residuals(lmm)))
+summary(lmm)
+anova(lmm)
+
+library(emmeans)
+output<-emmeans(lmm, list(  ~ treatment))
+
+res <- resid(lmm) 
+plot(fitted(lmm), res) 
+abline(0,0) 
+
+# plot treatment data
+p<-ggplot(data=df_aggregated,aes(x=treatment,y=transformed_normalized_cell_count,fill=treatment)) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))
+print(p)
+
+
 # graph average +/- sem
-g1<-aggregate(normalized_cell_count~lv8+treatment+lv4,FUN="mean",data=df_aggregated)
-ge<-aggregate(normalized_cell_count~lv8+treatment+lv4,FUN=st.err,data=df_aggregated)
+g1<-aggregate(normalized_cell_count~lv7+treatment+lv4,FUN="mean",data=df_aggregated)
+ge<-aggregate(normalized_cell_count~lv7+treatment+lv4,FUN=st.err,data=df_aggregated)
 g1$error<-ge$normalized_cell_count
 g1<-g1[!is.na(g1$error),]
 
@@ -42,7 +69,7 @@ p<-ggplot(data=g1,aes(x=normalized_cell_count,y=lv8,group=treatment,fill=treatme
   scale_fill_manual(values=c("red", "blue", "white"))+
   facet_wrap(.~lv4,scales="free")
 print(p)
-ggsave("/athena/listonlab/scratch/dje4001/normalized_cell_allregions.pdf",width=20,height=49.9999,dpi=100)
+ggsave("C:/Users/listo/normalized_cell_allregions.pdf",width=20,height=49.9999,dpi=100)
 
 # Box plot and jitter
 p<-ggplot(data=df_aggregated,aes(x=normalized_cell_count,y=location,fill=treatment,color=treatment))+
@@ -61,7 +88,7 @@ ggsave("/athena/listonlab/scratch/dje4001/normalized_cell_allregions_boxplots.pd
 df_temp<-df_aggregated[,-4:-5]
 dfwide_region<-spread(df_temp,lv8,normalized_cell_count)
 dfwide_region[is.na(dfwide_region)]<-0
-write.csv(dfwide_region,"/athena/listonlab/scratch/dje4001/dfwide_region.csv",row.names=FALSE)
+write.csv(dfwide_region,"C:/Users/listo/dfwide_region.csv",row.names=FALSE)
 df_av<-aggregate(normalized_cell_count~treatment+lv8,data=df_aggregated,FUN="mean")
 dfwide<-spread(df_av,treatment,normalized_cell_count)
 

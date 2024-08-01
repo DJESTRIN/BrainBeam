@@ -10,7 +10,7 @@ from skimage.io import imread, imsave
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
-from statistics.princeton_ara import *
+from princeton_ara import *
 import pandas as pd
 import os
 
