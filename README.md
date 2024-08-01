@@ -1,10 +1,19 @@
-# lightsheet_cluster
-Written by David James Estrin. If using this code, please kindly cite (Estrin et al., 2024 unpublished). This repository was written to analyze light sheet data on a SLURM based high performance cluster. Pieces of this pipeline originate from other code repositories which have been cited accordingly below.
+<h1> <b> 🔦 BrainBeam 🔦 </b> </h1> 
+A generalized open-source pipeline for analyzing light sheet brain tissue. 
 
-The pipeline consists of the following steps: 
-(1) Moving the data to a scratch drive
-(2) Denoising/destriping the data via Pystripe (https://github.com/chunglabmit/pystripe)
-(3) Stitching the data via terastitcher (https://github.com/abria/TeraStitcher)
-(4) Registering images to allen brain atlas (https://github.com/neurodata/CloudReg)
-(5) Segmenting pixels and counting cells (cells, axons, etc) (loosely based on brainlit: https://github.com/neurodata/brainlit  using ilastik: https://github.com/ilastik/ilastik). 
-(6) calculating the number of counts per region, generating statistics and relevant pictures. 
+<h2> <b> ⚠️ Warning: This code is still under development. ⚠️ </b> </h2>
+Please kindly ignore any issues with code as well as any missing citations to others code. 
+
+<h2> <b> References </b></h2>
+Portions of this library were inspired by:
+
+- CloudReg
+- ClearMapCluster
+
+<h2> <b> Contributions and citation </b> </h2>
+Code: David James Estrin 
+Data: David James Estrin, Christine Kuang
+
+If using code or portions of code, please kindly cite as Estrin et al., 2025 unpublished.
+
+
