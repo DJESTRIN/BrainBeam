@@ -6,7 +6,7 @@ import graphviz, json
 import tifffile
 
 #atlas_annotation_file = '/Volumes/LightSheetTransfer/atlas/allen_atlas/annotation_template_25_sagittal_forDVscans.tif'
-atlas_json_file = '/home/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json'
+atlas_json_file = '/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json'
 
 with open(atlas_json_file,'r') as infile:
     ontology_dict = json.load(infile)
