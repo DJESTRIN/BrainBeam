@@ -5,7 +5,7 @@ A generalized open-source pipeline for analyzing light sheet brain tissue.
 Please kindly ignore any issues with code as well as any missing citations to others code. 
  <h2> <b> BrainBeam's Guided User Interface </b></h2>
  
-![alt text](https://github.com/DJESTRIN/BrainBeam/tree/lightsheet_cluster/gui_images/gui_08022024.jpg?raw=True)
+![https://github.com/DJESTRIN/BrainBeam/tree/lightsheet_cluster/gui_images/gui_08022024.png?raw=True](https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/gui_images/gui_08022024.png)
 
 <h2> <b> References </b></h2>
 Portions of this library were inspired by:
