@@ -64,6 +64,17 @@ class Graph():
         self.get_progeny_helper_atlasid(nodename,id_list)
         return progeny_list, id_list
     
+    def get_progeny_one(self,nodename):
+        """ 
+        ---PURPOSE---
+        Return a list of all progeny (aka descendents) of the the given nodename
+        ---INPUT---
+        nodename     The parent node whose descendents to retrieve
+        """
+        progeny_list = []
+        self.get_progeny_helper(nodename,progeny_list)
+        return progeny_list
+
     def get_id(self,nodename):
         node=self.graph[nodename]
         return node.ID

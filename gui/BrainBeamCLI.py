@@ -24,36 +24,36 @@ class DigestData():
     def show_progress(self):
 
 
-class CLI(DigestData):
-    def copy(self):
+# class CLI(DigestData):
+#     def copy(self):
 
-    def move(self):
+#     def move(self):
 
-    def compress(self):
+#     def compress(self):
 
-    def decompress(self):
+#     def decompress(self):
 
-    def convert(self):
+#     def convert(self):
 
-    def denoise(self):
+#     def denoise(self):
 
-    def stitch(self):
-        if self.dirflag=='batch':
-            coh=f'bash {self.wd}/stitch/stitch_spinup.sh {self.wd} {}'
+#     def stitch(self):
+#         if self.dirflag=='batch':
+#             coh=f'bash {self.wd}/stitch/stitch_spinup.sh {self.wd} {}'
 
-    def neuroglancer(self):
+#     def neuroglancer(self):
 
-    def serve_to_neuroglancer(self):
+#     def serve_to_neuroglancer(self):
 
-    def register(self):
+#     def register(self):
 
-    def segmentation(self):
+#     def segmentation(self):
 
-    def count(self):
+#     def count(self):
 
-    def custom(self):
-
-
+#     def custom(self):
 
 
-if __name__=='__main__':
+
+
+# if __name__=='__main__':
