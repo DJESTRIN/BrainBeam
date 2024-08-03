@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=compress_single_dir
-#SBATCH --output=compress_single_dir_%j.log
-#SBATCH --error=compress_single_dir_%j.err
+#SBATCH --output=~/sbatch_logs/compress_single_dir_%j.log
+#SBATCH --error=~/sbatch_errors/compress_single_dir_%j.err
 #SBATCH --time=02:00:00
 #SBATCH --partition=scu-cpu
 #SBATCH --ntasks=4
