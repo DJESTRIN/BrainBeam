@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=submit_compression_jobs
-#SBATCH --output=/home/fs01/dje4001/sbatch_logs/submit_compression_jobs_%j.log
-#SBATCH --error=/home/fs01/dje4001/sbatch_errors/submit_compression_jobs_%j.err
+#SBATCH --output=/home/fs01/dje4001/sbatch_logs/submit_decompression_jobs_%j.log
+#SBATCH --error=/home/fs01/dje4001/sbatch_errors/submit_decompression_jobs_%j.err
 #SBATCH --time=01:00:00
 #SBATCH --partition=scu-cpu
 #SBATCH --ntasks=1
