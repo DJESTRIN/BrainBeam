@@ -11,6 +11,7 @@
 code_directory=$1
 scratch_directory=$2
 run_dependencies=${3:-true} # recalculate all files
+run_one=${4:-false} #
 
 # Create folder for terastitcher output
 scratch_stitch="${scratch_directory}lightsheet/stitched/"
@@ -22,14 +23,19 @@ cd "$code_directory"
 
 # Submit jobs to process images using terastitcher
 for i in ${scratch_destriped}*/; do
-    TMP=$(echo "$i")
-    sbatch --job-name=stitch_files \
-           --mem=200G \
-           --partition=scu-gpu \
-           --gres=gpu:1 \
-           --mail-type=BEGIN,END,FAIL \
-           --mail-user=dje4001@med.cornell.edu \
-           --wrap="bash ./stitch.sh '$TMP' '$scratch_directory'"
+       TMP=$(echo "$i")
+       sbatch --job-name=stitch_files \
+              --mem=200G \
+              --partition=scu-gpu \
+              --gres=gpu:1 \
+              --mail-type=BEGIN,END,FAIL \
+              --mail-user=dje4001@med.cornell.edu \
+              --wrap="bash ./stitch.sh '$TMP' '$scratch_directory'"
+       
+       # Run a single folder and then break
+       if [ "$run_one" = true ]; then
+              break
+       fi 
 done
 
 if [ "$run_dependencies" = false ]; then 
