@@ -1,5 +1,5 @@
 <h1> <b> 🔦 BrainBeam 🔦 </b> </h1> 
-A generalized open-source pipeline for analyzing light sheet brain tissue. 
+A generalized open-source pipeline and gui for analyzing light sheet brain tissue. 
 
 <h2> <b> ⚠️ Warning: This code is still under development. ⚠️ </b> </h2>
 Please kindly ignore any issues with code as well as any missing citations to others code. 
@@ -23,9 +23,11 @@ Portions of this library utalize code from (or are inspired by) the following re
 - <b> Brain Registration: </b> Chandrashekhar, V., Tward, D. J., Crowley, D., et al. (2021). CloudReg: Automatic terabyte-scale cross-modal brain volume registration. Nature Methods, 18(8), 845–846. https://doi.org/10.1038/s41592-021-01218-z
 
 <h2> <b> Contributions and citation </b> </h2>
-Code: David James Estrin 
-Data: David James Estrin, Christine Kuang
 
-If using code or portions of code, please kindly cite as Estrin et al., 2025 unpublished.
+- Code: David James Estrin 
+
+- Data: David James Estrin, Christine Kuang
+
+Please cite this git repository as Estrin, D.J., et al., (2025) BrainBeam: A generalized open-source pipeline and gui for analyzing light sheet brain tissue. unpublished if you use any code or intellectual property from it. Thank you!
 
 
