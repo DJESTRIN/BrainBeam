@@ -8,7 +8,7 @@ Please kindly ignore any issues with code as well as any missing citations to ot
 ![https://github.com/DJESTRIN/BrainBeam/tree/lightsheet_cluster/gui_images/gui_08022024.png?raw=True](https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/gui_images/gui_08022024.png)
 
 <h2> <b> References </b></h2>
-Portions of this library utalize code from or are inspired by the following references:
+Portions of this library utalize code from (or are inspired by) the following references:
 
 - <b> De-striping: </b> Kirst, et al. (2020). Mapping the fine-scale organization and plasticity of the brain vasculature. Cell, 180(4), 780-795. https://doi.org/10.1016/j.cell.2020.01.028
 
