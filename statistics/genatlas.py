@@ -413,6 +413,7 @@ class mass_ttest(inject_atlas):
                     if region in self.tree.get_progeny_one('root')[0]:
                         continue
                     parent_name = self.tree.get_parent(region)
+                    ipdb.set_trace()
                     parent_id = self.tree.get_id(parent_name)
 
                     # Determine if parent structure is a child of any other regions in dataset
