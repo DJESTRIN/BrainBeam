@@ -413,8 +413,10 @@ class mass_ttest(inject_atlas):
                     if region in self.tree.get_progeny_one('root')[0]:
                         continue
                     parent_name = self.tree.get_parent(region)
-                    ipdb.set_trace()
-                    parent_id = self.tree.get_id(parent_name)
+                    try:
+                        parent_id = self.tree.get_id(parent_name)
+                    except:
+                        ipdb.set_trace()
 
                     # Determine if parent structure is a child of any other regions in dataset
                     for region_check in all_regions['location']:
@@ -706,28 +708,28 @@ class total_counts(mass_ttest):
 
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\BRAINBEAM\statistics\datasets\mass_ttests_obj.pkl'
+    filename_massttest = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\mass_ttests_obj.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:
-        massttest_obj=mass_ttest(atlas_json_file = r'C:\Users\listo\BRAINBEAM\statistics\datasets\ara_ontology.json',
-                        atlas_path=r'C:\Users\listo\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
-                        drop_directory=r'C:\Users\listo\BRAINBEAM\statistics\figures',
-                        dataframe_path=r'C:\Users\listo\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv',
+        massttest_obj=mass_ttest(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
+                        atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
+                        drop_directory=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\figures',
+                        dataframe_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv',
                         abs_min_val=-4,
                         abs_max_val=4)
         massttest_obj()
         massttest_obj.save(filename_massttest)
 
     # Run analysis on counts
-    filename_counts = r'C:\Users\listo\BRAINBEAM\statistics\datasets\total_counts_obj.pkl'
+    filename_counts = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\total_counts_obj.pkl'
     if os.path.isfile(filename_counts):
         total_counts_obj=total_counts.load(filename_counts)
     else:
-        total_counts_obj=total_counts(atlas_json_file = r'C:\Users\listo\BRAINBEAM\statistics\datasets\ara_ontology.json',
-                        atlas_path=r'C:\Users\listo\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
-                        drop_directory=r'C:\Users\listo\BRAINBEAM\statistics\figures',
-                        dataframe_path=r'C:\Users\listo\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv',
+        total_counts_obj=total_counts(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
+                        atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
+                        drop_directory=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\figures',
+                        dataframe_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv',
                         abs_min_val=0,
                         abs_max_val=10)
         total_counts_obj()
