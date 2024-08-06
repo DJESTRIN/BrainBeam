@@ -9,12 +9,17 @@ Please kindly ignore any issues with code as well as any missing citations to ot
 ![https://github.com/DJESTRIN/BrainBeam/tree/lightsheet_cluster/BrainBeam/gui/gui_images/gui_08022024.png?raw=True](https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/gui_08022024.png)
 
 <h2> <b> Example Classifier Performance </b></h2>
-Portions of this library utalize code from (or are inspired by) the following references:
-
+We trained an ilastik based classifier to quantify cell counts for whole-brain light-sheet data. In addition to training, models are enhanced through hyper-parameter tuning:
 <p float="center">
-
+  <img src="https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/hyperparameter_tuning.png" width="500" />
 </p>
 
+The overall performance of our models results in an F1 score >0.85:
+<p float="center">
+  <img src="https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/classifier_performance.png" width="500" />
+</p>
+
+Here is an example of our ilastik classifier's performance on a sagittal slice of brain tissue:
 <p float="left">
   <img src="https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/sagittal1.png" width="500" />
   <img src="https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/sagittal1_labeled.png" width="500" /> 
