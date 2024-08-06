@@ -8,6 +8,19 @@ Please kindly ignore any issues with code as well as any missing citations to ot
  
 ![https://github.com/DJESTRIN/BrainBeam/tree/lightsheet_cluster/BrainBeam/gui/gui_images/gui_08022024.png?raw=True](https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/gui_08022024.png)
 
+<h2> <b> Example Classifier Performance </b></h2>
+Portions of this library utalize code from (or are inspired by) the following references:
+
+<p float="center">
+
+</p>
+
+<p float="left">
+  <img src="https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/sagittal1.png" width="500" />
+  <img src="https://github.com/DJESTRIN/BrainBeam/blob/lightsheet_cluster/BrainBeam/gui/gui_images/sagittal1_labeled.png" width="500" /> 
+</p>
+
+
 <h2> <b> References </b></h2>
 Portions of this library utalize code from (or are inspired by) the following references:
 
