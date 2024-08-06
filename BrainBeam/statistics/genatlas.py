@@ -99,8 +99,7 @@ class inject_atlas():
     def inject_data_to_stack(self,data,skip_frames=90,mode='continuous',threshold=0.1,level=0):
         """ Take data of interest and inject it into the ARA stack """
         injected_slices=[] # Final list of colored slices
-        pbar2 = tqdm.tqdm(total=15, desc='Slice Number:',position=1,leave=True)
-        for sn in range(1,self.atlas_stack.shape[2]):
+        for sn in tqdm.tqdm(range(1,self.atlas_stack.shape[2])):
             if (sn%skip_frames)==0:
                 # Get current slice from stack
                 slicea=self.atlas_stack[:,:,sn]
@@ -159,8 +158,6 @@ class inject_atlas():
                 
                 #Append the colored in slice to list of slices
                 injected_slices.append(slicec)
-                pbar2.update(1)
-            pbar2.close()
         return injected_slices
 
     def plot_atlas(self,stack,reference_stack,real_reference_stack,add_scalebar=True, filename = r'C:\Users\listo\example.pdf'):
@@ -412,11 +409,12 @@ class mass_ttest(inject_atlas):
                 for region in all_regions['location']:
                     if region in self.tree.get_progeny_one('root')[0]:
                         continue
+
+                    if region=='root':
+                        continue
+
                     parent_name = self.tree.get_parent(region)
-                    try:
-                        parent_id = self.tree.get_id(parent_name)
-                    except:
-                        ipdb.set_trace()
+                    parent_id = self.tree.get_id(parent_name)
 
                     # Determine if parent structure is a child of any other regions in dataset
                     for region_check in all_regions['location']:
@@ -476,7 +474,6 @@ class mass_ttest(inject_atlas):
         Note: for inherited code, this will plot anything onto brain atlas if arranged in arranged_data correctly"""
         super().__call__()
         levels=['location', 'lv1', 'lv2', 'lv3', 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
-        pbar1 = tqdm.tqdm(total=len(levels), desc='Level Number:',leave=True,position=0)
         for i, level in enumerate(levels):
             self.dataframe = self.get_parent_level(i)
             self.get_normalized_n() # Normalize the count data
@@ -486,9 +483,9 @@ class mass_ttest(inject_atlas):
       
             # Plot data for t,p values for raw counts
             self.current_data=arranged_data
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}_tvalues_raw_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_raw_counts.pdf')
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}_pvalues_raw_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}_pvalues_raw_counts.pdf')
             self.run_injection(self.current_data[:,1],i,level,modeoh='binary',filenameoh=fileoh) #Raw, p-value
 
             # Normalized counts
@@ -498,12 +495,10 @@ class mass_ttest(inject_atlas):
 
             # Plot data for t,p values for normalized counts
             self.current_data=arranged_data
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}_tvalues_normalized_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_normalized_counts.pdf')
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}_pvalues_normalized_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}_pvalues_normalized_counts.pdf')
             self.run_injection(self.current_data[:,1],i,level,modeoh='binary',filenameoh=fileoh) #Raw, p-value
-            pbar1.update(1)
-        pbar1.close()
         return
 
     def arrange_data(self,level_name,counttype='n'):
@@ -604,7 +599,6 @@ class total_counts(mass_ttest):
         Note: for inherited code, this will plot anything onto brain atlas if arranged in arranged_data correctly"""
         inject_atlas.__call__(self) #call grand parent method for __call__, we do not want parent method
         levels=['location', 'lv1', 'lv2', 'lv3', 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
-        pbar1 = tqdm.tqdm(total=len(levels), desc='Level Number:',leave=True,position=0)
         for i, level in enumerate(levels):
             self.dataframe = self.get_parent_level(i)
             self.get_normalized_n() # Normalize the count data
@@ -614,10 +608,10 @@ class total_counts(mass_ttest):
       
             # Plot data for t,p values for raw counts
             self.current_data=arranged_data
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}total_raw_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}total_raw_counts.pdf')
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw counts, total
 
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}celldensity_raw_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}celldensity_raw_counts.pdf')
             self.run_injection(self.current_data[:,1],i,level,modeoh='continuous',filenameoh=fileoh) #Raw counts, cell density
 
             # Normalized counts
@@ -627,13 +621,11 @@ class total_counts(mass_ttest):
 
             # Plot data for t,p values for normalized counts
             self.current_data=arranged_data
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}total_normalized_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}total_normalized_counts.pdf')
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Normalized counts, total
 
-            fileoh = os.path.join(r'C:\Users\listo',f'{level}celldensity_normalized_counts.pdf')
+            fileoh = os.path.join(self.drop_directory,f'{level}celldensity_normalized_counts.pdf')
             self.run_injection(self.current_data[:,1],i,level,modeoh='continuous',filenameoh=fileoh) #Normalized counts, cell density
-            pbar1.update(1)
-        pbar1.close()
         return
     
     def arrange_data(self,level_name,counttype='n'):
