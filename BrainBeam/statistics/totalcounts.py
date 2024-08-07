@@ -125,3 +125,18 @@ class total_counts(mass_ttest):
         """Save the instance to a file using pickle."""
         with open(filename, "wb") as file:
             pickle.dump(self, file)
+
+if __name__=='__main__':
+    # Run analysis on counts
+    filename_counts = r'C:\Users\listo\level_analysis\datasets\total_counts_obj.pkl'
+    if os.path.isfile(filename_counts):
+        total_counts_obj=total_counts.load(filename_counts)
+    else:
+        total_counts_obj=total_counts(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
+                        atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
+                        drop_directory=r'C:\Users\listo\level_analysis\results',
+                        dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv',
+                        abs_min_val=0,
+                        abs_max_val=10)
+        total_counts_obj()
+        total_counts_obj.save(filename_counts)
