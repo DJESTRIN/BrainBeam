@@ -66,21 +66,40 @@ for sub_folder in ${input_base}*/; do
     if [[ -e "${sub_folder}xml_displcomp.xml" && "$manual_override" != "true" ]]; then
         echo "Displcomp file already exists for this channel, skipping this step"
     else
-        ./terastitcher --displcompute --projin="${sub_folder}xml_import.xml" --projout="${sub_folder}xml_displcomp.xml" --subvoldim=600 --sV=25 --sH=25 --sD=0
+        srun --ntasks=4 \
+            --cpus-per-task=4 \
+            --gres=gpu:2 \
+            --mem=200G \
+            --time=24:00:00 \
+            --mpi=pmi2 python "$parastitcher" \
+            -2 \
+            --projin="${sub_folder}xml_import.xml" \
+            --projout="${sub_folder}xml_displcomp.xml" \
+            --subvoldim=600 \
+            --sV=25 \
+            --sH=25 \
+            --sD=0
+        
+        if [ $? -eq 0 ]; then
+            echo "Displcomp was successful, moving on to rest of stitch"
+        else
+            echo "Displcomp had an error, exiting code"
+            exit 1
+        fi
     fi
 
     # Determine if displproj file was created 
     if [[ -e "${sub_folder}xml_displproj.xml" && "$manual_override" != "true" ]]; then
         echo "Displproj file already exists for this channel, skipping this step"
     else
-        ./terastitcher --displproj --projin="${sub_folder}xml_displcomp.xml" --projout="${sub_folder}xml_displproj"
+        ./terastitcher --displproj --projin="${sub_folder}xml_displcomp.xml" --projout="${sub_folder}xml_displproj.xml"
     fi
 
     # Determine if displproj file was created 
     if [[ -e "${sub_folder}xml_displproj.xml" && "$manual_override" != "true" ]]; then
         echo "Displproj file already exists for this channel, skipping this step"
     else
-        ./terastitcher --displthres --projin="${sub_folder}xml_displproj.xml" --projout=xml_displthres --threshold=0.5
+        ./terastitcher --displthres --projin="${sub_folder}xml_displproj.xml" --projout="${sub_folder}xml_displthres.xml" --threshold=0.5
     fi
 
     # Determine if xml_placetiles file was created 
@@ -101,20 +120,46 @@ for sub_folder in ${input_base}*/; do
     # Output tiles to tiff stack
     sf_basename=$(basename $sub_folder) 
     mkdir -p "$output$sf_basename" # Create output folder
+    convert_images=false
     if [[ -d "$output$sf_basename" && "$manual_override" != "true" ]]; then
         # Check if the directory contains files
         if [[ $(find "$output$sf_basename" -type f | wc -l) -gt 0 ]]; then
             echo "Output folder already exists and contains files. Therefore, we are skipping"
         else
-            ./terastitcher --merge --projin="${sub_folder}xml_placetiles.xml" --volout="$output$sf_basename" --volout_plugin="TiledXY|2Dseries" --slicewidth=100000 --sliceheight=150000
+            convert_images=true
         fi
     else
-        ./terastitcher --merge --projin="${sub_folder}xml_placetiles.xml" --volout="$output$sf_basename" --volout_plugin="TiledXY|2Dseries" --slicewidth=100000 --sliceheight=150000  
+        convert_images=true 
     fi
+
+    if [[ "$convert_images" == "true" ]]; then
+        srun --ntasks=4 \
+            --cpus-per-task=4 \
+            --gres=gpu:2 \
+            --mem=200G \
+            --time=24:00:00 \
+            --mpi=pmi2 python "$parastitcher" \
+            -6 \
+            --projin="${sub_folder}xml_placetiles.xml" \
+            --volout="$output$sf_basename" \
+            --volout_plugin="TiledXY|2Dseries" \
+            --slicewidth=100000 \
+            --sliceheight=150000
+
+        if [ $? -eq 0 ]; then
+            echo "output conversion was successful, moving on to rest of stitch"
+        else
+            echo "Output conversion had an error, exiting code"
+            exit 1
+        fi
+    fi 
 
     # Move images from subdirectories to main output folder
     find "$output$sf_basename" -type f -name "*.tif*" -exec mv {} "$output$sf_basename/../" \;
     rm -R -- "$output$sf_basename"/*
+
+    echo "Finishing early for testing"
+    exit 1
 done
 
 exit

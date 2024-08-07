@@ -79,7 +79,9 @@ class total_counts(mass_ttest):
                     get_values.append(df_group[counttype].to_numpy())
 
                 control = np.pad(get_values[0],(0,1+gn[0]-len(get_values)),'constant',constant_values=0)
+                control = self.quick_bootstrap(control)
                 experimental = np.pad(get_values[1],(0,1+gn[1]-len(get_values)),'constant',constant_values=0)
+                experimental = self.quick_bootstrap(experimental)
     
                 # Quickly count the total number of cells per region
                 try:
@@ -114,6 +116,13 @@ class total_counts(mass_ttest):
         # Convert back to numpy array
         arranged_data=np.asarray(arranged_data)
         return self.brainregions,arranged_data
+    
+    def quick_bootstrap(self,array):
+        """ Boot strap data if bootstrap flag true """
+        if hasattr(self, 'bootstrap') and self.bootstrap:
+            return quick_boot(array)
+        else:
+            return array
     
     @classmethod
     def load(cls,filename):
