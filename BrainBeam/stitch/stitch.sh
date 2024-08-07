@@ -66,7 +66,8 @@ for sub_folder in ${input_base}*/; do
     if [[ -e "${sub_folder}xml_displcomp.xml" && "$manual_override" != "true" ]]; then
         echo "Displcomp file already exists for this channel, skipping this step"
     else
-        srun --ntasks=4 \
+        srun --partition=scu-gpu \
+            --ntasks=4 \
             --cpus-per-task=4 \
             --gres=gpu:2 \
             --mem=200G \
@@ -133,7 +134,8 @@ for sub_folder in ${input_base}*/; do
     fi
 
     if [[ "$convert_images" == "true" ]]; then
-        srun --ntasks=4 \
+        srun --partition=scu-gpu \
+            --ntasks=4 \
             --cpus-per-task=4 \
             --gres=gpu:2 \
             --mem=200G \
