@@ -1,5 +1,8 @@
 import numpy as np
 
+def quick_boot(input_array,number=100):
+    return np.random.choice(input_array, 100)
+
 class bootstrap:
     def __init__(self,data):
         self.data=data
