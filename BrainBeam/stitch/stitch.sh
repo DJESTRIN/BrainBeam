@@ -96,8 +96,8 @@ for sub_folder in ${input_base}*/; do
         ./terastitcher --displproj --projin="${sub_folder}xml_displcomp.xml" --projout="${sub_folder}xml_displproj.xml"
     fi
 
-    # Determine if displproj file was created 
-    if [[ -e "${sub_folder}xml_displproj.xml" && "$manual_override" != "true" ]]; then
+    # Determine if xml_displthres file was created 
+    if [[ -e "${sub_folder}xml_displthres.xml" && "$manual_override" != "true" ]]; then
         echo "Displproj file already exists for this channel, skipping this step"
     else
         ./terastitcher --displthres --projin="${sub_folder}xml_displproj.xml" --projout="${sub_folder}xml_displthres.xml" --threshold=0.5
