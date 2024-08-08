@@ -25,8 +25,11 @@ cd "$code_directory"
 for i in ${scratch_destriped}*/; do
        TMP=$(echo "$i")
        sbatch --job-name=stitch_files \
-              --mem=50G \
-              --partition=scu-cpu \
+              --mem=200G \
+              --partition=scu-gpu \
+              --gres=gpu:2\
+              --ntasks=4 \
+              --cpus-per-task=4 \
               --mail-type=BEGIN,END,FAIL \
               --mail-user=dje4001@med.cornell.edu \
               --wrap="bash ./stitch.sh '$TMP' '$scratch_directory'"

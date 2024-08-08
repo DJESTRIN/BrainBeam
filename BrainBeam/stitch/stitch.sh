@@ -157,11 +157,8 @@ for sub_folder in ${input_base}*/; do
     fi 
 
     # Move images from subdirectories to main output folder
-    find "$output$sf_basename" -type f -name "*.tif*" -exec mv {} "$output$sf_basename/../" \;
-    rm -R -- "$output$sf_basename"/*
-
-    echo "Finishing early for testing"
-    exit 1
+    find "$output$sf_basename" -type f -name "*.tif*" -exec mv {} "$output$sf_basename" \;
+    find "$output$sf_basename" -mindepth 1 -maxdepth 1 -type d -exec rm -rfv {} \;
 done
 
 exit
