@@ -41,19 +41,19 @@ for sub_folder in ${input_base}*/; do
     echo "This is the input directory: ${sub_folder}"
 
     # Copy files from first folder to remaining folders
-    # if [ "$first_directory" = false ]; then
-    #     # Copy files over from first subdirectory
-    #     for file in $files_to_copy; do
-    #         cp "$file" "$sub_folder"
-    #     done
+    if [ "$first_directory" = false ]; then
+        # Copy files over from first subdirectory
+        for file in $files_to_copy; do
+            cp "$file" "$sub_folder"
+        done
 
-    #     #Change contents inside file 
-    #     files_to_edit=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
-    #     current_basename=$(basename $sub_folder) 
-    #     for file in $files_to_edit; do
-    #         sed -i "s/$first_basename/$current_basename/g" $file
-    #     done
-    # fi
+        #Change contents inside file 
+        files_to_edit=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
+        current_basename=$(basename $sub_folder) 
+        for file in $files_to_edit; do
+            sed -i "s/$first_basename/$current_basename/g" $file
+        done
+    fi
 
     # Determine if import file was created
     if [[ -e "${sub_folder}xml_import.xml" && "$manual_override" != "true" ]]; then
@@ -89,6 +89,14 @@ for sub_folder in ${input_base}*/; do
         fi
     fi
 
+    # Copy all files to remaining folders
+    if [ "$first_directory" = true ]; then
+        find "$sub_folder" -maxdepth 1 -type f -name "*.xml" --exec chmod -R o+rwx {} \; # Change permissions on these files
+        files_to_copy=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
+        first_directory=false # set this to false for remaining directories
+        first_basename=$(basename $sub_folder) 
+    fi
+
     # Determine if displproj file was created 
     if [[ -e "${sub_folder}xml_displproj.xml" && "$manual_override" != "true" ]]; then
         echo "Displproj file already exists for this channel, skipping this step"
@@ -109,14 +117,6 @@ for sub_folder in ${input_base}*/; do
     else
         ./terastitcher --placetiles --projin="${sub_folder}xml_displthres.xml" --projout="${sub_folder}xml_placetiles.xml"
     fi
-
-    # Copy all files to remaining folders
-    # if [ "$first_directory" = true ]; then
-    #     find "$sub_folder" -maxdepth 1 -type f -name "*.xml" --exec chmod -R o+rwx {} \; # Change permissions on these files
-    #     files_to_copy=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
-    #     first_directory=false # set this to false for remaining directories
-    #     first_basename=$(basename $sub_folder) 
-    # fi
 
     # Output tiles to tiff stack
     sf_basename=$(basename $sub_folder) 
