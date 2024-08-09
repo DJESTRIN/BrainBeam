@@ -177,6 +177,7 @@ class mass_ttest(inject_atlas):
                 control=quick_boot(control)
                 experimental = np.pad(get_values[1],(0,1+gn[1]-len(get_values)),'constant',constant_values=0)
                 experimental=quick_boot(experimental)
+                ipdb.set_trace()
                 t_stat,p_value=self.ttest(control,experimental)
 
                 # Prevent infinity error

@@ -28,30 +28,29 @@ class total_counts(mass_ttest):
         inject_atlas.__call__(self) #call grand parent method for __call__, we do not want parent method
         levels=['location', 'lv1', 'lv2', 'lv3', 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
         for i, level in enumerate(levels):
+            # Get data for raw cell counts
             self.dataframe = self.get_parent_level(i)
             self.get_normalized_n() # Normalize the count data
             self.brainregions,arranged_data = self.arrange_data(level)
-            self.stat_string = f'There were {len(self.brainregions[arranged_data[:,1]<0.05])} significant regions out of {len(self.brainregions)} brain regions for level {level} using raw counts'
+            self.stat_string = " "
             self.regions_to_ids(self.brainregions)
-      
-            # Plot data for t,p values for raw counts
+            
+            # Plot data for raw cell counts and cell density
             self.current_data=arranged_data
             fileoh = os.path.join(self.drop_directory,f'{level}total_raw_counts.jpg')
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw counts, total
-
             fileoh = os.path.join(self.drop_directory,f'{level}celldensity_raw_counts.jpg')
             self.run_injection(self.current_data[:,1],i,level,modeoh='continuous',filenameoh=fileoh) #Raw counts, cell density
 
-            # Normalized counts
+            # Get data for normalized cell counts
             self.brainregions,arranged_data = self.arrange_data(level,counttype='normalized_n')
-            self.stat_string = f'There were {len(self.brainregions[arranged_data[:,1]<0.05])} significant regions out of {len(self.brainregions)} brain regions for level {level} using normalized counts'
+            self.stat_string = " "
             self.regions_to_ids(self.brainregions)
 
-            # Plot data for t,p values for normalized counts
+            # Plot data for normalized cell counts and cell density
             self.current_data=arranged_data
             fileoh = os.path.join(self.drop_directory,f'{level}total_normalized_counts.jpg')
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Normalized counts, total
-
             fileoh = os.path.join(self.drop_directory,f'{level}celldensity_normalized_counts.jpg')
             self.run_injection(self.current_data[:,1],i,level,modeoh='continuous',filenameoh=fileoh) #Normalized counts, cell density
         return
@@ -82,24 +81,32 @@ class total_counts(mass_ttest):
                 control = self.quick_bootstrap(control)
                 experimental = np.pad(get_values[1],(0,1+gn[1]-len(get_values)),'constant',constant_values=0)
                 experimental = self.quick_bootstrap(experimental)
-    
+
                 # Quickly count the total number of cells per region
-                try:
-                    total_value = np.concatenate((experimental,control),axis=0)
-                except:
-                    ipdb.set_trace()
+                total_value = np.concatenate((experimental,control),axis=0)
+
+                # Get current volume
                 voloh = (self.volumes[np.where(self.volumes[:,0]==self.ids[np.where(self.brainregions==region)[0][0]])[0][0],1])/(1e+9) # get volume in cubic mm
+
+                # Calculate cell density
                 celldensity=total_value/voloh
                 density_value = np.nanmean(celldensity)
+
+                #Calculate average number of cells for region
                 total_value = np.nanmean(total_value)
+
                 arranged_data.append([total_value,density_value])
             elif dfg.ngroups==1:
                 if np.asarray(regiondf['treatment'])[0]=='CORTEXPERIMENTAL':
                     control = np.pad([0],(0,1+gn[0]-1),'constant',constant_values=0)
+                    control = self.quick_bootstrap(control)
                     experimental = np.pad(regiondf['n'],(0,1+gn[1]-1),'constant',constant_values=0)
+                    experimental = self.quick_bootstrap(experimental)
                 else:
                     control = np.pad(regiondf['n'],(0,1+gn[0]-1),'constant',constant_values=0)
+                    control = self.quick_bootstrap(control)
                     experimental = np.pad([0],(0,1+gn[1]-1),'constant',constant_values=0)
+                    experimental = self.quick_bootstrap(experimental)
 
                 # Quickly count the total number of cells per region
                 total_value = np.concatenate((experimental,control),axis=0)
