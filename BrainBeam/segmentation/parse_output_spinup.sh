@@ -20,7 +20,7 @@ for slicefolder in $slicesdirs; do
         --partition=scu-cpu \
         --mail-type=BEGIN,END,FAIL \
         --mail-user=dje4001@med.cornell.edu \
-        --wrap="bash ./parse_ilastik_output.sh '$slicefolder'"
+        --wrap="bash ./parse_ilastik_output.sh '$code_dir' '$slicefolder'"
 done
 
 exit
