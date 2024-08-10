@@ -10,17 +10,14 @@ scratch_converted=${scratch_directory}"lightsheet/converted/"
 mkdir -p $scratch_converted
 
 # Python script replacing 0 byte files with empty images.
-for folder in $scratch_raw*/
-do
+for folder in $scratch_raw*/; do
         TMP=$(echo $folder)
         echo $TMP
         sbatch --job-name=remove_empty_images --mem=300G --partition=scu-cpu --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="source ~/.bashrc && conda activate /home/fs01/dje4001/anaconda3/envs/regular && python '$code_directory'/replaceempty.py --pathway '$TMP'"
-
 done
 
 #Loop through samples
-for folder in $scratch_raw*/
-do
+for folder in $scratch_raw*/; do
         TMP=$(echo $folder)
         echo $TMP
         sbatch --job-name=convert_png_to_tiff --mem=300G --partition=scu-cpu --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="source ~/.bashrc && conda activate /home/fs01/dje4001/anaconda3/envs/regular && python $code_directory/convert_to_tiff.py --input_directory '$TMP' --output_directory '$scratch_converted'"

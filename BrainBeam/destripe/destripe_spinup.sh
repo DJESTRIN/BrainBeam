@@ -12,8 +12,7 @@ scratch_destriped=${scratch_directory}"lightsheet/destriped/"
 mkdir -p $scratch_destriped
 
 #Loop through samples
-for folder in $scratch_raw*/
-do
+for folder in $scratch_raw*/; do
     TMP=$(echo $folder)
     echo $TMP
     sbatch --job-name=destripe_files --mem=300G --partition=scu-cpu --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="bash $code_directory/destripe.sh '$TMP' '$scratch_directory'"
