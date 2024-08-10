@@ -1,6 +1,8 @@
 #!/bin/bash
-input=$1
-scratch_directory=$2
+# Parse command line inputs
+code_directory=$1
+input=$2
+scratch_directory=$3
 
 #Set up input and output
 base_name=$(basename ${input})
@@ -11,9 +13,8 @@ tag=lightsheet/ilastik/
 root_output="$scratch_directory$tag$base_name"
 mkdir -p $root_output
 
-for channel_input in $input*/
-do
-
+for channel_input in $input*/; do
+	# 
 	base_channel_name=$(basename ${channel_input})
 	channel_output="$scratch_directory$tag$base_name/$base_channel_name"
 	mkdir -p $channel_output
@@ -21,7 +22,8 @@ do
 	# Seperate stitched images into cubes
 	source ~/.bashrc
 	conda activate ~/anaconda3/envs/regular
-	python ~/lightsheet_cluster/divide_for_segmentation.py --input_dir $channel_input --output_dir $channel_output
+	cd $code_directory
+	python /divide_for_segmentation.py --input_dir $channel_input --output_dir $channel_output
 
 done
 

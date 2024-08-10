@@ -1,5 +1,7 @@
 #!/bin/bash
 # Split up stitched data into cubes. 
+
+# Parse command line inputs
 code_directory=$1
 scratch_directory=$2
 
@@ -12,11 +14,15 @@ mkdir -p $scratch_ilastik
 cd $code_directory
 
 # Stitch images using terastitcher
-for i in $scratch_stitch*/
-do
-TMP=$(echo $i)
-echo $TMP
-sbatch --job-name=split_up_cubes --mem=200G --partition=scu-cpu  --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="bash ./estrin_split_cubes.sh '$TMP' '$scratch_directory'" 
-
+for i in $scratch_stitch*/; do
+    TMP=$(echo $i)
+    echo $TMP
+    sbatch --job-name=split_up_cubes \
+        --mem=200G \
+        --partition=scu-cpu  \
+        --mail-type=BEGIN,END,FAIL \
+        --mail-user=dje4001@med.cornell.edu \
+        --wrap="bash ./estrin_split_cubes.sh '$TMP' '$scratch_directory'" 
 done
 
+exit
