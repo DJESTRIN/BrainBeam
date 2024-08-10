@@ -91,7 +91,7 @@ for sub_folder in ${input_base}*/; do
 
     # Copy all files to remaining folders
     if [ "$first_directory" = true ]; then
-        find "$sub_folder" -maxdepth 1 -type f -name "*.xml" --exec chmod -R o+rwx {} \; # Change permissions on these files
+        find "$sub_folder" -maxdepth 1 -type f -name "*.xml" -exec chmod -R o+rwx {} \; # Change permissions on these files
         files_to_copy=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
         first_directory=false # set this to false for remaining directories
         first_basename=$(basename $sub_folder) 
