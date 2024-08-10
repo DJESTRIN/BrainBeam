@@ -23,7 +23,7 @@ for channel_input in $input*/; do
 	source ~/.bashrc
 	conda activate ~/anaconda3/envs/regular
 	cd $code_directory
-	python /divide_for_segmentation.py --input_dir $channel_input --output_dir $channel_output
+	python ./divide_for_segmentation.py --input_dir $channel_input --output_dir $channel_output
 
 done
 
