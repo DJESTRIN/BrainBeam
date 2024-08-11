@@ -27,11 +27,15 @@ from injectatlas import inject_atlas
 warnings.simplefilter('ignore') #Ignore warnings 
 
 class mass_ttest(inject_atlas):
-    def __init__(self,atlas_json_file,atlas_path,drop_directory,dataframe_path,abs_min_val,abs_max_val):
+    def __init__(self,atlas_json_file,atlas_path,drop_directory,dataframe_path):
         super().__init__(atlas_json_file,atlas_path,drop_directory)
         self.dataframe=pd.read_csv(dataframe_path)
-        self.abs_max_val=abs_max_val
-        self.abs_min_val=abs_min_val
+
+    def calculate_max_min_color_range(self,data):
+        """ Get max and min values via percentiles of dataframe """
+        self.abs_min_val = np.percentile(data,20)
+        self.abs_max_val = np.percentile(data,80)
+        return
 
     def get_parent_level(self,level_num=0):
         """ Go through all brain regions and move one step upward on tree.
@@ -117,6 +121,7 @@ class mass_ttest(inject_atlas):
         stackoh=self.inject_data_to_stack(dataoh,level=i,mode=modeoh)
         reference_stack=self.inject_data_to_stack(dataoh,mode='reference')
         real_reference_stack=self.inject_data_to_stack(dataoh,mode='real_reference')
+        ipdb.set_trace()
         self.plot_atlas(stackoh,reference_stack,real_reference_stack,filename=filenameoh)
 
     def __call__(self):
@@ -126,6 +131,7 @@ class mass_ttest(inject_atlas):
         levels=['location', 'lv1', 'lv2', 'lv3', 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
         for i, level in enumerate(levels):
             self.dataframe = self.get_parent_level(i)
+            self.calculate_max_min_color_range()
             self.get_normalized_n() # Normalize the count data
             self.brainregions,arranged_data = self.arrange_data(level)
             self.stat_string = f'There were {len(self.brainregions[arranged_data[:,1]<0.05])} significant regions out of {len(self.brainregions)} brain regions for level {level} using raw counts'
@@ -134,8 +140,10 @@ class mass_ttest(inject_atlas):
             # Plot data for t,p values for raw counts
             self.current_data=arranged_data
             fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_raw_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,0])
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
             fileoh = os.path.join(self.drop_directory,f'{level}_pvalues_raw_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,1])
             self.run_injection(self.current_data[:,1],i,level,modeoh='binary',filenameoh=fileoh) #Raw, p-value
 
             # Normalized counts
@@ -146,8 +154,10 @@ class mass_ttest(inject_atlas):
             # Plot data for t,p values for normalized counts
             self.current_data=arranged_data
             fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_normalized_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,0])
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
             fileoh = os.path.join(self.drop_directory,f'{level}_pvalues_normalized_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,1])
             self.run_injection(self.current_data[:,1],i,level,modeoh='binary',filenameoh=fileoh) #Raw, p-value
         return
 
@@ -353,16 +363,14 @@ class total_counts(mass_ttest):
 
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\mass_ttests_obj.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:
         massttest_obj=mass_ttest(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
                         atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
                         drop_directory=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\figures',
-                        dataframe_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv',
-                        abs_min_val=-4,
-                        abs_max_val=4)
+                        dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv')
         massttest_obj()
         massttest_obj.save(filename_massttest)
 
@@ -374,8 +382,6 @@ if __name__=='__main__':
         total_counts_obj=total_counts(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
                         atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
                         drop_directory=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\figures',
-                        dataframe_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv',
-                        abs_min_val=0,
-                        abs_max_val=10)
+                        dataframe_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\rabies_cort_cohort2_dataset.csv')
         total_counts_obj()
         total_counts_obj.save(filename_counts)

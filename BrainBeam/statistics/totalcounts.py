@@ -38,7 +38,9 @@ class total_counts(mass_ttest):
             # Plot data for raw cell counts and cell density
             self.current_data=arranged_data
             fileoh = os.path.join(self.drop_directory,f'{level}total_raw_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,0])
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw counts, total
+            self.calculate_max_min_color_range(self.current_data[:,1])
             fileoh = os.path.join(self.drop_directory,f'{level}celldensity_raw_counts.jpg')
             self.run_injection(self.current_data[:,1],i,level,modeoh='continuous',filenameoh=fileoh) #Raw counts, cell density
 
@@ -50,8 +52,10 @@ class total_counts(mass_ttest):
             # Plot data for normalized cell counts and cell density
             self.current_data=arranged_data
             fileoh = os.path.join(self.drop_directory,f'{level}total_normalized_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,0])
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Normalized counts, total
             fileoh = os.path.join(self.drop_directory,f'{level}celldensity_normalized_counts.jpg')
+            self.calculate_max_min_color_range(self.current_data[:,1])
             self.run_injection(self.current_data[:,1],i,level,modeoh='continuous',filenameoh=fileoh) #Normalized counts, cell density
         return
     
@@ -151,8 +155,6 @@ if __name__=='__main__':
         total_counts_obj=total_counts(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
                         atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
                         drop_directory=r'C:\Users\listo\level_analysis\results',
-                        dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv',
-                        abs_min_val=0,
-                        abs_max_val=10)
+                        dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv')
         total_counts_obj()
         total_counts_obj.save(filename_counts)
