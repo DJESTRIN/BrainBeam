@@ -14,8 +14,7 @@ cd $code_directory
 # Calculate precomputed volumes for each sample
 counter=1
 thresh=0
-for sample in $scratch_cloudreg*/
-do
+for sample in $scratch_cloudreg*/; do
 	input=$sample"Ex_647_Em_680"
 	output="${input/cloudreg/registered}"
 
@@ -23,15 +22,20 @@ do
 	echo $output
 	echo $counter
 
-	if [ "$counter" -gt "$thresh" ];
-	then
+	if [ "$counter" -gt "$thresh" ]; then
 		echo $sample
-		sbatch --job-name=reg_init --mem=300G --partition=scu-cpu --cpus-per-task=16 --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="bash ~/lightsheet_cluster/estrin_register.sh $input $output"
+		sbatch --job-name=reg_init \
+			--mem=300G \
+			--partition=scu-cpu \
+			--cpus-per-task=16 \
+			--mail-type=BEGIN,END,FAIL \
+			--mail-user=dje4001@med.cornell.edu \
+			--wrap="bash ./register.sh $input $output"
 
 	else
 		echo 'skipping this brain'
 	fi
-
-counter=$((counter + 1))
+	
+	counter=$((counter + 1))
 done
 

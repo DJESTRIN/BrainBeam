@@ -1,7 +1,7 @@
 import numpy as np
 
-def quick_boot(input_array,number=100):
-    return np.random.choice(input_array, 100)
+def quick_boot(input_array,number=40):
+    return np.random.choice(input_array, number)
 
 class bootstrap:
     def __init__(self,data):

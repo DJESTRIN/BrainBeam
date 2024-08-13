@@ -19,7 +19,7 @@ def generate_presentation(component_list,presentation_name):
     prs = Presentation()
     blank_slide_layout = prs.slide_layouts[6]
     prs.slide_height=Inches(6)
-    prs.slide_width=Inches(10)
+    prs.slide_width=Inches(11)
 
     # Title Slide
     title_slide_layout = prs.slide_layouts[0]
@@ -33,50 +33,103 @@ def generate_presentation(component_list,presentation_name):
     slide = prs.slides.add_slide(title_slide_layout)
     title = slide.shapes.title
     subtitle = slide.placeholders[1]
-    title.text = "Analysis of Raw Counts"
+    title.text = "Mass Univariate t-tests for Raw Counts"
     subtitle.text = "At all levels"
-
     for component in component_list:
         if 'raw' in component:
+            if 'celldensity' in component or 'total' in component or 'boot' in component:
+                continue
             slideoh = prs.slides.add_slide(blank_slide_layout)
             left = top = Inches(0)
-            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(10),height=Inches(6))
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
 
     # Normalized counts comps
     slide = prs.slides.add_slide(title_slide_layout)
     title = slide.shapes.title
     subtitle = slide.placeholders[1]
-    title.text = "Analysis of Normalized Counts (# cells/total # cells)"
+    title.text = "Mass Univariate t-tests for Normalized Counts (# cells/total # cells)"
     subtitle.text = "At all levels"
 
     for component in component_list:
         if 'normalized' in component:
+            if 'celldensity' in component or 'total' in component or 'boot' in component:
+                continue
             slideoh = prs.slides.add_slide(blank_slide_layout)
             left = top = Inches(0)
-            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(10),height=Inches(6))
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
 
-    # Cell count analysis
-        #Show the number of counts for all levels
-    
+    # Total cell counts
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Total cell counts"
+    subtitle.text = ""
+    for component in component_list:
+        if 'raw' in component and 'total' in component:
+            slideoh = prs.slides.add_slide(blank_slide_layout)
+            left = top = Inches(0)
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
+
+    # Normalized cell counts
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Normalized cell counts"
+    subtitle.text = ""
+    for component in component_list:
+        if 'normalized' in component and 'total' in component:
+            slideoh = prs.slides.add_slide(blank_slide_layout)
+            left = top = Inches(0)
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
+
     # Cell density analysis
-        # Show the number of count density for all levels
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Cell Density for raw counts"
+    subtitle.text = ""
+    for component in component_list:
+        if 'raw' in component and 'celldensity' in component:
+            slideoh = prs.slides.add_slide(blank_slide_layout)
+            left = top = Inches(0)
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
 
     # cell density comps
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Cell Density for normalized counts"
+    subtitle.text = ""
+    for component in component_list:
+        if 'normalized' in component and 'celldensity' in component:
+            slideoh = prs.slides.add_slide(blank_slide_layout)
+            left = top = Inches(0)
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
 
-    # Starter cell comps
+    # Boot data
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Boot strap results (n=40)"
+    subtitle.text = "80% Power"
+    for component in component_list:
+        if 'boot' in component:
+            slideoh = prs.slides.add_slide(blank_slide_layout)
+            left = top = Inches(0)
+            pic = slideoh.shapes.add_picture(component, left, top,width=Inches(11),height=Inches(6))
 
     prs.save(presentation_name)
     return
 
-def find_images(search_path=r'C:\Users\listo\BrainBeam\BrainBeam\statistics\figures',extension='counts.jpg'):
+def find_images(search_path=r'C:\Users\listo\level_analysis\results',extension='counts.jpg'):
     search_path=search_path+r'\*.jpg'
     pot_images = glob.glob(search_path)
     final_images=[]
     for image in pot_images:
-        if extension in image:
-            final_images.append(image)
+        #if extension in image:
+        final_images.append(image)
     return final_images 
                 
 if __name__=='__main__':
     images = find_images()
-    generate_presentation(images,r'C:\Users\listo\BrainBeam\BrainBeam\statistics\figures\level_analysis.pptx')
+    generate_presentation(images,r'C:\Users\listo\level_analysis\level_analysis.pptx')
