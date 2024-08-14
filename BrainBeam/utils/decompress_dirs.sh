@@ -25,7 +25,7 @@ find "$INPUT_DIR" -type d | while read -r dir; do
     # Check if there are any .tar.gz files
     if [ ${#tar_files[@]} -gt 0 ]; then
         for tar_file in "${tar_files[@]}"; do
-            sbatch --export=TAR_FILE="$tar_file" $PWD/decompress_single_file.sh
+            sbatch --export=TAR_FILE="$tar_file" $PWD/decompress_single_dir.sh
         done
     fi
 done
