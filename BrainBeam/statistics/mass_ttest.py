@@ -47,9 +47,23 @@ class mass_ttest(inject_atlas):
         Outputs:DF -- returns the new dataframe where atlas level is up one. 
         """
         if level_num==0:
+            # Generate Conor's version of dataframe
+            df=self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
+            unique_subjects_cages = df[['subjectid', 'cage','treatment']].drop_duplicates()
+            unique_brain_regions = df['location'].unique()
+            complete_index = pd.MultiIndex.from_product(
+                [unique_subjects_cages['subjectid'], unique_subjects_cages['cage'], unique_brain_regions], 
+                names=['subjectid', 'cage', 'location'])
+            complete_df = pd.DataFrame(index=complete_index).reset_index()
+            df = pd.merge(complete_df, df, on=['subjectid', 'cage', 'location'], how='left')
+            df['n'] = df['n'].fillna(0)
+            df = pd.merge(df, df[['subjectid', 'cage', 'treatment']].drop_duplicates(), on=['subjectid', 'cage','treatment'], how='left')
+            output_file=os.path.join(self.drop_directory,f'conors_dataframe_format_level{level_num}.csv')
+            df.to_csv(output_file)
             return self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
         
         else:
+            # Generate my version of dataframe
             local_df = self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
             local_df['uid'] = local_df['cage'] + local_df['subjectid']
 
@@ -113,6 +127,8 @@ class mass_ttest(inject_atlas):
                 else:
                     subset = subset.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
                     DF=pd.concat([DF,subset])
+
+                ipdb.set_trace()
             
             return DF
 

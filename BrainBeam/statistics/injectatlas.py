@@ -57,7 +57,7 @@ class inject_atlas():
     
     def get_atlas_stack_volumes(self):
         """ Get the volume of each brain region... to calculate cell density """
-        volume_file = self.drop_directory+r'\atlas_volumes.npy' #the output file for the volume data
+        volume_file = r'C:\Users\listo\level_analysis'+r'\atlas_volumes.npy' #the output file for the volume data
         if os.path.isfile(volume_file):
             self.volumes = np.load(volume_file)
         else:
