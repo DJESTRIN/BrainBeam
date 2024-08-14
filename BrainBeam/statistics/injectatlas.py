@@ -22,6 +22,7 @@ import tqdm
 import matplotlib.cm as cm
 import pickle
 from bootstrap import quick_boot
+from matplotlib.colors import LinearSegmentedColormap
 
 warnings.simplefilter('ignore') #Ignore warnings 
 
@@ -230,7 +231,7 @@ class inject_atlas():
 
     def generate_scale_bar(self,height=800, width=200, padding=10):
         # Choose the colormap
-        colormap = cm.jet
+        colormap = self.get_colormap('red_black_blue')
         scale_bar_height = height - 2 * padding
         scale_bar = np.linspace(self.abs_min_val, self.abs_max_val, scale_bar_height)
         scale_bar = np.tile(scale_bar, (width - 2 * padding, 1))  # make it a horizontal bar
@@ -293,6 +294,16 @@ class inject_atlas():
         img=img[:,:,:-1]
         image = np.concatenate((image,img),axis=0)
         return image
+    
+    def get_colormap(self,cmap_name='red_black_blue'):
+        if cmap_name=='jet':
+            colormap = cm.jet
+            return colormap
+        elif cmap_name=='red_black_blue':
+            # Define the colors you want in your colormap
+            colors = ["blue", "black", "red"]
+            colormap = LinearSegmentedColormap.from_list(cmap_name, colors)
+            return colormap
 
     def plot_coronal_slice(self,image,reference_image,real_reference_image):
         # Cut data image so only right side
@@ -319,7 +330,7 @@ class inject_atlas():
         region_data=self.get_brain_region_labels(real_reference_image.T)
 
         # Convert data image to RGB
-        colormap = cm.jet # get jet colormap
+        colormap = self.get_colormap('red_black_blue')
         normalized_pixel_values = (image - self.abs_min_val) / (self.abs_max_val - self.abs_min_val) # Normalize pixel values to range [0, 1]
         converted_image = colormap(normalized_pixel_values)[:,:,:3] # Apply the colormap
 

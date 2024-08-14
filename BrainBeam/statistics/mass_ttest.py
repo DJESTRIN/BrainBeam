@@ -24,6 +24,8 @@ import pickle
 from bootstrap import quick_boot
 from injectatlas import inject_atlas
 import seaborn as sns
+from datetime import datetime
+
 
 warnings.simplefilter('ignore') #Ignore warnings 
 
@@ -131,25 +133,22 @@ class mass_ttest(inject_atlas):
         """ Loop over levels and perform mass univariate t-tests,
         Note: for inherited code, this will plot anything onto brain atlas if arranged in arranged_data correctly"""
         super().__call__()
-        levels=['location', 'lv1', 'lv2', 'lv3', 'lv4'] #, 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
+        levels=['location', 'lv1', 'lv2', 'lv3'] #, 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
         for i, level in enumerate(levels):
+            print(f'Currently on level: {level}')
             self.dataframe = self.get_parent_level(i)
-            output_datafile = os.path.join(self.drop_directory,f'{level}_counts_per_level_boot.csv')
+            output_datafile = os.path.join(self.drop_directory,f'{level}_counts_per_level.csv')
             self.dataframe.to_csv(output_datafile)
             self.get_normalized_n() # Normalize the count data
             self.brainregions,arranged_data = self.arrange_data(level)
             self.stat_string = f'There were {len(self.brainregions[arranged_data[:,1]<0.05])} significant regions out of {len(self.brainregions)} brain regions for level {level} using raw counts'
             self.regions_to_ids(self.brainregions)
-            continue
         
             # Plot data for t,p values for raw counts
-            self.current_data=arranged_data
-            fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_raw_counts_boot.jpg')
+            self.current_data=self.drop_tvalues(arranged_data)
+            fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_raw_counts.jpg')
             self.calculate_max_min_color_range(self.current_data[:,0])
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
-            fileoh = os.path.join(self.drop_directory,f'{level}_pvalues_raw_counts_boot.jpg')
-            self.calculate_max_min_color_range(self.current_data[:,1])
-            self.run_injection(self.current_data[:,1],i,level,modeoh='binary',filenameoh=fileoh) #Raw, p-value
 
             # Normalized counts
             self.brainregions,arranged_data = self.arrange_data(level,counttype='normalized_n')
@@ -157,14 +156,18 @@ class mass_ttest(inject_atlas):
             self.regions_to_ids(self.brainregions)
 
             # Plot data for t,p values for normalized counts
-            self.current_data=arranged_data
-            fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_normalized_counts_boot.jpg')
+            self.current_data=self.drop_tvalues(arranged_data)
+            fileoh = os.path.join(self.drop_directory,f'{level}_tvalues_normalized_counts.jpg')
             self.calculate_max_min_color_range(self.current_data[:,0])
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
-            fileoh = os.path.join(self.drop_directory,f'{level}_pvalues_normalized_counts_boot.jpg')
-            self.calculate_max_min_color_range(self.current_data[:,1])
-            self.run_injection(self.current_data[:,1],i,level,modeoh='binary',filenameoh=fileoh) #Raw, p-value
         return
+    
+    def drop_tvalues(self,data,threshold=1.8):
+        if self.drop_tvals==True:
+            data[(data[:,0]<threshold) & (data[:,0]>-threshold),0]=np.nan
+            return data
+        else:
+            return data
 
     def arrange_data(self,level_name,counttype='n'):
         # Calculate number subjects by group
@@ -209,9 +212,8 @@ class mass_ttest(inject_atlas):
         arranged_data=np.asarray(arranged_data)
 
         # Plot kernel density of t-values
-        ipdb.set_trace()
-        outputfile=os.path.join(self.drop_directory,f'{level_name}_kerneldensity_tvalues4.jpg')
-        self.kernel_density(arranged_data[:,0],outputfile)
+        outputfile=os.path.join(self.drop_directory,f'{level_name}_kerneldensity_tvalues.jpg')
+        self.kernel_density(pd.DataFrame({'t-values':arranged_data[:,0]}),outputfile)
  
         # Apply FDR
         arranged_data = self.false_discovery_rate_adjusted(arranged_data)
@@ -221,8 +223,8 @@ class mass_ttest(inject_atlas):
         plt.figure()
         sns.set_style('whitegrid')
         sns.histplot(data=data, x="t-values", kde=True)
-        #sns.kdeplot(np.array(data), bw=0.5)
         plt.savefig(filename)
+        plt.close()
 
     def ttest(self,group1,group2):
         """ Run univariate t-test """
@@ -272,15 +274,24 @@ class mass_ttest(inject_atlas):
         with open(filename, "wb") as file:
             pickle.dump(self, file)
     
+def create_timestamped_directory(root_dir):
+    current_time = datetime.now()
+    timestamp = current_time.strftime("%Y%m%d_%H%M%S")
+    dir_name = f"{root_dir}_{timestamp}"
+    os.makedirs(dir_name, exist_ok=True)
+    return dir_name
+
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj_boot3.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:
+        output = create_timestamped_directory(r'C:\Users\listo\level_analysis\results')
         massttest_obj=mass_ttest(atlas_json_file = r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_ontology.json',
                         atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
-                        drop_directory=r'C:\Users\listo\level_analysis\results',
+                        drop_directory=output,
                         dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv')
+        massttest_obj.drop_tvals=True
         massttest_obj()
         massttest_obj.save(filename_massttest)
