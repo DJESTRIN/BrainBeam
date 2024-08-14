@@ -22,7 +22,7 @@ for i in $scratch_stitch*/; do
         --partition=scu-cpu  \
         --mail-type=BEGIN,END,FAIL \
         --mail-user=dje4001@med.cornell.edu \
-        --wrap="bash ./split_cubes.sh '$TMP' '$scratch_directory'" 
+        --wrap="bash ./split_cubes.sh '$code_directory' '$TMP' '$scratch_directory'" 
 done
 
 exit
