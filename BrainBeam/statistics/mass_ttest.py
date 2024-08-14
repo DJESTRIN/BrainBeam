@@ -34,8 +34,8 @@ class mass_ttest(inject_atlas):
 
     def calculate_max_min_color_range(self,data):
         """ Get max and min values via percentiles of dataframe """
-        self.abs_min_val = np.nanpercentile(data,20)
-        self.abs_max_val = np.nanpercentile(data,80)
+        self.abs_min_val = -2 #np.nanpercentile(data,20)
+        self.abs_max_val = 2 #np.nanpercentile(data,80)
         return
 
     def get_parent_level(self,level_num=0):
@@ -189,9 +189,9 @@ class mass_ttest(inject_atlas):
                     get_values.append(df_group[counttype].to_numpy())
 
                 control = np.pad(get_values[0],(0,1+gn[0]-len(get_values)),'constant',constant_values=0)
-                control=quick_boot(control)
+                #control=quick_boot(control)
                 experimental = np.pad(get_values[1],(0,1+gn[1]-len(get_values)),'constant',constant_values=0)
-                experimental=quick_boot(experimental)
+                #experimental=quick_boot(experimental)
                 t_stat,p_value=self.ttest(control,experimental)
 
                 # Prevent infinity error
@@ -209,7 +209,8 @@ class mass_ttest(inject_atlas):
         arranged_data=np.asarray(arranged_data)
 
         # Plot kernel density of t-values
-        outputfile=os.path.join(self.drop_directory,f'{level_name}_kerneldensity_tvalues.jpg')
+        ipdb.set_trace()
+        outputfile=os.path.join(self.drop_directory,f'{level_name}_kerneldensity_tvalues4.jpg')
         self.kernel_density(arranged_data[:,0],outputfile)
  
         # Apply FDR
@@ -219,7 +220,8 @@ class mass_ttest(inject_atlas):
     def kernel_density(self,data,filename):
         plt.figure()
         sns.set_style('whitegrid')
-        sns.kdeplot(np.array(data), bw=0.5)
+        sns.histplot(data=data, x="t-values", kde=True)
+        #sns.kdeplot(np.array(data), bw=0.5)
         plt.savefig(filename)
 
     def ttest(self,group1,group2):
@@ -272,7 +274,7 @@ class mass_ttest(inject_atlas):
     
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj_boot.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj_boot3.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:

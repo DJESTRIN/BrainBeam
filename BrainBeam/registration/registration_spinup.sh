@@ -5,7 +5,7 @@ input_sample_directory=$2
 output_sample_directory=$3
 
 sbatch --job-name=registration \
-    --mem=200G \
+    --mem=300G \
     --partition=scu-gpu,sackler-gpu \
     --gres=gpu:2 \
     --mail-type=BEGIN,END,FAIL \
