@@ -181,7 +181,7 @@ class mass_ttest(inject_atlas):
         return
     
     def drop_tvalues(self,data):
-        if self.drop_tvals==True:
+        if hasattr(self, 'drop_tvals') and self.drop_tvals:
             data[(data[:,0]<self.drop_threshold) & (data[:,0]>-self.drop_threshold),0]=np.nan
             return data
         else:
@@ -213,7 +213,7 @@ class mass_ttest(inject_atlas):
                 experimental = np.pad(get_values[1],(0,1+gn[1]-len(get_values)),'constant',constant_values=0)
 
                 # Bootstrap data is true
-                if self.bootstrap:
+                if hasattr(self, 'bootstrap') and self.bootstrap:
                     control=quick_boot(control)
                     experimental=quick_boot(experimental)
                 
