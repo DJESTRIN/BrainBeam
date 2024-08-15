@@ -46,9 +46,8 @@ class mass_ttest(inject_atlas):
         Inputs: level_num -- an integer, when equal to 0, nothing is done to data. Else, move up one atlas level
         Outputs:DF -- returns the new dataframe where atlas level is up one. 
         """
-        if level_num==0:
-            # Generate Conor's version of dataframe
-            df=self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
+        def save_full_long_format(df,level_num):
+            # Generate a full long format of data frame where missing regions are assumed to have n=0
             unique_subjects_cages = df[['subjectid', 'cage','treatment']].drop_duplicates()
             unique_brain_regions = df['location'].unique()
             complete_index = pd.MultiIndex.from_product(
@@ -60,6 +59,9 @@ class mass_ttest(inject_atlas):
             df = pd.merge(df, df[['subjectid', 'cage', 'treatment']].drop_duplicates(), on=['subjectid', 'cage','treatment'], how='left')
             output_file=os.path.join(self.drop_directory,f'conors_dataframe_format_level{level_num}.csv')
             df.to_csv(output_file)
+
+        if level_num==0:
+            save_full_long_format(self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum(),level_num)
             return self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
         
         else:
@@ -128,7 +130,7 @@ class mass_ttest(inject_atlas):
                     subset = subset.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
                     DF=pd.concat([DF,subset])
 
-                ipdb.set_trace()
+                save_full_long_format(DF,level_num)
             
             return DF
 
@@ -178,9 +180,9 @@ class mass_ttest(inject_atlas):
             self.run_injection(self.current_data[:,0],i,level,modeoh='continuous',filenameoh=fileoh) #Raw, t-value
         return
     
-    def drop_tvalues(self,data,threshold=1.8):
+    def drop_tvalues(self,data):
         if self.drop_tvals==True:
-            data[(data[:,0]<threshold) & (data[:,0]>-threshold),0]=np.nan
+            data[(data[:,0]<self.drop_threshold) & (data[:,0]>-self.drop_threshold),0]=np.nan
             return data
         else:
             return data
@@ -215,9 +217,11 @@ class mass_ttest(inject_atlas):
 
                 # Prevent infinity error
                 if t_stat==float("inf"):
-                    t_stat=1
+                    ipdb.set_trace()
+                    t_stat=10
                 elif t_stat==float("-inf"):
-                    t_stat=-1
+                    ipdb.set_trace()
+                    t_stat=-10
 
                 t_stat=t_stat*-1 # Doing this so that red means (Experimental>control) and blue means (control>experimental)
                 arranged_data.append([t_stat,p_value])
@@ -299,7 +303,7 @@ def create_timestamped_directory(root_dir):
 
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj2.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:
@@ -308,6 +312,11 @@ if __name__=='__main__':
                         atlas_path=r'C:\Users\listo\BRAINBEAM\BRAINBEAM\statistics\datasets\ara_annotation_10um.tif',
                         drop_directory=output,
                         dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv')
+        
+        # Threshold T-values for dataframe
         massttest_obj.drop_tvals=True
+        massttest_obj.drop_threshold=1.3
+
+        #Run object pipeline
         massttest_obj()
         massttest_obj.save(filename_massttest)
