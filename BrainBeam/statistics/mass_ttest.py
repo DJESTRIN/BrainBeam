@@ -210,17 +210,19 @@ class mass_ttest(inject_atlas):
                     get_values.append(df_group[counttype].to_numpy())
 
                 control = np.pad(get_values[0],(0,1+gn[0]-len(get_values)),'constant',constant_values=0)
-                #control=quick_boot(control)
                 experimental = np.pad(get_values[1],(0,1+gn[1]-len(get_values)),'constant',constant_values=0)
-                #experimental=quick_boot(experimental)
+
+                # Bootstrap data is true
+                if self.bootstrap:
+                    control=quick_boot(control)
+                    experimental=quick_boot(experimental)
+                
                 t_stat,p_value=self.ttest(control,experimental)
 
                 # Prevent infinity error
                 if t_stat==float("inf"):
-                    ipdb.set_trace()
                     t_stat=10
                 elif t_stat==float("-inf"):
-                    ipdb.set_trace()
                     t_stat=-10
 
                 t_stat=t_stat*-1 # Doing this so that red means (Experimental>control) and blue means (control>experimental)

@@ -19,7 +19,7 @@ for FILE in *; do
     # Check if it is a regular file (not a directory or other type of file)
     if [ -f "$FILE" ]; then
         # Tar and gzip the file
-        tar -czf "$FILE.tar.gz" "$FILE"
+        tar -czf "$FILE.tar.gz" "$FILE" --use-compress-program="gzip -9"
      
         if [ $? -eq 0 ]; then
             # Remove the original file
