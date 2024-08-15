@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Module Name: DataMerger.py
+Description:
+    This script includes classes that merge multiple datasets from BrainBeam into a single tall format dataset. It utalizes the 
+    Allen Reference Atlas to link cell corrdinates to brain regions and converts these counts to a final dataset.  
+
+Author: David Estrin
+Date: 2024-008-15
+Version: 2.0
+
+Usage:
+    python DataMerger.py --input data.csv --output results.csv
+"""
 import json
 import numpy as np 
 from skimage.io import imread
@@ -6,8 +21,6 @@ sys.path.insert(0,'/home/fs01/dje4001/CloudReg/')
 sys.path.insert(0,'/home/fs01/dje4001/lightsheet_cluster/')
 from cloudreg.scripts.ARA_stuff.parse_ara import *
 from princeton_ara import *
-import argparse
-import itertools
 from tqdm import tqdm
 import ipdb
 from multiprocessing import Pool
@@ -132,51 +145,6 @@ class channel:
                 self.not_on_list.append(c)
         return
             
-    def level_registration(self,level):
-        """ Takes the registration list, and converts it to different level 
-            Example: converting crebellar cortex, purkinje layer to cerebellum
-            input and output should be a column that is the same size"""
-        #Separate ara into groups by level, get names of children
-        names,__=get_children_names(self.ara_file,level)
-        
-        #Generate new list of names where new names must be member of level.
-        cell_atlas_names_leveled=self.cell_atlas_names[:]
-        for i,current_name in enumerate(self.cell_atlas_names):
-            Found=False
-            for key in names:
-                for child in names[key]:
-                    if current_name == child:
-                        cell_atlas_names_leveled[i]=key
-                        Found=True
-                        break
-                if Found==True:
-                    break
-            if Found==False:
-                cell_atlas_names_leveled[i]=current_name
-        return cell_atlas_names_leveled
-    
-    def move_up_tree(self,steps):
-        #Generate new list of names where new names must be member of level.
-        self.cell_atlas_names_step=[]
-        index=[]
-        for current_name in self.cell_atlas_names:
-            if steps>1:
-                for u in range(steps):
-                    try:
-                        current_name=Tree.get_parent(current_name)
-                    except:
-                        if current_name==None:
-                            break
-                self.cell_atlas_names_step.append(current_name)
-            elif steps<1:
-                print("steps for move_up_tree method is incorrect, please fix")
-                return self.cell_atlas_names_step
-            else:
-                self.cell_atlas_names_step.append(Tree.get_parent(current_name))
-        return self.cell_atlas_names_step
-    
-
-
     def build_tall_format(self):
         """ Take cdata regarding cells and put them into tall format. 
         
@@ -184,10 +152,8 @@ class channel:
             brain_region_lf,l2,l3,l4,l5,l6, etc.
         """
         cell_array=np.asarray(self.cell_atlas_names)
-        level_array=np.asarray(self.levels)
         cell_array=cell_array.T
         cell_array=np.expand_dims(cell_array,axis=1)
-        level_array=level_array.T
         onemat=np.ones(cell_array.shape[0])
         
         
