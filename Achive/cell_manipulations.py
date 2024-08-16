@@ -5,26 +5,23 @@ Code which links cell count classifications with registration. Creates final dat
 """
 import json
 import numpy as np 
-import scipy
 import math
-import os
 from skimage.io import imread
 import sys
-sys.path.insert(0,'/home/dje4001/CloudReg/')
-sys.path.insert(0,'/home/dje4001/lightsheet_cluster/')
+sys.path.insert(0,'/home/fs01/dje4001/CloudReg/')
+sys.path.insert(0,'/home/fs01/dje4001/lightsheet_cluster/')
 from cloudreg.scripts.ARA_stuff.parse_ara import *
-from statistics.princeton_ara import *
+from princeton_ara import *
 import argparse
 import itertools
 from tqdm import tqdm
 import ipdb
-import re
 from multiprocessing import Pool
 import ipdb
 import pandas as pd
 
 # Generate a tree strucutre from Allen Registered Atlas file. Used for parsing
-ara_file="/home/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json"
+ara_file="/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json"
 with open(atlas_json_file,'r') as infile:
     ontology_dict = json.load(infile)
 
@@ -81,8 +78,13 @@ class sample_channel(mouse_brain):
         return print("finished")
         
     def load_cell_corrdinates(self):
-        with open(self.cell_counts_path,'r') as f:
-            self.cells = json.load(f)
+        if 'csv' in self.cell_counts_path:
+            df=pd.read_csv(self.cell_counts_path)
+            self.cells=df.to_numpy()
+        else:
+            print('loading counts as json')
+            with open(self.cell_counts_path,'r') as f:
+                self.cells = json.load(f)
         self.cells=self.cells
         self.eliminate_double_counts()
         self.total_cells=len(self.cells)
@@ -240,6 +242,7 @@ class sample_channel(mouse_brain):
         self.treatment=""
         
         #Split path
+        ipdb.set_trace()
         _,_,_,_,_,self.experiment,_,_,_,self.channel_name,_=self.image_path.split('/')
         
         #Get mouse info details
@@ -287,25 +290,26 @@ class sample_channel(mouse_brain):
 Testing code:
     02/15 cell counts and atlas are different brains, just testing to see if it runs....
 """
-# image_path = "/athena/listonlab/scratch/dje4001/rabies_cort_control_restain/lightsheet/stitched/20221105_10_35_50_CAGE3811494_ANIMAL1019_VIRUSRABIES_CORTCONTROL/Ex_647_Em_680/"
-# atlas_path = "/athena/listonlab/scratch/dje4001/rabies_cort_control_restain/lightsheet/registered/20221105_10_35_50_CAGE3811494_ANIMAL1019_VIRUSRABIES_CORTCONTROL/tiffsequence/"
-# cell_counts_path = "/athena/listonlab/scratch/dje4001/rabies_cort_control_restain/lightsheet/segmented/20221105_10_35_50_CAGE3811494_ANIMAL1019_VIRUSRABIES_CORTCONTROL/Ex_647_Em_680/cell_detect_test.json"
-# output_path = "/athena/listonlab/scratch/dje4001/rabies_cort_control_restain/lightsheet/tallformat/20221105_10_35_50_CAGE3811494_ANIMAL1019_VIRUSRABIES_CORTCONTROL/"
-# Tree=Graph(ontology_dict)
-# channel=sample_channel(image_path,atlas_path,cell_counts_path,output_path,5,Tree,ara_file)
-# channel.forward()
-
-parser=argparse.ArgumentParser()
-parser.add_argument("--image_path",type=str,required=True)
-parser.add_argument("--atlas_path",type=str,required=True)
-parser.add_argument("--cell_counts_path",type=str,required=True)
-parser.add_argument("--output_path",type=str,required=True)
-
 if __name__=='__main__':
-    args=parser.parse_args()
+    image_path = "/athena/listonlab/scratch/dje4001/lightsheet_scratch/rabies_cort_experimental_cohort2/lightsheet/stitched/20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE/Ex_647_Em_680/"
+    atlas_path = "/athena/listonlab/scratch/dje4001/lightsheet_scratch/rabies_cort_experimental_cohort2/lightsheet/registered/20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE/Ex_647_Em_680/tiffsequence/"
+    cell_counts_path="/athena/listonlab/scratch/dje4001/lightsheet_scratch/rabies_cort_experimental_cohort2/lightsheet/ilastik/20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE/Ex_647_Em_680/cell_counts.csv"
+    output_path="/athena/listonlab/scratch/dje4001/lightsheet_scratch/rabies_cort_experimental_cohort2/lightsheet/tallformat/20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE/"
     Tree=Graph(ontology_dict)
-    channel=sample_channel(args.image_path,args.atlas_path,args.cell_counts_path,args.output_path,5,Tree,ara_file)
+    channel=sample_channel(image_path,atlas_path,cell_counts_path,output_path,5,Tree,ara_file)
     channel.forward()
+
+# parser=argparse.ArgumentParser()
+# parser.add_argument("--image_path",type=str,required=True)
+# parser.add_argument("--atlas_path",type=str,required=True)
+# parser.add_argument("--cell_counts_path",type=str,required=True)
+# parser.add_argument("--output_path",type=str,required=True)
+
+# if __name__=='__main__':
+#     args=parser.parse_args()
+#     Tree=Graph(ontology_dict)
+#     channel=sample_channel(args.image_path,args.atlas_path,args.cell_counts_path,args.output_path,5,Tree,ara_file)
+#     channel.forward()
 
 
 

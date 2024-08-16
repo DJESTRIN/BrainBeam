@@ -25,11 +25,7 @@ from tqdm import tqdm
 import pandas as pd
 import re
 from itertools import combinations
-
-# Generate a tree strucutre from Allen Registered Atlas file. Used for parsing
-ara_file="/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json"
-with open(atlas_json_file,'r') as infile:
-    ontology_dict = json.load(infile)
+import pickle
 
 class channel:
     def __init__(self, image_path, atlas_path, cell_counts_path,Tree):
@@ -209,6 +205,17 @@ class sample:
     
     def add_channel(self,channel_object):
         self.channels.append(channel_object)
+    
+    @classmethod
+    def load(cls,filename):
+        """Load an instance from a pickle file."""
+        with open(filename, "rb") as file:
+            return pickle.load(file)
+    
+    def save(self,filename):
+        """Save the instance to a file using pickle."""
+        with open(filename, "wb") as file:
+            pickle.dump(self, file)
 
     def find_coexpression(self,obj1, obj2,threshold=20):
         # Define the action you want to perform on each pair of objects
@@ -226,7 +233,7 @@ class sample:
             index+=1
         return flag
 
-    def find_coexpression(self):
+    def all_coexpression(self):
         if len(self.channels) < 2:
             print("Not enough channels to find co-expressing cells")
             return
@@ -246,3 +253,35 @@ class sample:
             coexpression.append(coexpressionoh)
 
             print(f"There were {total_coexpressing_cells} co expressing cells for {channel1.channel_as_string()} and {channel2.channel_as_string()}")
+
+class rabies_sample(sample):
+    def __init__(self,output_file):
+        super.__init__(self)
+        self.output_file=output_file
+
+    def calculate_starter_cells(self):
+        for obj in self.channels:
+            # Determine which channels are helper virus or rabies virus
+            if obj.channel=='Ex_647_Em_680':
+                obj.rabies_channel=True
+                obj.helper_channel=False
+            else:
+                obj.rabies_channel=False
+                obj.helper_channel=True
+
+def open_ara(ara_file="/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json"):
+    with open(ara_file) as infile:
+        ontology_dict = json.load(infile)
+    return ontology_dict
+
+if __name__=='__main__':
+    # Open ontology dictonary
+    ontology_dict = open_ara()
+
+    # Get all channels
+
+    # Output all necessary dataframes
+
+    # Add all channels to rabies sample
+
+    # Save rabies sample object for later stats
