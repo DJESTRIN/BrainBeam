@@ -319,6 +319,5 @@ def rabies_main():
     filenameoh=f"{args.output_path}/rabies_sample_object_{formatted_datetime}.pkl"
     rabies_sample.save(filename=filenameoh)
 
-
 if __name__=='__main__':
     rabies_main()
