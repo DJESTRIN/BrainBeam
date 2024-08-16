@@ -39,7 +39,7 @@ def submit_datamerge_jobs(dir_list):
                 --partition=scu-cpu \
                 --mail-type=BEGIN,END,FAIL \
                 --mail-user=dje4001@med.cornell.edu \
-                --wrap='python cell_manipulations.py \
+                --wrap='python ./DataMerger.py \
                 --image_path {image_path} \
                 --atlas_path {atlas_path} \
                 --cell_counts_path {cell_counts_path} \

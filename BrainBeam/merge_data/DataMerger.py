@@ -17,15 +17,17 @@ import json
 import numpy as np 
 from skimage.io import imread
 import sys
-sys.path.insert(0,'/home/fs01/dje4001/CloudReg/')
-sys.path.insert(0,'/home/fs01/dje4001/lightsheet_cluster/')
 from cloudreg.scripts.ARA_stuff.parse_ara import *
-from princeton_ara import *
+from BrainBeam.statistics.princeton_ara import *
 from tqdm import tqdm
 import pandas as pd
 import re
 from itertools import combinations
 import pickle
+import argparse
+import os
+import fnmatch
+from datetime import datetime
 
 class channel:
     def __init__(self, image_path, atlas_path, cell_counts_path,Tree):
@@ -274,14 +276,49 @@ def open_ara(ara_file="/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ar
         ontology_dict = json.load(infile)
     return ontology_dict
 
-if __name__=='__main__':
+def find_matching_subdirectories(directory, pattern):
+    entries = os.listdir(directory)
+    matching_dirs = [entry for entry in entries if os.path.isdir(os.path.join(directory, entry)) and fnmatch.fnmatch(entry, pattern)]
+    return matching_dirs
+
+def rabies_main():
+    # Parse command line inputs
+    parser = argparse.ArgumentParser(description="Get all main directories")
+    parser.add_argument('--image_path', type=str, help='Path to image folder')
+    parser.add_argument('--atlas_path', type=str, help='Path to atlas images')
+    parser.add_argument('--cell_counts_path', type=str, help='Path to cell count file')
+    parser.add_argument('--output_path', type=str, help='Path to output folder')
+    args = parser.parse_args()
+
     # Open ontology dictonary
     ontology_dict = open_ara()
+    Tree_oh = Graph(ontology_dict=ontology_dict)
+
+    # Create sample object
+    sample_oh = rabies_sample()
 
     # Get all channels
+    channels = find_matching_subdirectories(args.image_path,'Ex_*_Em_*')
+    for channel_path_oh in channels:
+        # Build channel object and run 
+        channel_oh = channel(channel_path_oh,args.atlas_path,args.cell_counts_path,Tree_oh)
+        channel_oh()
 
-    # Output all necessary dataframes
+        # Output essential dataframes
 
-    # Add all channels to rabies sample
+        # Add channel object to the sample object
+        sample_oh.add_channel(channel_object=channel_oh) 
+
+    # Calculate starter cells
+    rabies_sample.all_coexpression()
+    rabies_sample.calculate_starter_cells()
 
     # Save rabies sample object for later stats
+    current_datetime = datetime.now()
+    formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+    filenameoh=f"{args.output_path}/rabies_sample_object_{formatted_datetime}.pkl"
+    rabies_sample.save(filename=filenameoh)
+
+
+if __name__=='__main__':
+    rabies_main()
