@@ -1,21 +1,7 @@
 #Import libraries
-import pandas as pd
 import numpy as np
-from skimage.io import imread, imsave
-from skimage.feature import canny as edgedetector
-import matplotlib.pyplot as plt
-from scipy import stats
-from princeton_ara import Graph
-import json
 import os
 import ipdb
-import warnings
-from PIL import Image
-from PIL import ImageFont
-from PIL import ImageDraw 
-import io
-import tqdm
-import matplotlib.cm as cm
 import pickle
 from bootstrap import quick_boot
 from injectatlas import inject_atlas
@@ -121,7 +107,6 @@ class total_counts(mass_ttest):
                 arranged_data.append([total_value,density_value])
 
             else:
-                ipdb.set_trace()
                 arranged_data.append([np.nan,np.nan])
 
         # Convert back to numpy array

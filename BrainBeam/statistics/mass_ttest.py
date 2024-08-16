@@ -48,6 +48,7 @@ class mass_ttest(inject_atlas):
         """
         def save_full_long_format(df,level_num):
             # Generate a full long format of data frame where missing regions are assumed to have n=0
+            
             unique_subjects_cages = df[['subjectid', 'cage','treatment']].drop_duplicates()
             unique_brain_regions = df['location'].unique()
             complete_index = pd.MultiIndex.from_product(
