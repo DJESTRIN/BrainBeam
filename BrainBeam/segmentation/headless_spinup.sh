@@ -22,7 +22,7 @@ slicesdirs=$( find $ilastik_input_dir -type d -name '*slice*' )
 for slicefolder in $slicesdirs; do
     echo $slicefolder
     sbatch --job-name=batch_ilastik \
-        --mem=50G \
+        --mem=200G \
         --ntasks=4 \
         --cpus-per-task=8 \
         --partition=scu-cpu \
