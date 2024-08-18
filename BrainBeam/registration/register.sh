@@ -39,9 +39,9 @@ python3 -m cloudreg.scripts.estrin_register -input_s3_path file://$input_path \
     --parcellation_s3_path https://open-neurodata.s3.amazonaws.com/ara_2016/sagittal_10um/annotation_10um_2017 \
     --atlas_orientation ASR \
     -orientation LPS \
-    --rotation 32.8 -3.3 2.2 \
+    --rotation 0 0 0 \
     --translation 0 0 0 \
-    --fixed_scale 1.5 \
+    --fixed_scale 1.3 \
     --missing_data_correction True \
     --grid_correction False \
     --bias_correction True \

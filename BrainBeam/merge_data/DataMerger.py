@@ -249,12 +249,12 @@ class sample:
 
             #Calculate coexpression
             coexpressionoh=self.find_coexpression(channel1, channel2)
-            total_coexpressing_cells=coexpressionoh.sum()
+            self.total_coexpressing_cells=coexpressionoh.sum()
 
             # Save coexpression to list
             coexpression.append(coexpressionoh)
 
-            print(f"There were {total_coexpressing_cells} co expressing cells for {channel1.channel_as_string()} and {channel2.channel_as_string()}")
+            print(f"There were {self.total_coexpressing_cells} co expressing cells for {channel1.channel_as_string()} and {channel2.channel_as_string()}")
 
 class rabies_sample(sample):
     def __init__(self,output_file):
