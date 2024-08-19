@@ -191,6 +191,7 @@ class BayesOptRegistration:
 
     def quick_register(self,parameters_oh):
         # Break up current parameters and place into correct variables
+        ipdb.set_trace()
         xrotation,yrotation,zrotation,scale=parameters_oh
         self.rotation=[xrotation,yrotation,zrotation]
         self.fixed_scale=scale
