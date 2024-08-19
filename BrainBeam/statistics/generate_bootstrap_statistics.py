@@ -11,7 +11,7 @@ class mass_whitneytest(mass_ttest):
 
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\level_analysis\bootstrap\datasets\mass_ttests_obj_boot2.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\bootstrap\datasets\mass_ttests_obj_boot3.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
         ipdb.set_trace()
@@ -23,9 +23,9 @@ if __name__=='__main__':
                         dataframe_path=r'C:\Users\listo\level_analysis\datasets\rabies_cort_cohort2_dataset.csv')
         
         # Threshold T-values for dataframe
-        #massttest_obj.drop_tvals=True
-        #massttest_obj.drop_threshold=2
-        #massttest_obj.bootstrap=True
+        massttest_obj.drop_tvals=True
+        massttest_obj.drop_threshold=2
+        massttest_obj.bootstrap=True
 
         #Run object pipeline
         massttest_obj()

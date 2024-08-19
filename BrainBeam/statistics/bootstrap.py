@@ -1,6 +1,6 @@
 import numpy as np
 
-def quick_boot(input_array,number=40):
+def quick_boot(input_array,number=65):
     return np.random.choice(input_array, number)
 
 class bootstrap:
