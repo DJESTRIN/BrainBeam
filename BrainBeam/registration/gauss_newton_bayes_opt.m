@@ -704,7 +704,7 @@ for downloop = downloop_start : 1
 
         if BayesOptFlag==1 and niters>19
             % Output energy
-            fid = fopen('result.txt', 'w');
+            fid = fopen('energy_result.txt', 'w');
             fprintf(fid, '%f\n', E);
             fclose(fid);
             exit; 

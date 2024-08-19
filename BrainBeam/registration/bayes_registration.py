@@ -24,11 +24,7 @@ import shutil
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 from scipy.optimize import minimize
-
-# Run 20 trials using bayes opt to get the lowest energy.
-# Save Energy into a folder/file 
-# Then run final registration using the best hyper parameters
-# 
+import ipdb
 
 class BayesOptRegistration:
     def __init__(self,input_s3_path,atlas_s3_path,parcellation_s3_path,atlas_orientation,output_s3_path,log_s3_path,orientation,fixed_scale,translation,
@@ -58,6 +54,7 @@ class BayesOptRegistration:
         self.init_samplesize=init_samplesize
 
     def initbayesopt(self):
+        ipdb.set_trace()
         kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=np.ones(4), length_scale_bounds=(1e-2, 1e2))
         self.gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-2)
         self.hyperparameters = np.hstack((np.random.uniform(-40, 40, size=(self.init_samplesize,3)), np.random.uniform(0.8, 1.4, size=(self.init_samplesize, 1))))
@@ -126,24 +123,44 @@ class BayesOptRegistration:
         self.affine_string = "; ".join(self.affine_string)
 
     def build_matlab_command(self):
-        self.matlab_command = (
-            f"matlab -nodisplay -nosplash -nodesktop -r \""
-            f"niter={self.num_iterations};"
-            f"sigmaR={self.regularization};"
-            f"missing_data_correction={int(self.missing_data_correction)};"
-            f"grid_correction={int(self.grid_correction)};"
-            f"bias_correction={int(self.bias_correction)};"
-            f"base_path='{self.base_path}';"
-            f"target_name='{self.target_name}';"
-            f"registration_prefix='{self.registration_prefix}';"
-            f"atlas_prefix='{self.atlas_prefix}';"
-            f"dxJ0={self.voxel_size};"
-            f"fixed_scale={self.fixed_scale};"
-            f"initial_affine=[{self.affine_string}];"
-            f"parcellation_voxel_size={self.parcellation_voxel_size};"
-            f"parcellation_image_size={self.parcellation_image_size};"
-            f"run('~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
-
+        if self.bayesopt:
+            bayesoptflag=1
+            self.matlab_command = (
+                f"matlab -nodisplay -nosplash -nodesktop -r \""
+                f"niter={self.num_iterations};"
+                f"sigmaR={self.regularization};"
+                f"missing_data_correction={int(self.missing_data_correction)};"
+                f"grid_correction={int(self.grid_correction)};"
+                f"bias_correction={int(self.bias_correction)};"
+                f"base_path='{self.base_path}';"
+                f"target_name='{self.target_name}';"
+                f"registration_prefix='{self.registration_prefix}';"
+                f"atlas_prefix='{self.atlas_prefix}';"
+                f"dxJ0={self.voxel_size};"
+                f"fixed_scale={self.fixed_scale};"
+                f"initial_affine=[{self.affine_string}];"
+                f"parcellation_voxel_size={self.parcellation_voxel_size};"
+                f"parcellation_image_size={self.parcellation_image_size};"
+                f"BayesOptFlag={bayesoptflag};"
+                f"run('~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
+        else:
+            self.matlab_command = (
+                f"matlab -nodisplay -nosplash -nodesktop -r \""
+                f"niter={self.num_iterations};"
+                f"sigmaR={self.regularization};"
+                f"missing_data_correction={int(self.missing_data_correction)};"
+                f"grid_correction={int(self.grid_correction)};"
+                f"bias_correction={int(self.bias_correction)};"
+                f"base_path='{self.base_path}';"
+                f"target_name='{self.target_name}';"
+                f"registration_prefix='{self.registration_prefix}';"
+                f"atlas_prefix='{self.atlas_prefix}';"
+                f"dxJ0={self.voxel_size};"
+                f"fixed_scale={self.fixed_scale};"
+                f"initial_affine=[{self.affine_string}];"
+                f"parcellation_voxel_size={self.parcellation_voxel_size};"
+                f"parcellation_image_size={self.parcellation_image_size};"
+                f"run('~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
 
     def run_matlab(self,command):
         subprocess.run(shlex.split(command))
@@ -182,9 +199,36 @@ class BayesOptRegistration:
         self.register()
         self.build_matlab_command()
         self.run_matlab(self.matlab_command)
+        Energy_oh = self.read_energy_result()
+        return Energy_oh
+    
+    def read_energy_result(self):
+        with open('energy_result.txt', 'r') as file:
+            energy_value = float(file.readline().strip())
+        return np.array(energy_value)
+
 
     def final_register(self):
+        # Set up final parameters
+        xrotation,yrotation,zrotation,scale=self.final_hyperparameters
+        self.rotation=[xrotation,yrotation,zrotation]
+        self.fixed_scale=scale
+
+        # Set tuning to off
         self.bayesopt=False
+
+        # Set up registration
+        self.register()
+        self.build_matlab_command()
+        self.run_matlab(self.matlab_command)
+    
+    def forward(self):
+        # Initialize and run tuning
+        self.initbayesopt()
+        self.run_BayesOpt()
+
+        # Run final registration
+        self.final_register()
 
 def main():
     parser = argparse.ArgumentParser("Run CloudReg pipeline locally will Bayesian optimization")
@@ -212,6 +256,8 @@ def main():
     reg_obj = BayesOptRegistration(args.input_s3_path,args.atlas_s3_path,args.parcellation_s3_path,args.atlas_orientation,args.output_s3_path,args.log_s3_path,args.orientation,
         args.fixed_scale,args.translation,args.rotation,args.missing_data_correction,args.grid_correction,args.bias_correction,args.regularization,args.iterations,
         args.registration_resolution)
+    
+    reg_obj.forward()
 
 if __name__ == "__main__":
     main()
