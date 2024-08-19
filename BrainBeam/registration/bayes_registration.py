@@ -111,10 +111,10 @@ class BayesOptRegistration:
 
         # Download autoflourescent channel
         print("downloading input data for registration...")
-        registration_resolution *= 1000.0 
+        self.registration_resolution *= 1000.0 
         self.voxel_size = download_data(self.input_s3_path, self.target_name, 15000)
-        _ = download_data(self.atlas_s3_path, atlas_name, registration_resolution, resample_isotropic=True)
-        _ = download_data(self.parcellation_s3_path, parcellation_name, registration_resolution, resample_isotropic=True)
+        _ = download_data(self.atlas_s3_path, atlas_name, self.registration_resolution, resample_isotropic=True)
+        _ = download_data(self.parcellation_s3_path, parcellation_name, self.registration_resolution, resample_isotropic=True)
         self.parcellation_voxel_size, self.parcellation_image_size = download_data(self.parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
 
         # Calculate affine matrix
