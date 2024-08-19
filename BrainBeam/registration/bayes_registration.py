@@ -31,7 +31,29 @@ from scipy.optimize import minimize
 # 
 
 class BayesOptRegistration:
-    def __init__(self,bayesopt=True,init_samplesize=5):
+    def __init__(self,input_s3_path,atlas_s3_path,parcellation_s3_path,atlas_orientation,output_s3_path,log_s3_path,orientation,fixed_scale,translation,
+        rotation,missing_data_correction,grid_correction,bias_correction,regularization,num_iterations,registration_resolution,
+        base_path="/athena/listonlab/scratch/dje4001/lightsheet_scratch/cloudreg_base/",bayesopt=True,init_samplesize=5):
+        # Cloud Reg default parameters
+        self.input_s3_path=input_s3_path
+        self.atlas_s3_path=atlas_s3_path
+        self.parcellation_s3_path=parcellation_s3_path
+        self.atlas_orientation=atlas_orientation
+        self.output_s3_path=output_s3_path
+        self.log_s3_path=log_s3_path
+        self.orientation=orientation
+        self.fixed_scale=fixed_scale
+        self.translation=translation
+        self.rotation=rotation
+        self.missing_data_correction=missing_data_correction
+        self.grid_correction=grid_correction
+        self.bias_correction=bias_correction
+        self.regularization=regularization
+        self.num_iterations=num_iterations
+        self.registration_resolution=registration_resolution
+        self.base_path = base_path
+
+        # Bayes optimization parameters
         self.bayesopt=bayesopt
         self.init_samplesize=init_samplesize
 
@@ -76,46 +98,55 @@ class BayesOptRegistration:
             affine = np.diag([fixed_scale[0], fixed_scale[0], fixed_scale[0], 1.0]) @ affine
         return affine
 
-    def register(self,input_s3_path,atlas_s3_path,parcellation_s3_path,atlas_orientation,output_s3_path,log_s3_path,orientation,fixed_scale,translation,
-        rotation,missing_data_correction,grid_correction,bias_correction,regularization,num_iterations,registration_resolution):
-
-        # get volume info
-        s3_url = S3Url(input_s3_path)
+    def register(self):
+        # Get volume information
+        s3_url = S3Url(self.input_s3_path)
         channel = s3_url.key.split("/")[-1]
         exp = s3_url.key.split("/")[-2]
 
-        # only after stitching autofluorescence channel
-        base_path="/athena/listonlab/scratch/dje4001/lightsheet_scratch/cloudreg_base/"
-        registration_prefix = f"{base_path}/{exp}_{channel}_registration/"
-        atlas_prefix = f'{base_path}/CloudReg/cloudreg/registration/atlases/'
-        target_name = f"{base_path}/{exp}_{channel}_autofluordata/autofluorescence_data.tif"
-        atlas_name = f"{atlas_prefix}/atlas_data.nrrd"
-        parcellation_name = f"{atlas_prefix}/parcellation_data.nrrd"
-        parcellation_hr_name = f"{atlas_prefix}/parcellation_data.tif"
+        # Set up paths and get info
+        self.registration_prefix = f"{self.base_path}/{exp}_{channel}_registration/"
+        self.atlas_prefix = f'{self.base_path}/CloudReg/cloudreg/registration/atlases/'
+        self.target_name = f"{self.base_path}/{exp}_{channel}_autofluordata/autofluorescence_data.tif"
+        atlas_name = f"{self.atlas_prefix}/atlas_data.nrrd"
+        parcellation_name = f"{self.atlas_prefix}/parcellation_data.nrrd"
+        parcellation_hr_name = f"{self.atlas_prefix}/parcellation_data.tif"
 
-        # download downsampled autofluorescence channel
+        # Download autoflourescent channel
         print("downloading input data for registration...")
         registration_resolution *= 1000.0 
-        voxel_size = download_data(input_s3_path, target_name, 15000)
-        _ = download_data(atlas_s3_path, atlas_name, registration_resolution, resample_isotropic=True)
-        _ = download_data(parcellation_s3_path, parcellation_name, registration_resolution, resample_isotropic=True)
-        parcellation_voxel_size, parcellation_image_size = download_data(parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
+        self.voxel_size = download_data(self.input_s3_path, self.target_name, 15000)
+        _ = download_data(self.atlas_s3_path, atlas_name, registration_resolution, resample_isotropic=True)
+        _ = download_data(self.parcellation_s3_path, parcellation_name, registration_resolution, resample_isotropic=True)
+        self.parcellation_voxel_size, self.parcellation_image_size = download_data(self.parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
 
-        initial_affine = self.get_affine_matrix(translation,rotation,atlas_orientation,orientation,fixed_scale,atlas_s3_path,)
+        # Calculate affine matrix
+        initial_affine = self.get_affine_matrix(self.translation,self.rotation,self.atlas_orientation,self.orientation,self.fixed_scale,self.atlas_s3_path,)
+        self.affine_string = [", ".join(map(str, i)) for i in initial_affine]
+        self.affine_string = "; ".join(self.affine_string)
 
-        # run registration
-        affine_string = [", ".join(map(str, i)) for i in initial_affine]
-        affine_string = "; ".join(affine_string)
-        print(affine_string)
-        self.matlab_command = f"""
-            matlab -nodisplay -nosplash -nodesktop -r \"niter={num_iterations};sigmaR={regularization};missing_data_correction={int(missing_data_correction)};grid_correction={int(grid_correction)};bias_correction={int(bias_correction)};base_path=\'{base_path}\';target_name=\'{target_name}\';registration_prefix=\'{registration_prefix}\';atlas_prefix=\'{atlas_prefix}\';dxJ0={voxel_size};fixed_scale={fixed_scale};initial_affine=[{affine_string}];parcellation_voxel_size={parcellation_voxel_size};parcellation_image_size={parcellation_image_size};run(\'~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m\'); exit;\"
-        """
+    def build_matlab_command(self):
+        self.matlab_command = (
+            f"matlab -nodisplay -nosplash -nodesktop -r \""
+            f"niter={self.num_iterations};"
+            f"sigmaR={self.regularization};"
+            f"missing_data_correction={int(self.missing_data_correction)};"
+            f"grid_correction={int(self.grid_correction)};"
+            f"bias_correction={int(self.bias_correction)};"
+            f"base_path='{self.base_path}';"
+            f"target_name='{self.target_name}';"
+            f"registration_prefix='{self.registration_prefix}';"
+            f"atlas_prefix='{self.atlas_prefix}';"
+            f"dxJ0={self.voxel_size};"
+            f"fixed_scale={self.fixed_scale};"
+            f"initial_affine=[{self.affine_string}];"
+            f"parcellation_voxel_size={self.parcellation_voxel_size};"
+            f"parcellation_image_size={self.parcellation_image_size};"
+            f"run('~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
+
 
     def run_matlab(self,command):
         subprocess.run(shlex.split(command))
-
-    def quick_register(self,parameters_oh):
-        a=1
 
     def run_BayesOpt(self,n_iterations=15):
         """ Run loop to optimize hyperparameters"""
@@ -141,44 +172,46 @@ class BayesOptRegistration:
         # Grab the best hyper parameters
         self.final_hyperparameters = self.hyperparameters[np.argmin(self.Energy)]
 
-    def final_run(self):
+    def quick_register(self,parameters_oh):
+        # Break up current parameters and place into correct variables
+        xrotation,yrotation,zrotation,scale=parameters_oh
+        self.rotation=[xrotation,yrotation,zrotation]
+        self.fixed_scale=scale
+
+        # Set up registration
+        self.register()
+        self.build_matlab_command()
+        self.run_matlab(self.matlab_command)
+
+    def final_register(self):
         self.bayesopt=False
 
+def main():
+    parser = argparse.ArgumentParser("Run CloudReg pipeline locally will Bayesian optimization")
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Run COLM pipeline on remote EC2 instance with given input parameters")
-
-    # data args
-    parser.add_argument("-input_s3_path",help="S3 path to precomputed volume used to register the data",type=str,)
-    parser.add_argument("-log_s3_path",help="S3 path at which registration outputs are stored.",type=str,)
-    parser.add_argument("--output_s3_path",help="S3 path to store atlas transformed to target as precomputed volume. Should be of the form s3://<bucket>/<path_to_precomputed>. Default is same as input s3_path with atlas_to_target as channel name",
-        type=str,default=None,)
-    parser.add_argument("--atlas_s3_path",help="S3 path to atlas we want to register to. Should be of the form s3://<bucket>/<path_to_precomputed>. Default is Allen Reference atlas path",
-        type=str,default=ara_average_data_link(100),)
-    parser.add_argument( "--parcellation_s3_path",help="S3 path to corresponding atlas parcellations. If atlas path is provided, this should also be provided. Should be of the form s3://<bucket>/<path_to_precomputed>. Default is Allen Reference atlas parcellations path",
-        type=str,default=ara_annotation_data_link(10),)
+    # Parse command line input arguments 
+    parser.add_argument("--input_s3_path",help="S3 path to precomputed volume used to register the data",type=str,)
+    parser.add_argument("--log_s3_path",help="S3 path at which registration outputs are stored.",type=str,)
+    parser.add_argument("--output_s3_path",help="Output path",type=str,default=None,)
+    parser.add_argument("--atlas_s3_path",help="Allen Reference atlas path",type=str,default=ara_average_data_link(100),)
+    parser.add_argument("--parcellation_s3_path",help="Default is Allen Reference atlas parcellations path",type=str,default=ara_annotation_data_link(10),)
     parser.add_argument("--atlas_orientation",help="3-letter orientation of data. i.e. LPS",type=str,default='PIR')
-
-    # affine initialization args
-    parser.add_argument("-orientation", help="3-letter orientation of data. i.e. LPS", type=str)
+    parser.add_argument("--orientation", help="3-letter orientation of data. i.e. LPS", type=str)
     parser.add_argument("--fixed_scale",help="Fixed scale of data, uniform in all dimensions. Default is 1.",nargs='+',type=float,default=[1.0, 1.0, 1.0])
     parser.add_argument("--translation",help="Initial translation in x,y,z respectively in microns.",nargs="+",type=float,default=[0, 0, 0],)
     parser.add_argument("--rotation",help="Initial rotation in x,y,z respectively in degrees.",nargs="+",type=float,default=[0, 0, 0],)
-
-    # preprocessing args
     parser.add_argument("--bias_correction",help="Perform bias correction prior to registration.",type=eval,choices=[True, False],default='True',)
-    parser.add_argument("--missing_data_correction",help="Perform missing data correction by ignoring 0 values in image prior to registration.",type=eval,
-        choices=[True, False],default='True',)
-    parser.add_argument("--grid_correction",help="Perform correction for low-intensity grid artifact (COLM data)",type=eval,choices=[True, False],default='False',)
-
-    # registration params
-    parser.add_argument("--regularization",help="Weight of the regularization. Bigger regularization means less regularization. Default is 5e3",type=float,default=5e3,)
+    parser.add_argument("--missing_data_correction",help="Perform missing data correction",type=eval, choices=[True, False], default='True',)
+    parser.add_argument("--grid_correction",help="Perform correction for low-intensity grid artifact",type=eval,choices=[True, False],default='False',)
+    parser.add_argument("--regularization",help="Weight of the regularization. Bigger regularization means less regularization.",type=float,default=5e3,)
     parser.add_argument("--iterations",help="Number of iterations to do at low resolution. Default is 5000.",type=int,default=3000,)
-    parser.add_argument("--registration_resolution",help="Minimum resolution that the registration is run at (in microns). Default is 100.",type=int,default=100,)
-
+    parser.add_argument("--registration_resolution",help="Minimum resolution that the registration is run at (in microns).",type=int,default=100,)
     args = parser.parse_args()
 
-    register(args.input_s3_path,args.atlas_s3_path,args.parcellation_s3_path,args.atlas_orientation,args.output_s3_path,args.log_s3_path,args.orientation,
+    # Run Registration with Bayes Optimization:
+    reg_obj = BayesOptRegistration(args.input_s3_path,args.atlas_s3_path,args.parcellation_s3_path,args.atlas_orientation,args.output_s3_path,args.log_s3_path,args.orientation,
         args.fixed_scale,args.translation,args.rotation,args.missing_data_correction,args.grid_correction,args.bias_correction,args.regularization,args.iterations,
         args.registration_resolution)
+
+if __name__ == "__main__":
+    main()
