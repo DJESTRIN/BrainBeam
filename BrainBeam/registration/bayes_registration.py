@@ -19,14 +19,10 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import argparse
 import subprocess
-import os
-import shutil
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 from scipy.optimize import minimize
 import ipdb
-
-# To do: skip downloading data if it is already a file...
 
 class BayesOptRegistration:
     def __init__(self,input_s3_path,atlas_s3_path,parcellation_s3_path,atlas_orientation,output_s3_path,log_s3_path,orientation,fixed_scale,translation,
@@ -54,6 +50,7 @@ class BayesOptRegistration:
         # Bayes optimization parameters
         self.bayesopt=bayesopt
         self.init_samplesize=init_samplesize
+        self.pre_registration=False
 
     def initbayesopt(self):
         kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=np.ones(4), length_scale_bounds=(1e-2, 1e2))
@@ -97,31 +94,34 @@ class BayesOptRegistration:
         return affine
 
     def register(self):
-        # Get volume information
-        s3_url = S3Url(self.input_s3_path)
-        channel = s3_url.key.split("/")[-1]
-        exp = s3_url.key.split("/")[-2]
+        if self.pre_registration is False:
+            # Get volume information
+            s3_url = S3Url(self.input_s3_path)
+            channel = s3_url.key.split("/")[-1]
+            exp = s3_url.key.split("/")[-2]
 
-        # Set up paths and get info
-        self.registration_prefix = f"{self.base_path}/{exp}_{channel}_registration/"
-        self.atlas_prefix = f'{self.base_path}/CloudReg/cloudreg/registration/atlases/'
-        self.target_name = f"{self.base_path}/{exp}_{channel}_autofluordata/autofluorescence_data.tif"
-        atlas_name = f"{self.atlas_prefix}/atlas_data.nrrd"
-        parcellation_name = f"{self.atlas_prefix}/parcellation_data.nrrd"
-        parcellation_hr_name = f"{self.atlas_prefix}/parcellation_data.tif"
+            # Set up paths and get info
+            self.registration_prefix = f"{self.base_path}/{exp}_{channel}_registration/"
+            self.atlas_prefix = f'{self.base_path}/CloudReg/cloudreg/registration/atlases/'
+            self.target_name = f"{self.base_path}/{exp}_{channel}_autofluordata/autofluorescence_data.tif"
+            atlas_name = f"{self.atlas_prefix}/atlas_data.nrrd"
+            parcellation_name = f"{self.atlas_prefix}/parcellation_data.nrrd"
+            parcellation_hr_name = f"{self.atlas_prefix}/parcellation_data.tif"
 
-        # Download autoflourescent channel
-        print("downloading input data for registration...")
-        self.registration_resolution *= 1000.0 
-        self.voxel_size = download_data(self.input_s3_path, self.target_name, 15000)
-        _ = download_data(self.atlas_s3_path, atlas_name, self.registration_resolution, resample_isotropic=True)
-        _ = download_data(self.parcellation_s3_path, parcellation_name, self.registration_resolution, resample_isotropic=True)
-        self.parcellation_voxel_size, self.parcellation_image_size = download_data(self.parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
+            # Download autoflourescent channel
+            print("downloading input data for registration...")
+            self.registration_resolution *= 1000.0 
+            self.voxel_size = download_data(self.input_s3_path, self.target_name, 15000)
+            _ = download_data(self.atlas_s3_path, atlas_name, self.registration_resolution, resample_isotropic=True)
+            _ = download_data(self.parcellation_s3_path, parcellation_name, self.registration_resolution, resample_isotropic=True)
+            self.parcellation_voxel_size, self.parcellation_image_size = download_data(self.parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
 
-        # Calculate affine matrix
-        initial_affine = self.get_affine_matrix(self.translation,self.rotation,self.atlas_orientation,self.orientation,self.fixed_scale,self.atlas_s3_path,)
-        self.affine_string = [", ".join(map(str, i)) for i in initial_affine]
-        self.affine_string = "; ".join(self.affine_string)
+            self.pre_registration=True
+        else:
+            # Calculate affine matrix
+            initial_affine = self.get_affine_matrix(self.translation,self.rotation,self.atlas_orientation,self.orientation,self.fixed_scale,self.atlas_s3_path,)
+            self.affine_string = [", ".join(map(str, i)) for i in initial_affine]
+            self.affine_string = "; ".join(self.affine_string)
 
     def build_matlab_command(self):
         if self.bayesopt:
