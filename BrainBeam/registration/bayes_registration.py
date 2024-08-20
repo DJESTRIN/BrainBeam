@@ -56,7 +56,6 @@ class BayesOptRegistration:
         self.init_samplesize=init_samplesize
 
     def initbayesopt(self):
-        ipdb.set_trace()
         kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=np.ones(4), length_scale_bounds=(1e-2, 1e2))
         self.gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-2)
         self.hyperparameters = np.hstack((np.random.uniform(-40, 40, size=(self.init_samplesize,3)), np.random.uniform(0.8, 1.4, size=(self.init_samplesize, 1))))
@@ -193,7 +192,6 @@ class BayesOptRegistration:
 
     def quick_register(self,parameters_oh):
         # Break up current parameters and place into correct variables
-        ipdb.set_trace()
         xrotation,yrotation,zrotation,scale=parameters_oh
         self.rotation=[xrotation,yrotation,zrotation]
         self.fixed_scale=scale
@@ -202,6 +200,7 @@ class BayesOptRegistration:
         self.register()
         self.build_matlab_command()
         self.run_matlab(self.matlab_command)
+        ipdb.set_trace()
         Energy_oh = self.read_energy_result()
         return Energy_oh
     
