@@ -26,6 +26,8 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 from scipy.optimize import minimize
 import ipdb
 
+# To do: skip downloading data if it is already a file...
+
 class BayesOptRegistration:
     def __init__(self,input_s3_path,atlas_s3_path,parcellation_s3_path,atlas_orientation,output_s3_path,log_s3_path,orientation,fixed_scale,translation,
         rotation,missing_data_correction,grid_correction,bias_correction,regularization,num_iterations,registration_resolution,

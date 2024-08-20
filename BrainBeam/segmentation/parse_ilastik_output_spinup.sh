@@ -1,6 +1,4 @@
-
 #!/bin/bash
-
 # parse command line inputs
 code_dir=$1
 ilastik_input_dir=$2
