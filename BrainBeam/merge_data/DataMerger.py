@@ -2,16 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Module Name: DataMerger.py
-Description:
-    This script includes classes that merge multiple datasets from BrainBeam into a single tall format dataset. It utalizes the 
+Description: This script includes classes that merge multiple datasets from BrainBeam into a single tall format dataset. It utalizes the 
     Allen Reference Atlas to link cell corrdinates to brain regions and converts these counts to a final dataset.  
-
 Author: David Estrin
 Date: 2024-008-15
 Version: 2.0
-
-Usage:
-    python DataMerger.py --input data.csv --output results.csv
+Usage: python DataMerger.py --input data.csv --output results.csv
 """
 import json
 import numpy as np 
@@ -73,6 +69,7 @@ class channel:
             return None
         
     def channel_as_string(self):
+        """ Returns channel name as string """
         if hasattr(self,'channel'):
             return f"{self.channel}"
         else:
@@ -196,9 +193,9 @@ class channel:
         onemat=np.ones(cell_array.shape[0])
         df['n']=onemat
 
-        filename=self.output_path+"tall.csv"
-        df.to_csv(filename)
         #Save to drop path, one csv file per brain
+        filename=self.output_path+f"{self.channel}_tall.csv"
+        df.to_csv(filename)
         return
     
 class sample:
@@ -220,6 +217,9 @@ class sample:
             pickle.dump(self, file)
 
     def find_coexpression(self,obj1, obj2,threshold=20):
+        """ Finds co-expression of two different channels. 
+        Returns an array of ones and zeros the size of first channel indicating whether cell is co-expressed.
+        Does not let cells 100% overlap. """
         # Define the action you want to perform on each pair of objects
         print(f"Finding coepxression in {obj1} and {obj2}")
         
@@ -233,35 +233,45 @@ class sample:
                     if distance>0:
                         flag[index]=1
             index+=1
+
         return flag
 
-    def all_coexpression(self):
+    def get_coexpression(self):
+        """ Calculate the co-expression for every combination of channels """
+        # Check more than one channel
         if len(self.channels) < 2:
             print("Not enough channels to find co-expressing cells")
             return
         
         # Generate combinations of 2 objects from the list
-        comparisons=[]
-        coexpression=[]
+        self.comparisons=[] # Holds the names of the channels being compared
+        self.coexpression=[] # Calculates actuall co-expression
+        self.total_coexpression=[] # Holds total co-expressing number of cells
+        self.IOU=[] #Holds intersection over union results
         for channel1, channel2 in combinations(self.channels, 2):
             # Save details to list
-            comparisons.append([channel1.channel_as_string(),channel2.channel_as_string()])
+            self.comparisons.append([channel1.channel_as_string(),channel2.channel_as_string()])
 
             #Calculate coexpression
             coexpressionoh=self.find_coexpression(channel1, channel2)
-            self.total_coexpressing_cells=coexpressionoh.sum()
+            self.coexpression.append(coexpressionoh)
 
-            # Save coexpression to list
-            coexpression.append(coexpressionoh)
+            # Calculate total co-expressing cells
+            total_coexpressing = coexpressionoh.sum()
+            self.total_coexpression.append(total_coexpressing)
 
-            print(f"There were {self.total_coexpressing_cells} co expressing cells for {channel1.channel_as_string()} and {channel2.channel_as_string()}")
+            # Calculate the intersection over union of two channels
+            IOU = total_coexpressing/(len(channel1.cells) + len(channel2.cells) - total_coexpressing)
+            self.IOU.append(IOU)
+
+            print(f"There were {total_coexpressing} co-expressing cells with IOU {IOU} for {channel1.channel_as_string()} and {channel2.channel_as_string()}")
 
 class rabies_sample(sample):
     def __init__(self,output_file):
         super.__init__(self)
         self.output_file=output_file
 
-    def calculate_starter_cells(self):
+    def label_channels(self):
         for obj in self.channels:
             # Determine which channels are helper virus or rabies virus
             if obj.channel=='Ex_647_Em_680':
@@ -270,6 +280,14 @@ class rabies_sample(sample):
             else:
                 obj.rabies_channel=False
                 obj.helper_channel=True
+    
+    def get_coexpression(self):
+        super().get_coexpression()
+        for k, (channel1, channel2) in enumerate(combinations(self.channels, 2)):
+            if (channel1.rabies_channel is True) and (channel2.helper_channel is True):
+                print(f"The rabies channel and helper virus channel have {self.total_coexpression[k]} total overlapping cells")
+            elif (channel2.rabies_channel is True) and (channel1.helper_channel is True):
+                print(f"The rabies channel and helper virus channel have {self.total_coexpression[k]} total overlapping cells")
 
 def open_ara(ara_file="/home/fs01/dje4001/CloudReg/cloudreg/scripts/ARA_stuff/ara_ontology.json"):
     with open(ara_file) as infile:
@@ -310,8 +328,7 @@ def rabies_main():
         sample_oh.add_channel(channel_object=channel_oh) 
 
     # Calculate starter cells
-    rabies_sample.all_coexpression()
-    rabies_sample.calculate_starter_cells()
+    rabies_sample.get_coexpression()
 
     # Save rabies sample object for later stats
     current_datetime = datetime.now()
