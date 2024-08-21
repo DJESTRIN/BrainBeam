@@ -29,7 +29,7 @@ import ipdb
 class BayesOptRegistration:
     def __init__(self,input_s3_path,atlas_s3_path,parcellation_s3_path,atlas_orientation,output_s3_path,log_s3_path,orientation,fixed_scale,translation,
         rotation,missing_data_correction,grid_correction,bias_correction,regularization,num_iterations,registration_resolution,
-        base_path="/athena/listonlab/scratch/dje4001/lightsheet_scratch/cloudreg_base/",bayesopt=True,init_samplesize=5):
+        base_path="/athena/listonlab/scratch/dje4001/lightsheet_scratch/cloudreg_base/",bayesopt=True,init_samplesize=10):
         # Cloud Reg default parameters
         self.input_s3_path=input_s3_path
         self.atlas_s3_path=atlas_s3_path
@@ -58,7 +58,7 @@ class BayesOptRegistration:
         self.set_up()
 
     def parallel_evaluate(self):
-        with Pool(processes=4) as pool:  # Adjust the number of processes if needed
+        with Pool(processes=5) as pool:  # Adjust the number of processes if needed
             results = pool.map(self.quick_register, self.hyperparameters)
         return results
 
@@ -188,6 +188,7 @@ class BayesOptRegistration:
             # Optimize the acquisition function
             bounds = [(-40, 40)] * 3 + [(0.5, 1.5)] # Adjust bounds as needed
             initial_guess = np.random.uniform(low=[b[0] for b in bounds], high=[b[1] for b in bounds])
+            ipdb.set_trace()
             res = minimize(min_obj, initial_guess, bounds=bounds, method='L-BFGS-B')
             hyperparameters_next = res.x
 
