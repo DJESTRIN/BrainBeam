@@ -56,7 +56,7 @@ class BayesOptRegistration:
 
     def parallel_evaluate(self):
         with Pool(processes=4) as pool:  # Adjust the number of processes if needed
-            results = pool.map(self.quick_register, self.hyperparameters_batch)
+            results = pool.map(self.quick_register, self.hyperparameters)
         return results
 
     def initbayesopt(self):
