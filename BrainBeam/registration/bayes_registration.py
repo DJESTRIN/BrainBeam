@@ -58,7 +58,6 @@ class BayesOptRegistration:
         self.gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-2)
         self.hyperparameters = np.hstack((np.random.uniform(-40, 40, size=(self.init_samplesize,3)), np.random.uniform(0.8, 1.4, size=(self.init_samplesize, 1))))
         self.Energy = np.array([self.quick_register(x) for x in self.hyperparameters]).reshape(-1, 1) # Generate a few initial samples comparion hyperparameters to energy
-        ipdb.set_trace()
 
     def upper_confidence_bound_acquisition(self, params, kappa=2.576):
         mean, std = self.gp.predict(params.reshape(1, -1), return_std=True)
@@ -169,28 +168,32 @@ class BayesOptRegistration:
     def run_matlab(self,command):
         subprocess.run(shlex.split(command))
 
-    def run_BayesOpt(self,n_iterations=15):
+    def run_BayesOpt(self, n_iterations=15):
         """ Run loop to optimize hyperparameters"""
         for i in range(n_iterations):
-            # Fit hyper parameters to energy
-            self.gp.fit(self.hyperparameters, self.Energy) #Fit gaussian processor
+            # Fit Gaussian Process model
+            self.gp.fit(self.hyperparameters, self.Energy.ravel())
 
             def min_obj(params):
-                return self.upper_confidence_bound_acquisition(params, self.gp)
+                # Objective function to minimize
+                return self.upper_confidence_bound_acquisition(np.array(params).reshape(1, -1), self.gp)
 
-            res = minimize(min_obj,np.random.uniform([-40]*6 + [0], [40]*6 + [10]), bounds=[(-40, 40)]*6 + [(0, 10)], method='L-BFGS-B')
+            # Optimize the acquisition function
+            bounds = [(-40, 40)] * 3 + [(0.5, 1.5)] # Adjust bounds as needed
+            initial_guess = np.random.uniform(low=[b[0] for b in bounds], high=[b[1] for b in bounds])
+            res = minimize(min_obj, initial_guess, bounds=bounds, method='L-BFGS-B')
             hyperparameters_next = res.x
 
-            # Update MATLAB command, Run MATLAB command and grab energy output
+            # Update MATLAB command, run MATLAB script, and grab energy output
             Energy_next = self.quick_register(hyperparameters_next)
 
-            # Concat current hyperparmeters and energy to entire list
-            self.hyperparameters = np.vstack((self.hyperparameters, hyperparameters_next))
-            self.Energy = np.vstack((self.Energy, Energy_next))
+            # Concat current hyperparameters and energy to entire list
+            self.hyperparameters = np.vstack((self.hyperparameters, hyperparameters_next.reshape(1, -1)))
+            self.Energy = np.vstack((self.Energy, Energy_next.reshape(-1, 1)))
 
             print(f"Iteration {i+1}: Hyperparameters = {hyperparameters_next}, Final Energy = {Energy_next}")
 
-        # Grab the best hyper parameters
+        # Grab the best hyperparameters
         self.final_hyperparameters = self.hyperparameters[np.argmin(self.Energy)]
 
     def quick_register(self,parameters_oh):
