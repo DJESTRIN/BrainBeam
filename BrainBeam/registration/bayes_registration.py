@@ -22,6 +22,7 @@ import subprocess
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 from scipy.optimize import minimize
+from multiprocessing import Pool
 import os
 import ipdb
 
@@ -53,11 +54,16 @@ class BayesOptRegistration:
         self.init_samplesize=init_samplesize
         self.pre_registration=False
 
+    def parallel_evaluate(self):
+        with Pool(processes=4) as pool:  # Adjust the number of processes if needed
+            results = pool.map(self.quick_register, self.hyperparameters_batch)
+        return results
+
     def initbayesopt(self):
         kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=np.ones(4), length_scale_bounds=(1e-2, 1e2))
         self.gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-2)
         self.hyperparameters = np.hstack((np.random.uniform(-40, 40, size=(self.init_samplesize,3)), np.random.uniform(0.8, 1.4, size=(self.init_samplesize, 1))))
-        self.Energy = np.array([self.quick_register(x) for x in self.hyperparameters]).reshape(-1, 1) # Generate a few initial samples comparion hyperparameters to energy
+        self.Energy = np.array(self.parallel_evaluate()).reshape(-1, 1) # Generate a few initial samples comparion hyperparameters to energy
 
     def upper_confidence_bound_acquisition(self, params, kappa=2.576):
         mean, std = self.gp.predict(params.reshape(1, -1), return_std=True)
