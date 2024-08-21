@@ -144,7 +144,7 @@ class BayesOptRegistration:
                 f"parcellation_voxel_size={self.parcellation_voxel_size};"
                 f"parcellation_image_size={self.parcellation_image_size};"
                 f"BayesOptFlag={bayesoptflag};"
-                f"run('~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
+                f"run('/home/fs01/dje4001/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
         else:
             self.matlab_command = (
                 f"matlab -nodisplay -nosplash -nodesktop -r \""
@@ -162,9 +162,10 @@ class BayesOptRegistration:
                 f"initial_affine=[{self.affine_string}];"
                 f"parcellation_voxel_size={self.parcellation_voxel_size};"
                 f"parcellation_image_size={self.parcellation_image_size};"
-                f"run('~/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
+                f"run('/home/fs01/dje4001/CloudReg/cloudreg/registration/guass_newton_bayes_opt.m'); exit;\"")
 
     def run_matlab(self,command):
+        ipdb.set_trace()
         subprocess.run(shlex.split(command))
 
     def run_BayesOpt(self,n_iterations=15):
