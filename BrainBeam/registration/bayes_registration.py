@@ -118,10 +118,11 @@ class BayesOptRegistration:
 
             self.pre_registration=True
         else:
-            # Calculate affine matrix
-            initial_affine = self.get_affine_matrix(self.translation,self.rotation,self.atlas_orientation,self.orientation,self.fixed_scale,self.atlas_s3_path,)
-            self.affine_string = [", ".join(map(str, i)) for i in initial_affine]
-            self.affine_string = "; ".join(self.affine_string)
+            print("Data already downloaded")
+        # Calculate affine matrix
+        initial_affine = self.get_affine_matrix(self.translation,self.rotation,self.atlas_orientation,self.orientation,self.fixed_scale,self.atlas_s3_path,)
+        self.affine_string = [", ".join(map(str, i)) for i in initial_affine]
+        self.affine_string = "; ".join(self.affine_string)
 
     def build_matlab_command(self):
         if self.bayesopt:
@@ -208,7 +209,6 @@ class BayesOptRegistration:
         with open('energy_result.txt', 'r') as file:
             energy_value = float(file.readline().strip())
         return np.array(energy_value)
-
 
     def final_register(self):
         # Set up final parameters
