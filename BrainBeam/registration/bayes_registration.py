@@ -54,6 +54,9 @@ class BayesOptRegistration:
         self.init_samplesize=init_samplesize
         self.pre_registration=False
 
+        # Set up paths
+        self.set_up()
+
     def parallel_evaluate(self):
         with Pool(processes=4) as pool:  # Adjust the number of processes if needed
             results = pool.map(self.quick_register, self.hyperparameters)
@@ -99,33 +102,31 @@ class BayesOptRegistration:
         else:
             affine = np.diag([fixed_scale[0], fixed_scale[0], fixed_scale[0], 1.0]) @ affine
         return affine
+    
+    def set_up(self):
+        s3_url = S3Url(self.input_s3_path)
+        channel = s3_url.key.split("/")[-1]
+        exp = s3_url.key.split("/")[-2]
+
+        # Set up paths and get info
+        self.registration_prefix = f"{self.base_path}/{exp}_{channel}_registration/"
+        self.atlas_prefix = f'{self.base_path}/CloudReg/cloudreg/registration/atlases/'
+        self.target_name = f"{self.base_path}/{exp}_{channel}_autofluordata/autofluorescence_data.tif"
+        atlas_name = f"{self.atlas_prefix}/atlas_data.nrrd"
+        parcellation_name = f"{self.atlas_prefix}/parcellation_data.nrrd"
+        parcellation_hr_name = f"{self.atlas_prefix}/parcellation_data.tif"
+
+        # Download autoflourescent channel
+        print("downloading input data for registration...")
+        self.registration_resolution *= 1000.0 
+        self.voxel_size = download_data(self.input_s3_path, self.target_name, 15000)
+        _ = download_data(self.atlas_s3_path, atlas_name, self.registration_resolution, resample_isotropic=True)
+        _ = download_data(self.parcellation_s3_path, parcellation_name, self.registration_resolution, resample_isotropic=True)
+        self.parcellation_voxel_size, self.parcellation_image_size = download_data(self.parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
+
 
     def register(self):
-        if self.pre_registration is False:
-            # Get volume information
-            s3_url = S3Url(self.input_s3_path)
-            channel = s3_url.key.split("/")[-1]
-            exp = s3_url.key.split("/")[-2]
-
-            # Set up paths and get info
-            self.registration_prefix = f"{self.base_path}/{exp}_{channel}_registration/"
-            self.atlas_prefix = f'{self.base_path}/CloudReg/cloudreg/registration/atlases/'
-            self.target_name = f"{self.base_path}/{exp}_{channel}_autofluordata/autofluorescence_data.tif"
-            atlas_name = f"{self.atlas_prefix}/atlas_data.nrrd"
-            parcellation_name = f"{self.atlas_prefix}/parcellation_data.nrrd"
-            parcellation_hr_name = f"{self.atlas_prefix}/parcellation_data.tif"
-
-            # Download autoflourescent channel
-            print("downloading input data for registration...")
-            self.registration_resolution *= 1000.0 
-            self.voxel_size = download_data(self.input_s3_path, self.target_name, 15000)
-            _ = download_data(self.atlas_s3_path, atlas_name, self.registration_resolution, resample_isotropic=True)
-            _ = download_data(self.parcellation_s3_path, parcellation_name, self.registration_resolution, resample_isotropic=True)
-            self.parcellation_voxel_size, self.parcellation_image_size = download_data(self.parcellation_s3_path, parcellation_hr_name, 10000, return_size=True)
-
-            self.pre_registration=True
-        else:
-            print("Data already downloaded")
+        print("Data already downloaded")
         # Calculate affine matrix
         initial_affine = self.get_affine_matrix(self.translation,self.rotation,self.atlas_orientation,self.orientation,self.fixed_scale,self.atlas_s3_path,)
         self.affine_string = [", ".join(map(str, i)) for i in initial_affine]
