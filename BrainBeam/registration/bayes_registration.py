@@ -22,6 +22,7 @@ import subprocess
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 from scipy.optimize import minimize
+import os
 import ipdb
 
 class BayesOptRegistration:
@@ -57,6 +58,7 @@ class BayesOptRegistration:
         self.gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-2)
         self.hyperparameters = np.hstack((np.random.uniform(-40, 40, size=(self.init_samplesize,3)), np.random.uniform(0.8, 1.4, size=(self.init_samplesize, 1))))
         self.Energy = np.array([self.quick_register(x) for x in self.hyperparameters]).reshape(-1, 1) # Generate a few initial samples comparion hyperparameters to energy
+        ipdb.set_trace()
 
     def upper_confidence_bound_acquisition(self, params, kappa=2.576):
         mean, std = self.gp.predict(params.reshape(1, -1), return_std=True)
@@ -165,7 +167,6 @@ class BayesOptRegistration:
                 f"run('/home/fs01/dje4001/CloudReg/cloudreg/registration/gauss_newton_bayes_opt.m'); exit;\"")
 
     def run_matlab(self,command):
-        ipdb.set_trace()
         subprocess.run(shlex.split(command))
 
     def run_BayesOpt(self,n_iterations=15):
@@ -202,12 +203,12 @@ class BayesOptRegistration:
         self.register()
         self.build_matlab_command()
         self.run_matlab(self.matlab_command)
-        ipdb.set_trace()
         Energy_oh = self.read_energy_result()
         return Energy_oh
     
     def read_energy_result(self):
-        with open('energy_result.txt', 'r') as file:
+        energy_file_path=os.path.join(self.registration_prefix,'energy_result.txt')
+        with open(energy_file_path, 'r') as file:
             energy_value = float(file.readline().strip())
         return np.array(energy_value)
 
