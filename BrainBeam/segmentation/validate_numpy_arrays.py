@@ -28,11 +28,11 @@ def main(root_directory):
         selected_files = numpy_files 
 
     # Set up regular expressioin
-    pattern_to_find = r"Ex_.*?_Em_.*?" 
-    green = "Ex_488_Em_525"  
-    orange = "Ex_561_Em_600"
-    red = "Ex_647_Em_680"
-    farred = "Ex_785_Em_785"
+    pattern_to_find = r"Ex_.*?_Em_.*?/" 
+    green = "Ex_488_Em_525/"  
+    orange = "Ex_561_Em_600/"
+    red = "Ex_647_Em_680/"
+    farred = "Ex_785_Em_785/"
 
     # Set up tally system
     same=0
