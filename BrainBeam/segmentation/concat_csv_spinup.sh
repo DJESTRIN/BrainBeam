@@ -8,10 +8,13 @@
 #SBATCH --mail-user=dje4001@med.cornell.edu  # Email address
 
 # Parse command line inputs
-ilastikdir=$1 #ilastik directory
+codedir=$1
+ilastikdir=$2 #ilastik directory
 
 #Search for all channel subfolders
 subfolders=$(find $ilastikdir -maxdepth 2 -type d -name '*Ex*')
+
+cd $codedir 
 
 # Loop over folders and begin concatonating ilastik csv files. 
 for subfolder in $subfolders; do
@@ -23,6 +26,6 @@ for subfolder in $subfolders; do
         --partition=scu-cpu \
         --mail-type=BEGIN,END,FAIL \
         --mail-user=dje4001@med.cornell.edu \
-        --wrap="python ./concat_csv.py  --input_dir '$subfolder'"
+        --wrap="bash ./concat_csv.sh '$subfolder'"
 done 
 
