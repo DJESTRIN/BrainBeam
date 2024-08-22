@@ -55,11 +55,13 @@ def main(root_directory):
             array1 = np.load(path1)
             array2 = np.load(path2)
 
+            if path1==path2:
+                continue
+
             if np.array_equal(array1, array2):
-                print("The arrays are identical.")
+                print(f"The {path1} and {path2} are the same array")
                 same+=1
             else:
-                print("The arrays are different.")
                 notsame+=1
     return same,notsame
 
