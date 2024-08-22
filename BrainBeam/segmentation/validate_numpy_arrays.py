@@ -52,7 +52,6 @@ def main(root_directory):
             comparisons.append(re.sub(pattern_to_find, farred, file))
 
         for (path1,path2) in itertools.combinations(comparisons,2):
-            ipdb.set_trace()
             array1 = np.load(path1)
             array2 = np.load(path2)
 
