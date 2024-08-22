@@ -39,21 +39,20 @@ def main(root_directory):
     notsame=0
 
     # Loop over selected files and compare arrays
-    ipdb.set_trace()
     for file in tqdm.tqdm(selected_files):
-        ipdb.set_trace()
         # Find all real and corresponding files
         comparisons=[]
         if os.path.isfile(re.sub(pattern_to_find, green, file)):
             comparisons.append(re.sub(pattern_to_find, green, file))
-        elif os.path.isfile(re.sub(pattern_to_find, orange, file)):
+        if os.path.isfile(re.sub(pattern_to_find, orange, file)):
             comparisons.append(re.sub(pattern_to_find, orange, file))
-        elif os.path.isfile(re.sub(pattern_to_find, red, file)):
+        if os.path.isfile(re.sub(pattern_to_find, red, file)):
             comparisons.append(re.sub(pattern_to_find, red, file))
-        elif os.path.isfile(re.sub(pattern_to_find, farred, file)):
+        if os.path.isfile(re.sub(pattern_to_find, farred, file)):
             comparisons.append(re.sub(pattern_to_find, farred, file))
 
         for (path1,path2) in itertools.combinations(comparisons,2):
+            ipdb.set_trace()
             array1 = np.load(path1)
             array2 = np.load(path2)
 
