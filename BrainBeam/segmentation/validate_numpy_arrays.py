@@ -19,7 +19,6 @@ def main(root_directory):
     # Get numpy files in list
     pattern = os.path.join(root_directory, "**", "*.npy")
     numpy_files = glob.glob(pattern, recursive=True)
-    ipdb.set_trace()
 
     # Randomly select 100 files to check
     if len(numpy_files) >= 100:
@@ -40,7 +39,9 @@ def main(root_directory):
     notsame=0
 
     # Loop over selected files and compare arrays
+    ipdb.set_trace()
     for file in tqdm.tqdm(selected_files):
+        ipdb.set_trace()
         # Find all real and corresponding files
         comparisons=[]
         if os.path.isfile(re.sub(pattern_to_find, green, file)):
