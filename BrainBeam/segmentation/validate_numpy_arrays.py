@@ -52,6 +52,10 @@ def main(root_directory):
             comparisons.append(re.sub(pattern_to_find, farred, file))
 
         for (path1,path2) in itertools.combinations(comparisons,2):
+            if '195_ANIMAL02' in path1:
+                continue
+            if '195_ANIMAL02' in path2:
+                continue
             array1 = np.load(path1)
             array2 = np.load(path2)
 
