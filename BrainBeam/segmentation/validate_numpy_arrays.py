@@ -13,11 +13,13 @@ import argparse
 import itertools
 import numpy as np
 import tqdm
+import ipdb
 
 def main(root_directory):
     # Get numpy files in list
     pattern = os.path.join(root_directory, "**", "*.npy")
     numpy_files = glob.glob(pattern, recursive=True)
+    ipdb.set_trace()
 
     # Randomly select 100 files to check
     if len(numpy_files) >= 100:
