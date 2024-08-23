@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=bayesregister             # Job name
-#SBATCH --output=~/sbatch_logs/job_output_%j.log            # Standard output and error log
+#SBATCH --output=./job_output_%j.log            # Standard output and error log
 #SBATCH --ntasks=4                           # Number of tasks (usually 1 for batch jobs)
 #SBATCH --cpus-per-task=4                    # Number of cpus per task
 #SBATCH --time=08:00:00                      # Time limit (hh:mm:ss)
