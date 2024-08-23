@@ -21,11 +21,13 @@ class checkrepeats:
     def __init__(self,root_directory,selection_size=100,pattern="*.tiff",recursive=True):
         self.pattern=pattern
         self.search_pattern=os.path.join(root_directory, "**", self.pattern)
+        print(f"Searching for files using pattern: {pattern}")
         self.files = glob.glob(self.search_pattern,recursive=recursive)
 
         # Randomly select 100 files to check
-        if len(self.files) >= 100:
+        if len(self.files) >= selection_size:
             self.files = random.sample(self.files, selection_size)
+            print(f"Selected {selection_size} files")
         else:
             print("Less than 100 files")
 
@@ -41,6 +43,7 @@ class checkrepeats:
         self.farred = "Ex_785_Em_785/"
         self.same=0
         self.notsame=0
+        print("Finished Set up")
 
     def find_overlapping_files(self):
         for file in tqdm.tqdm(self.files):
@@ -61,8 +64,10 @@ class checkrepeats:
                     continue
 
                 # Compare the files depending on file type
+                ipdb.set_trace()
                 if self.pattern=="*.npy":
                     self.comp_images(path1,path2)
+
                 elif self.pattern=="*.tiff":
                     self.comp_arrays(path1,path2)
                 else:
