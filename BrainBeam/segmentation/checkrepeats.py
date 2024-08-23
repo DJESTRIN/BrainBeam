@@ -18,7 +18,7 @@ from PIL import Image
 import ipdb
 
 class checkrepeats:
-    def __init__(self,root_directory,selection_size=100,pattern="*.tiff",recursive=True):
+    def __init__(self,root_directory,selection_size=1000,pattern="*.tiff",recursive=True):
         self.pattern=pattern
         self.search_pattern=os.path.join(root_directory, "**", self.pattern)
         print(f"Searching for files using pattern: {pattern}")
