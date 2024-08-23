@@ -66,7 +66,7 @@ class checkrepeats:
                 # Compare the files depending on file type
                 if self.pattern=="*.npy":
                     self.comp_arrays(path1,path2)
-                elif self.pattern=="*.tiff":
+                elif self.pattern=="*.tiff" or self.pattern=="*.tif":
                     self.comp_images(path1,path2)
                 else:
                     self.comp_filesizes(path1,path2)
