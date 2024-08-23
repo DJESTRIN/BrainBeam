@@ -64,7 +64,6 @@ class checkrepeats:
                     continue
 
                 # Compare the files depending on file type
-                ipdb.set_trace()
                 if self.pattern=="*.npy":
                     self.comp_arrays(path1,path2)
                 elif self.pattern=="*.tiff":
