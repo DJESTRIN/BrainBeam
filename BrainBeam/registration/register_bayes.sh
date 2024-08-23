@@ -1,38 +1,32 @@
 #!/bin/bash
-# This script is currently not automated 
+#SBATCH --job-name=bayesregister             # Job name
+#SBATCH --output=~/sbatch_logs/job_output_%j.log            # Standard output and error log
+#SBATCH --ntasks=4                           # Number of tasks (usually 1 for batch jobs)
+#SBATCH --cpus-per-task=4                    # Number of cpus per task
+#SBATCH --time=08:00:00                      # Time limit (hh:mm:ss)
+#SBATCH --mem=300G                           # Memory per node
+#SBATCH --mail-type=BEGIN,END,FAIL           # Notifications
+#SBATCH --mail-user=dje4001@med.cornell.edu  # Email address
 
-# DO NOT ADD AN EXTRA '/' AFTER INPUT. Input should equal /animal/Ex_647_Em_680  ... NEVER /animal/Ex_647_Em_680/
-
-# Remember to first edit the following variables:
-# atlas oreintation
-# orientation
-# rotation
-# translation
-# fixed scale
-
-# THEN run an interactive slurm session with GPU: 
-#srun --job-name=registration --mem=200G --parition=scu-gpu,sackler-gpu --gres=gpu:2 --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu 
-#screen
-#bash ./estrin_register.sh input output
-#sbatch --job-name=registration --mem=400G --partition=sackler-cpu,scu-cpu --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="bash estrin_register.sh $input $output"
-
-
-#Variables passed from previous script
+#Parse command line inputs
 input_path=$1
+input_path=${input_path%[/\\]}
 output_path=$2
+
+# Set up paths for saving data
 drop_path=$output_path/tiffsequence/
 channel=$(basename $input_path)
 exp=$(basename $(dirname $input_path))
-
 mkdir -p $drop_path
 mkdir -p /athena/listonlab/scratch/dje4001/cloudreg_base/${exp}_${channel}_autofluordata/
 
+# Set up environment
 source ~/.bashrc
 module load matlab
 conda activate cloudreg
 cd ~/CloudReg
 
-#Perform Cloudreg registration
+#Perform Bayesian optimized cloudreg registration
 python3 -m cloudreg.scripts.bayes_registration --input_s3_path file://$input_path \
     --output_s3_path $output_path \
     --atlas_s3_path https://open-neurodata.s3.amazonaws.com/ara_2016/sagittal_50um/average_50um \
