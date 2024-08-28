@@ -62,7 +62,6 @@ def get_coordinates(path,threshold=0.92):
         print(outfile)
     return
 
-
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--numpy_file_path",type=str)
