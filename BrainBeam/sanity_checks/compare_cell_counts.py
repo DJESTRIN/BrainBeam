@@ -12,9 +12,10 @@ import pandas as pd
 import numpy as np
 import glob,os
 from tqdm import tqdm
+import re
 import ipdb
 
-def compare_csv_files(file1,file2,file_names=None):
+def compare_csv_files(file1,file2,file_names=None,print_out=False):
     # Read in csv files to dataframes
     f1=pd.read_csv(file1)
     f2=pd.read_csv(file2)
@@ -34,11 +35,14 @@ def compare_csv_files(file1,file2,file_names=None):
     per_f1 = len(f1_not_in_f2)/len(f1_cor)
     per_f2 = len(f2_not_in_f1)/len(f2_cor)
 
-    print_statement=f"""These files contain {total_overlap}% overlap. \n 
-        File 1 contains {len(f1_cor)} total cells, where {num_f1} cells (or {per_f1} %) are unique and not in File 2. \n 
-        File 2 contains {len(f2_cor)} total cells, where {num_f2} cells (or {per_f2} %) are unique and not in File 1."""
+    if print_out:
+        print_statement=f"""These files contain {total_overlap}% overlap. \n 
+            File 1 contains {len(f1_cor)} total cells, where {num_f1} cells (or {per_f1} %) are unique and not in File 2. \n 
+            File 2 contains {len(f2_cor)} total cells, where {num_f2} cells (or {per_f2} %) are unique and not in File 1."""
+        
+        print(print_statement)
     
-    print(print_statement)
+    return total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2
 
 def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=3):
     matching_files = []
@@ -56,11 +60,31 @@ def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=3):
 
     return matching_files
 
+def get_info(file_oh, pattern = r'CAGE(\d+)_ANIMAL(\d+)_SEX(\w+)_CORT(.+)'):
+    match = re.search(pattern, file_oh)
+
+    if match:
+        cage_number = match.group(1)  # Extract the cage number
+        animal_number = match.group(2)  # Extract the animal number
+        sex = match.group(3)  # Extract the sex
+        cort = match.group(4)  # Extract the cortex information
+        return cage_number,animal_number,sex,cort
+    else:
+        return 'NA','NA','NA','NA'
+
+
+def print_info(cage_number,animal_number,sex,cort,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2):
+    print(f"====== Cage: {cage_number} Subject: {animal_number} Sex: {sex} Group: {cort} ========\n")
+    print_statement=f""" {total_overlap}% overlap. \n 
+                {len(f1_cor)} total rabies+ cells, where {num_f1} cells (or {per_f1} %) are not helper+. \n 
+                {len(f2_cor)} total helper+ cells, where {num_f2} cells (or {per_f2} %) are not rabies+."""
+    print(print_statement)
+    print("============================================\n")
+
 def full_dir_analyses(root_dir):
     # Get rabies channel data
     rabies_files = find_cells_csv(root_dir)
 
-    ipdb.set_trace()
     # Get corresponding helper virus channel file
     file_pairs=[]
     for file in rabies_files:
@@ -71,8 +95,10 @@ def full_dir_analyses(root_dir):
                 file_pairs.append([file,helper_file])
                 break
     
-    ipdb.set_trace()
-
+    for file1,file2 in file_pairs:
+        total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2 = compare_csv_files(file1,file2)
+        cage_number,animal_number,sex,cort = get_info(file1)
+        print_info(cage_number,animal_number,sex,cort,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2)
 
 if __name__=='__main__':
     # Parse command line inputs
