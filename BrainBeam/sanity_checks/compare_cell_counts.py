@@ -40,7 +40,7 @@ def compare_csv_files(file1,file2,file_names=None):
     
     print(print_statement)
 
-def find_cells_csv(root_dir, target_file='cells.csv', max_depth=3):
+def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=3):
     matching_files = []
     total_dirs = sum([len(dirs) for _, dirs, _ in os.walk(root_dir)])  # Count total directories to set tqdm
 
@@ -51,7 +51,7 @@ def find_cells_csv(root_dir, target_file='cells.csv', max_depth=3):
             continue
         
         # Check if the target file is in the current directory and if 'Ex_ch1' is in the path
-        if target_file in filenames and 'Ex_ch1' in dirpath:
+        if target_file in filenames and 'Ex_647_Em_680' in dirpath:
             matching_files.append(os.path.join(dirpath, target_file))
 
     return matching_files
