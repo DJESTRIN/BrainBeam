@@ -75,12 +75,11 @@ def get_info(file_oh, pattern = r'CAGE(\d+)_ANIMAL(\d+)_SEX(\w+)_CORT(.+)'):
 
 
 def print_info(cage_number,animal_number,sex,cort,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2):
-    print(f"====== Cage: {cage_number} Subject: {animal_number} Sex: {sex} Group: {cort} ========\n")
+    print(f"========== Cage: {cage_number} Subject: {animal_number} Sex: {sex} Group: {cort} ============\n")
     print_statement=f""" {total_overlap}% overlap. \n 
                 {len(f1_cor)} total rabies+ cells, where {num_f1} cells (or {per_f1} %) are not helper+. \n 
                 {len(f2_cor)} total helper+ cells, where {num_f2} cells (or {per_f2} %) are not rabies+."""
     print(print_statement)
-    print("============================================\n")
 
 def full_dir_analyses(root_dir):
     # Get rabies channel data
