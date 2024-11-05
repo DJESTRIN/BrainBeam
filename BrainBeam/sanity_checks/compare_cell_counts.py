@@ -60,22 +60,19 @@ def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=3):
 
     return matching_files
 
-def get_info(file_oh, pattern = r'CAGE(\d+)_ANIMAL(\d+)_SEX(\w+)_CORT(.+)'):
-    ipdb.set_trace()
+def get_info(file_oh, pattern = r'CAGE(\d+)_ANIMAL(\d+)'):
     match = re.search(pattern, file_oh)
 
     if match:
         cage_number = match.group(1)  # Extract the cage number
         animal_number = match.group(2)  # Extract the animal number
-        sex = match.group(3)  # Extract the sex
-        cort = match.group(4)  # Extract the cortex information
-        return cage_number,animal_number,sex,cort
+        return cage_number,animal_number
     else:
-        return 'NA','NA','NA','NA'
+        return 'NA','NA'
 
 
-def print_info(cage_number,animal_number,sex,cort,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2):
-    print(f"========== Cage: {cage_number} Subject: {animal_number} Sex: {sex} Group: {cort} ============\n")
+def print_info(cage_number,animal_number,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2):
+    print(f"========== Cage: {cage_number} Subject: {animal_number} ============\n")
     print_statement=f""" {total_overlap}% overlap. \n 
                 {len(f1_cor)} total rabies+ cells, where {num_f1} cells (or {per_f1} %) are not helper+. \n 
                 {len(f2_cor)} total helper+ cells, where {num_f2} cells (or {per_f2} %) are not rabies+."""
@@ -97,8 +94,8 @@ def full_dir_analyses(root_dir):
     
     for file1,file2 in file_pairs:
         total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2 = compare_csv_files(file1,file2)
-        cage_number,animal_number,sex,cort = get_info(file1)
-        print_info(cage_number,animal_number,sex,cort,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2)
+        cage_number,animal_number = get_info(file1)
+        print_info(cage_number,animal_number,total_overlap, f1_cor, num_f1, per_f1, f2_cor, num_f2, per_f2)
 
 if __name__=='__main__':
     # Parse command line inputs
