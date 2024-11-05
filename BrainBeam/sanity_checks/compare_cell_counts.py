@@ -15,6 +15,7 @@ import numpy as np
 def compare_csv_files(file1,file2):
     f1=pd.read_csv(file1)
     f2=pd.read_csv(file2)
+    ipdb.set_trace()
     exact_matches = (f1[['x', 'y', 'z']] == f2[['x', 'y', 'z']]).all(axis=1)
     ipdb.set_trace()
 
