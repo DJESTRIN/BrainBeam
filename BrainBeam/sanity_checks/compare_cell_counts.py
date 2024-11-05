@@ -40,7 +40,7 @@ def compare_csv_files(file1,file2,file_names=None):
     
     print(print_statement)
 
-def find_cells_csv(root_dir, target_file='cells.csv', max_depth=2):
+def find_cells_csv(root_dir, target_file='cells.csv', max_depth=3):
     matching_files = []
     total_dirs = sum([len(dirs) for _, dirs, _ in os.walk(root_dir)])  # Count total directories to set tqdm
 
@@ -57,10 +57,10 @@ def find_cells_csv(root_dir, target_file='cells.csv', max_depth=2):
     return matching_files
 
 def full_dir_analyses(root_dir):
-    ipdb.set_trace()
     # Get rabies channel data
     rabies_files = find_cells_csv(root_dir)
 
+    ipdb.set_trace()
     # Get corresponding helper virus channel file
     file_pairs=[]
     for file in rabies_files:
