@@ -21,9 +21,8 @@ slicesdirs=$( find $ilastik_input_dir -type d -name '*slice*' )
 for slicefolder in $slicesdirs; do
     echo $slicefolder
     sbatch --job-name=compress_ilastik \
-        --mem=200G \
-        --ntasks=4 \
-        --cpus-per-task=8 \
+        --mem=10G \
+        --ntasks=1 \
         --partition=scu-cpu \
         --mail-type=BEGIN,END,FAIL \
         --mail-user=dje4001@med.cornell.edu \
