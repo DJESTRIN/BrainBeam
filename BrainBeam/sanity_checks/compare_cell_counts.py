@@ -11,6 +11,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import glob,os
+from tqdm import tqdm
 import ipdb
 
 def compare_csv_files(file1,file2,file_names=None):
@@ -39,17 +40,18 @@ def compare_csv_files(file1,file2,file_names=None):
     
     print(print_statement)
 
-def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=2):
+def find_cells_csv(root_dir, target_file='cells.csv', max_depth=2):
     matching_files = []
-    
-    for dirpath, dirnames, filenames in os.walk(root_dir):
+    total_dirs = sum([len(dirs) for _, dirs, _ in os.walk(root_dir)])  # Count total directories to set tqdm
+
+    for dirpath, dirnames, filenames in tqdm(os.walk(root_dir), total=total_dirs, desc="Searching directories"):
         current_depth = dirpath[len(root_dir):].count(os.sep)
         
         if current_depth > max_depth:
             continue
         
         # Check if the target file is in the current directory and if 'Ex_ch1' is in the path
-        if target_file in filenames and 'Ex_647_Em_680' in dirpath:
+        if target_file in filenames and 'Ex_ch1' in dirpath:
             matching_files.append(os.path.join(dirpath, target_file))
 
     return matching_files
