@@ -31,9 +31,9 @@ def compare_csv_files(file1,file2,file_names=None):
     per_f1 = len(f1_not_in_f2)/len(f1_cor)
     per_f2 = len(f2_not_in_f1)/len(f2_cor)
 
-    print_statement=f'These files contain {total_overlap}% overlap. \n 
+    print_statement=f"""These files contain {total_overlap}% overlap. \n 
         File 1 contains {len(f1_cor)} total cells, where {num_f1} cells (or {per_f1} %) are unique and not in File 2. \n 
-        File 2 contains {len(f2_cor)} total cells, where {num_f2} cells (or {per_f2} %) are unique and not in File 1.'
+        File 2 contains {len(f2_cor)} total cells, where {num_f2} cells (or {per_f2} %) are unique and not in File 1."""
     
     print(print_statement)
 
