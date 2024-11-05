@@ -26,7 +26,6 @@ from injectatlas import inject_atlas
 import seaborn as sns
 from datetime import datetime
 
-
 warnings.simplefilter('ignore') #Ignore warnings 
 
 class mass_ttest(inject_atlas):
@@ -306,7 +305,7 @@ def create_timestamped_directory(root_dir):
 
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj2.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj3.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:
