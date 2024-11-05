@@ -61,6 +61,7 @@ def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=3):
     return matching_files
 
 def get_info(file_oh, pattern = r'CAGE(\d+)_ANIMAL(\d+)_SEX(\w+)_CORT(.+)'):
+    ipdb.set_trace()
     match = re.search(pattern, file_oh)
 
     if match:
