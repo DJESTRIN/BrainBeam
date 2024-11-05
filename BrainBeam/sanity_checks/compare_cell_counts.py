@@ -10,6 +10,8 @@ Date: 11-05-2024
 import argparse
 import pandas as pd
 import numpy as np
+import glob,os
+import ipdb
 
 def compare_csv_files(file1,file2,file_names=None):
     # Read in csv files to dataframes
@@ -37,12 +39,48 @@ def compare_csv_files(file1,file2,file_names=None):
     
     print(print_statement)
 
+def find_cells_csv(root_dir, target_file='cell_counts.csv', max_depth=2):
+    matching_files = []
+    
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        current_depth = dirpath[len(root_dir):].count(os.sep)
+        
+        if current_depth > max_depth:
+            continue
+        
+        # Check if the target file is in the current directory and if 'Ex_ch1' is in the path
+        if target_file in filenames and 'Ex_647_Em_680' in dirpath:
+            matching_files.append(os.path.join(dirpath, target_file))
+
+    return matching_files
+
+def full_dir_analyses(root_dir):
+    ipdb.set_trace()
+    # Get rabies channel data
+    rabies_files = find_cells_csv(root_dir)
+
+    # Get corresponding helper virus channel file
+    file_pairs=[]
+    for file in rabies_files:
+        for helper_channel in ['Ex_561_Em_600','Ex_488_Em_525','Ex_785_Em_785']:
+            helper_file = file
+            helper_file = helper_file.replace('Ex_647_Em_680',helper_channel)
+            if os.path.isfile(helper_file):
+                file_pairs.append([file,helper_file])
+                break
+    
+    ipdb.set_trace()
+
 
 if __name__=='__main__':
     # Parse command line inputs
     parser=argparse.ArgumentParser()
-    parser.add_argument('--file1',type=str,required=True,help='A directory to first csv file containing counts. For my project, I use this for the RABIES channel')
-    parser.add_argument('--file2',type=str,required=True,help='A directory to first csv file containing counts. For my project, I use this for the helper_virus channel')
+    parser.add_argument('--file1',type=str,required=False,help='A directory to first csv file containing counts. For my project, I use this for the RABIES channel')
+    parser.add_argument('--file2',type=str,required=False,help='A directory to first csv file containing counts. For my project, I use this for the helper_virus channel')
+    parser.add_argument('--root_dir',type=str,required=False,help='Root directory to run analysis')
     args=parser.parse_args()
-    compare_csv_files(args.file1,args.file2,file_names=['Rabies Channel','Helper_virus_channel'])
+    if args.root_dir:
+        full_dir_analyses(args.root_dir)
+    else:
+        compare_csv_files(args.file1,args.file2,file_names=['Rabies Channel','Helper_virus_channel'])
 
