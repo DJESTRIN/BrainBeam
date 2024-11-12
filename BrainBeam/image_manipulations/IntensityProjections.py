@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from multiprocessing import Pool
 import pandas as pd
-
+from PIL import Image
 
 class IntensityProjection():
     def __init__(self,
@@ -145,7 +145,6 @@ class IntensityProjection():
 class IntensityProjectionWithCounts(IntensityProjection):
     def __init__(self,
                  directory=None,
-                 count_file=None,
                  list_of_images=None,
                  image_filetype='tif',
                  recursive_search=True,
@@ -155,50 +154,87 @@ class IntensityProjectionWithCounts(IntensityProjection):
                  y_start=None,
                  y_stop=None,
                  z_start=None,
-                 z_stop=None):
+                 z_stop=None, 
+                 count_files=[]):
         
-        super.__init__(self,
-                 directory=None,
-                 list_of_images=None,
-                 image_filetype='tif',
-                 recursive_search=True,
-                 slice_type='Axial',
-                 x_start=None,
-                 x_stop=None,
-                 y_start=None,
-                 y_stop=None,
-                 z_start=None,
-                 z_stop=None)
+        super().__init__(directory,
+                         list_of_images,
+                         image_filetype,
+                         recursive_search,
+                         slice_type,
+                         x_start,
+                         x_stop,
+                         y_start,
+                         y_stop,
+                         z_start,
+                         z_stop)
         
-        if count_file is not None:
-            self.count_file = count_file
-            self.cell_counts = pd.read_csv(self.count_file)
-            self.cell_counts = self.cell_counts.to_numpy()
+        if count_files:
+            self.count_files = count_files
+            self.cell_counts=[]
+
+            # Loop over files and load in counts
+            for file in self.count_files:
+                cell_counts_oh = pd.read_csv(file)
+                cell_counts_oh = cell_counts_oh.to_numpy()
+                self.cell_counts.append(cell_counts_oh)
     
     def find_relevant_counts(self):
         """ Find the relevant counts in the x, y, z ranges """
         # Filter cell counts based on x_start, x_stop, y_start, y_stop, z_start, z_stop
-        self.cell_counts_oh = self.cell_counts[(self.cell_counts[:, 0] >= self.x_start) & (self.cell_counts[:, 0] <= self.x_stop) & 
-                                      (self.cell_counts[:, 1] >= self.y_start) & (self.cell_counts[:, 1] <= self.y_stop) & 
-                                      (self.cell_counts[:, 2] >= self.z_start) & (self.cell_counts[:, 2] <= self.z_stop)]
+        self.cell_counts_oh=[]
+        for countsoh in self.cell_counts:
+            new_countsoh = countsoh[(countsoh[:, 0] >= self.x_start) & (countsoh[:, 0] <= self.x_stop) & 
+                                        (countsoh[:, 1] >= self.y_start) & (countsoh[:, 1] <= self.y_stop) & 
+                                        (countsoh[:, 2] >= self.z_start) & (countsoh[:, 2] <= self.z_stop)]
+            self.cell_counts_oh.append(new_countsoh)
 
     def overlay_counts_on_MIP(self):
         """ Takes Intensity Projection and Adds cell counts """
-        if self.slice_type=='Axial':
-            ipdb.set_trace()
+        
+        def coordinate_to_square(mask,coordinate,side_length=3):
+            mask[(int(coordinate[0])-side_length):(int(coordinate[0])+side_length),(int(coordinate[1])-side_length):(int(coordinate[1])+side_length)]=1
+            return mask
+        
+        # Loop over current set of counts to generate a mask
+        all_masks=[]
+        for countsoh in self.cell_counts_oh:
+            mask_img=np.zeros((self.MIP.shape))
+            if self.slice_type=='Axial':
+                masked_coordinates=np.delete(countsoh,2,axis=1)
+                for celloh in masked_coordinates:
+                    mask_img=coordinate_to_square(mask_img,celloh)
 
-        if self.slice_type=='Coronal':
-            ipdb.set_trace()
+            if self.slice_type=='Coronal':
+                masked_coordinates=np.delete(countsoh,0,axis=1)
+                for celloh in masked_coordinates:
+                    mask_img=coordinate_to_square(mask_img,celloh,side_length=7)
 
-        if self.slice_type=='Sagittal':
-            ipdb.set_trace()
+            if self.slice_type=='Sagittal':
+                masked_coordinates=np.delete(countsoh,1,axis=1)
+                for celloh in masked_coordinates:
+                    mask_img=coordinate_to_square(mask_img,celloh)
             
+            # Append the mask image to list
+            all_masks.append(mask_img)
 
+        return all_masks #return all masks
+            
     def __call__(self):
         self.update_positionings()
         self.MIP=self.MaxIntensityProjection()
-        self.MIP_w_counts=self.overlay_coiunts_on_MIP()
-        return self.MIP_w_counts
+
+        # Get relevant cell counts
+        self.find_relevant_counts()
+
+        # Generate masks if cells are present
+        if self.cell_counts_oh:
+            self.masks=self.overlay_counts_on_MIP()
+        else:
+            print('No cells to include in mask')
+            self.masks=np.zeros((self.MIP.shape))
+
+        return self.MIP,self.masks
 
 def divide_list_into_batches(lst, num_batches):
     batch_size = len(lst) // num_batches  # Calculate the base size of each batch
@@ -246,17 +282,28 @@ def adjust_brightness_contrast_np(image_array, brightness_factor, contrast_facto
     
     return img_bright_contrast
 
-def generate_MIP_grid(diroh,slice_type='Coronal',rows=5,cols=5,filetype='tif'):
+def generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal',rows=5,cols=5,filetype='tif'):
     """ Create a m x n grid of MIP images """
     images_oh = glob.glob(os.path.join(diroh,f'*.{filetype}*')) #Find all images in a given directory
     grids=rows*cols
+
+    # Create empty lists to place final data into
     MIP_grid=[]
+    Mask_grid=[]
 
     if slice_type=='Axial':
         batches = divide_list_into_batches(images_oh, grids)
         for batchoh in batches:
-            MIPobj=IntensityProjection(list_of_images=batchoh) # Create object
-            MIP=MIPobj() # Run protocol and get MIP for batch of images
+            MIPobj=IntensityProjectionWithCounts(list_of_images=images_oh,
+                                                 slice_type=slice_type,
+                                                 z_start=batchoh[0],
+                                                 z_stop=batchoh[-1],
+                                                 count_files=[cellcountfile]) # Create object
+            MIP,Mask=MIPobj() # Run protocol and get MIP for batch of images
+            normMIP=(MIP-MIP.min())/(MIP.max()-MIP.min())*255
+            fin_MIP = adjust_brightness_contrast_np(normMIP, 5, 2.0)
+            MIP_grid.append(fin_MIP)
+            Mask_grid.append(Mask)
 
     else:
         example_image=np.asarray(imread(images_oh[0]))
@@ -264,24 +311,36 @@ def generate_MIP_grid(diroh,slice_type='Coronal',rows=5,cols=5,filetype='tif'):
         if slice_type=='Coronal':
             batches = create_number_batches(height, grids)
             for batchoh in batches:
-                MIPobj=IntensityProjection(list_of_images=images_oh,slice_type=slice_type,x_start=batchoh[0],x_stop=batchoh[-1]) # Create object
-                MIP=MIPobj() # Run protocol and get MIP for batch of images
+                MIPobj=IntensityProjectionWithCounts(directory=None,
+                                                     list_of_images=images_oh,
+                                                     slice_type=slice_type,
+                                                     x_start=batchoh[0],
+                                                     x_stop=batchoh[1],
+                                                     count_files=[cellcountfile]) # Create object
+                MIP,Mask=MIPobj() # Run protocol and get MIP for batch of images
                 normMIP=(MIP-MIP.min())/(MIP.max()-MIP.min())*255
                 fin_MIP = adjust_brightness_contrast_np(normMIP, 5, 2.0)
                 MIP_grid.append(fin_MIP)
+                Mask_grid.append(Mask)
 
         if slice_type=='Sagittal':
             batches = create_number_batches(width, grids)
             for batchoh in batches:
-                MIPobj=IntensityProjection(list_of_images=images_oh,slice_type=slice_type,y_start=batchoh[0],y_stop=batchoh[-1]) # Create object
-                MIP=MIPobj() # Run protocol and get MIP for batch of images
+                MIPobj=IntensityProjectionWithCounts(directory=None,
+                                                     list_of_images=images_oh,
+                                                     slice_type=slice_type,
+                                                     y_start=batchoh[0],
+                                                     y_stop=batchoh[1],
+                                                     count_files=[cellcountfile]) # Create object
+                MIP,Mask=MIPobj() # Run protocol and get MIP for batch of images
                 normMIP=(MIP-MIP.min())/(MIP.max()-MIP.min())*255
                 fin_MIP = adjust_brightness_contrast_np(normMIP, 5, 2.0)
                 MIP_grid.append(fin_MIP)
+                Mask_grid.append(Mask)
 
-    return MIP_grid
+    return MIP_grid, Mask_grid
 
-def plot_image_grid(images,rows=5,cols=5):
+def plot_image_grid(images,output_file,masks=None,rows=5,cols=5):
     col_counter=0
     all_rows=[]
     for image in images:
@@ -295,20 +354,54 @@ def plot_image_grid(images,rows=5,cols=5):
         if col_counter>cols:
             col_counter=0
             all_rows.append(col_oh)
+
+    all_rows=np.asarray(all_rows)
+    bigMIP=np.concatenate(all_rows, axis=0)
+
+    if masks is not None:
+        col_counter=0
+        all_rows=[]
+        for mask in masks:
+            mask=mask[0]
+
+            if col_counter==0:
+                col_oh = image
+                col_counter+=1
+
+            else:
+                col_oh = np.concatenate((col_oh, mask), axis=1)
+                col_counter+=1
+            
+            if col_counter>=cols:
+                col_counter=0
+                all_rows.append(col_oh)
     
     all_rows=np.asarray(all_rows)
-    big_image=np.concatenate(all_rows, axis=0)
-    plt.figure(figsize=(25,25))
-    plt.imshow(big_image,cmap='gray')
-    plt.show()
-    ipdb.set_trace()
+    bigMask=np.concatenate(all_rows, axis=0)
 
+    save_image_with_mask_to_pdf(image_array=bigMIP,mask_array=bigMask,pdf_path=output_file)
 
-
+def save_image_with_mask_to_pdf(image_array, mask_array, pdf_path):
+    # Convert the grayscale image to a Pillow Image
+    grayscale_image = Image.fromarray(image_array).convert("L")
     
+    # Convert mask to red overlay
+    mask_rgb = Image.fromarray((mask_array * 255).astype(np.uint8)).convert("L")  # Mask as grayscale
+    mask_red = Image.new("RGB", mask_rgb.size, (255, 0, 0))  # Red color layer
+    mask_overlay = Image.composite(mask_red, Image.new("RGB", mask_rgb.size), mask_rgb)
+    
+    # Merge grayscale image with red mask overlay
+    grayscale_rgb = grayscale_image.convert("RGB")  # Convert grayscale to RGB for color merge
+    combined_image = Image.blend(grayscale_rgb, mask_overlay, alpha=0.5)  # Blend with transparency
+
+    # Save to PDF
+    combined_image.save(pdf_path, "PDF")
+
 
 if __name__=='__main__':
     diroh=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680'
-    cellcountfile=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680\cell_counts.csv'
-    allMIPs=generate_MIP_grid(diroh,slice_type='Coronal')
-    plot_image_grid(images=allMIPs)
+    cellcountfile=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\cell_counts.csv'
+    allMIPs,allMasks=generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal')
+    plot_image_grid(images=allMIPs,
+                    output_file='C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680MIP.pdf',
+                    masks=allMasks)
