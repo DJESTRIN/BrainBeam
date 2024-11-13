@@ -151,7 +151,7 @@ class mass_ttest(inject_atlas):
         """ Loop over levels and perform mass univariate t-tests,
         Note: for inherited code, this will plot anything onto brain atlas if arranged in arranged_data correctly"""
         super().__call__()
-        levels=['location', 'lv1', 'lv2', 'lv3'] #, 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
+        levels=['location', 'lv1', 'lv2', 'lv3', 'lv4'] #, 'lv4', 'lv5','lv6', 'lv7', 'lv8', 'lv9', 'lv10']
         for i, level in enumerate(levels):
             print(f'Currently on level: {level}')
             self.dataframe = self.get_parent_level(i)

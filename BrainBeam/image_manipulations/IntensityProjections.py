@@ -16,6 +16,7 @@ import numpy as np
 from multiprocessing import Pool
 import pandas as pd
 from PIL import Image
+import argparse
 
 class IntensityProjection():
     def __init__(self,
@@ -382,6 +383,7 @@ def plot_image_grid(images,output_file,masks=None,rows=5,cols=5):
     save_image_with_mask_to_pdf(image_array=bigMIP,mask_array=bigMask,pdf_path=output_file)
 
 def save_image_with_mask_to_pdf(image_array, mask_array, pdf_path):
+    ipdb.set_trace()
     # Convert the grayscale image to a Pillow Image
     grayscale_image = Image.fromarray(image_array).convert("L")
     
@@ -399,9 +401,13 @@ def save_image_with_mask_to_pdf(image_array, mask_array, pdf_path):
 
 
 if __name__=='__main__':
-    diroh=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680'
-    cellcountfile=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\cell_counts.csv'
-    allMIPs,allMasks=generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal')
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--image_directory',type=str)
+    parser.add_argument('--cell_count_file',type=str)
+    args=parser.parse_args()
+    # diroh=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680'
+    # cellcountfile=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\cell_counts.csv'
+    allMIPs,allMasks=generate_MIP_grid(args.image_directory,args.cell_count_file,slice_type='Sagittal')
     plot_image_grid(images=allMIPs,
-                    output_file='C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680MIP.pdf',
+                    output_file=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680MIP.pdf',
                     masks=allMasks)
