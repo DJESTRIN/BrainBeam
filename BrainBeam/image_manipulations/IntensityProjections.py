@@ -285,6 +285,7 @@ def adjust_brightness_contrast_np(image_array, brightness_factor, contrast_facto
 
 def generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal',rows=5,cols=5,filetype='tif'):
     """ Create a m x n grid of MIP images """
+    print('Searching for images in path...')
     images_oh = glob.glob(os.path.join(diroh,f'*.{filetype}*')) #Find all images in a given directory
     grids=rows*cols
 
