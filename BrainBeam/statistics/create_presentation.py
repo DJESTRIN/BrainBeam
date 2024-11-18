@@ -121,7 +121,7 @@ def generate_presentation(component_list,presentation_name):
     prs.save(presentation_name)
     return
 
-def find_images(search_path=r'C:\Users\listo\level_analysis\results',extension='counts.jpg'):
+def find_images(search_path=r'C:\Users\listo\level_analysis\results_20241115_120957',extension='counts.jpg'):
     search_path=search_path+r'\*.jpg'
     pot_images = glob.glob(search_path)
     final_images=[]
@@ -132,4 +132,4 @@ def find_images(search_path=r'C:\Users\listo\level_analysis\results',extension='
                 
 if __name__=='__main__':
     images = find_images()
-    generate_presentation(images,r'C:\Users\listo\level_analysis\level_analysis.pptx')
+    generate_presentation(images,r'C:\Users\listo\level_analysis\level_analysis_nonboot.pptx')

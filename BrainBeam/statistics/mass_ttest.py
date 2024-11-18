@@ -51,17 +51,53 @@ class mass_ttest(inject_atlas):
             unique_subjects_cages = df[['subjectid', 'cage','treatment']].drop_duplicates()
             unique_brain_regions = df['location'].unique()
             complete_index = pd.MultiIndex.from_product(
-                [unique_subjects_cages['subjectid'], unique_subjects_cages['cage'], unique_brain_regions], 
-                names=['subjectid', 'cage', 'location'])
+                [unique_subjects_cages['subjectid'], unique_subjects_cages['cage'], unique_subjects_cages['treatment'], unique_brain_regions], 
+                names=['subjectid', 'cage', 'treatment', 'location'])
             complete_df = pd.DataFrame(index=complete_index).reset_index()
-            df = pd.merge(complete_df, df, on=['subjectid', 'cage', 'location'], how='left')
+            df = pd.merge(complete_df, df, on=['subjectid', 'cage', 'treatment', 'location'], how='left')
             df['n'] = df['n'].fillna(0)
             df = pd.merge(df, df[['subjectid', 'cage', 'treatment']].drop_duplicates(), on=['subjectid', 'cage','treatment'], how='left')
             output_file=os.path.join(self.drop_directory,f'conors_dataframe_format_level{level_num}.csv')
-            df.to_csv(output_file)
+            df.to_csv(output_file,index=False)
+
+        def save_full_wide_format(df,level_num):
+            """ Outputs wide format of dataframe """
+            # Create subject column
+            df['subject'] = df['subjectid'].astype(str) + '_' + df['cage']
+            
+            # Create wide format for total number of cells
+            wide_df = (df.groupby(['subject', 'cage', 'treatment', 'location'])
+                       .agg(total_cells=('n', 'sum'))  # Summing cells in each location
+                       .reset_index()
+                       .pivot(index=['subject', 'cage', 'treatment'], columns='location', values='total_cells')
+                       .fillna(0)  # Fill missing values with 0
+                       .reset_index())
+            wide_df.columns.name = None  # Remove the name of the column index
+            wide_df = wide_df.sort_values(by='treatment').reset_index(drop=True)
+
+            # Create wide format for normalized number of cells
+            total_cells_per_subject = df.groupby('subject')['n'].transform('sum')
+            df['normalized_n'] = df['n'] / total_cells_per_subject
+            wide_df_n = (
+                df.groupby(['subject', 'cage', 'treatment', 'location'])
+                .agg(normalized_cell_count=('normalized_n', 'sum'))  # Sum proportions in each location
+                .reset_index()
+                .pivot(index=['subject', 'cage', 'treatment'], columns='location', values='normalized_cell_count')
+                .fillna(0)  # Fill missing values with 0
+                .reset_index())
+            wide_df_n.columns.name = None
+            
+            # Merge dataframes and save to csv
+            merged_wide_df = pd.merge(wide_df, wide_df_n, 
+                                 on=['subject', 'cage', 'treatment'],
+                                 suffixes=('_total', '_normalized'))
+
+            output_file=os.path.join(self.drop_directory,f'wide_format_level{level_num}.csv')
+            merged_wide_df.to_csv(output_file,index=False)
 
         if level_num==0:
             save_full_long_format(self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum(),level_num)
+            save_full_wide_format(self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum(),level_num)
             return self.dataframe.groupby(['cage', 'subjectid','treatment', 'location'], as_index=False)['n'].sum()
         
         else:
@@ -305,7 +341,7 @@ def create_timestamped_directory(root_dir):
 
 if __name__=='__main__':
     # Run mass univariate t-tests
-    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj3.pkl'
+    filename_massttest = r'C:\Users\listo\level_analysis\datasets\mass_ttests_obj_wide.pkl'
     if os.path.isfile(filename_massttest):
         massttest_obj=mass_ttest.load(filename_massttest)
     else:
@@ -318,7 +354,9 @@ if __name__=='__main__':
         # Threshold T-values for dataframe
         massttest_obj.drop_tvals=True
         massttest_obj.drop_threshold=1.3
+        #massttest_obj.bootstrap=True
 
-        #Run object pipeline
+        # Run object pipeline
         massttest_obj()
         massttest_obj.save(filename_massttest)
+

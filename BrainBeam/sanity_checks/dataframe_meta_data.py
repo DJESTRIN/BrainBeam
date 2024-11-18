@@ -30,7 +30,7 @@ def check_dataframe(df):
     print(Num_uniq_regions)
 
 if __name__=='__main__':
-    dataframes = load_data_frames(root_directory=r'C:\Users\listo\level_analysis\results_20241105_122725',search_pattern='conor*level*.csv')
+    dataframes = load_data_frames(root_directory=r'C:\Users\listo\level_analysis\results_20241115_120957',search_pattern='conor*level*.csv')
     for i,dfoh in enumerate(dataframes):
         print(f'===Stats for file # {i}===')
         check_dataframe(df=dfoh)

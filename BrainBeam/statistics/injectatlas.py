@@ -90,7 +90,6 @@ class inject_atlas():
                     conserved+=1
         print(f'{conserved/self.total_regions} % of the atlas is conserved in corresponding tree. ')
 
-
     def regions_to_ids(self,brainregions):
         """ Searches for brainregions in ARA tree and finds corresponding ID """
         ids=[]

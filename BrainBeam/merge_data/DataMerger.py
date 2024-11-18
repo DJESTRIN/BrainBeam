@@ -21,7 +21,7 @@ import re
 from itertools import combinations
 import pickle
 import argparse
-import os
+import os, glob
 import fnmatch
 from datetime import datetime
 
@@ -122,7 +122,59 @@ class channel:
                         flag[index]=1
             index+=1
         return flag
+    
+    def find_midline_plane(self,default_region_keys=[1,2,3]):
+        """ Find mindline plane -- This method utalizes a few key brain regions to 
+        find the midline of the sample. This midline plane will be used to determine whether
+        cell counts are on the ipsilateral or contra lateral side of an injection.
         
+        The default key brain regions are: (1) Caudoputamen, (2) Hippocampus, and (3) Ventral Tegmental Area"""
+        
+        if len(default_region_keys)<3:
+            raise("The default number of regions needed to find a plane is 3. Please check number of default region keys")
+
+        # Find plane coordinates:
+        # Loop over atlas images and find all pixels associated with region of interest
+        # Take the average of X, y and z of pixels to get average coordinate
+        atlas_images=glob.glob(os.path.join(self.atlas_path,'*.tiff*')) # Get all atlas images
+
+        self.plane_coordinates=[] 
+        for region in default_region_keys: #Loop over default regions
+            all_region_coordinates=[]
+            for atlas_image in atlas_images:
+                image_oh=np.array(imread(atlas_image))
+                coordinates_oh=image_oh[np.where(region==image_oh),:] 
+                all_region_coordinates.append(coordinates_oh)
+
+            all_region_coordinates=np.array(all_region_coordinates) # Convert list to numpy array
+            self.plane_coordinates.append(np.mean(all_region_coordinates,axis=0)) # Take the average to get average coordinate
+            
+
+        # Calculate plane coeffs
+        vector1 = self.plane_coordinates[1] - self.plane_coordinates[0]
+        vector2 = self.plane_coordinates[2] - self.plane_coordinates[2]
+        self.plane_coeffs = np.cross(vector1, vector2)
+
+        self.midline_plane_formula= -(self.plane_coeffs[0] * self.plane_coordinates[0][0] + 
+              self.plane_coeffs[1] * self.plane_coordinates[0][1] + 
+              self.plane_coeffs[2] * self.plane_coordinates[0][2])
+
+
+    def cell_lateralization(self,cell_coordinate):
+        """ Using cell coordinate and plane coordinates, 
+        determine which side cell is located on """
+        coordinate_oh = np.array([cell_coordinate[0], cell_coordinate[1], cell_coordinate[2]])
+        vector_oh = coordinate_oh - self.plane_coordinates[0]
+        dp_oh = np.dot(self.plane_coeffs, vector_oh)
+
+        # Return lateralization of specific cell
+        if dp_oh > 0:
+            return 'ipsilateral'
+        elif dp_oh < 0:
+            return 'contralateral'
+        elif dp_oh==0:
+            return 'midline'
+    
     def basic_registration(self):
         """ Registration algorithim that does not run parrallel workers """
         # Doulbe check attribute is numpy array
