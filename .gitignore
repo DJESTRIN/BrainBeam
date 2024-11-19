@@ -1,2 +1,4 @@
 Archive/
 **/__pycache__/
+**/*.out
+**/*.err
