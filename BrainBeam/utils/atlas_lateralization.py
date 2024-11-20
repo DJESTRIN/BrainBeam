@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import argparse
 import tqdm
+from joblib import Parallel, delayed
 import ipdb
 
 def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
@@ -31,27 +32,37 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     # Loop over atlas images and find all pixels associated with region of interest
     # Take the average of X, y and z of pixels to get average coordinate
 
+    # Find and sort atlas images
     def extract_number(file_path):
         filename = os.path.basename(file_path)
         return int(os.path.splitext(filename)[0])
-
     atlas_images=glob.glob(os.path.join(atlas_path,'*.tiff*')) # Get all atlas images
     atlas_images=sorted(atlas_images,key=extract_number)
 
-    plane_coordinates=[] 
-    for region in default_region_keys: #Loop over default regions
-        all_region_coordinates=[]
-        for atlas_image in tqdm.tqdm(atlas_images):
-            image_oh=np.array(imread(atlas_image))
-            coordinates_oh=image_oh[np.where(image_oh==region),:] 
+    def match_region_to_image(atlas_image,region):
+        image_oh=np.array(imread(atlas_image))
+        coordinates_oh=image_oh[np.where(image_oh==region),:] 
+        if coordinates_oh.size!=0:
+            return coordinates_oh
+        else:
+            return None
 
-            if coordinates_oh.size!=0:
-                ipdb.set_trace()
-                all_region_coordinates.append(coordinates_oh)
+    plane_coordinates = Parallel(n_jobs=6)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in atlas_images)
 
-        ipdb.set_trace()
-        all_region_coordinates=np.array(all_region_coordinates) # Convert list to numpy array
-        plane_coordinates.append(np.mean(all_region_coordinates,axis=0)) # Take the average to get average coordinate
+    # plane_coordinates=[] 
+    # for region in default_region_keys: #Loop over default regions
+    #     all_region_coordinates=[]
+    #     for atlas_image in tqdm.tqdm(atlas_images):
+    #         image_oh=np.array(imread(atlas_image))
+    #         coordinates_oh=image_oh[np.where(image_oh==region),:] 
+
+    #         if coordinates_oh.size!=0:
+    #             ipdb.set_trace()
+    #             all_region_coordinates.append(coordinates_oh)
+
+    #     ipdb.set_trace()
+    #     all_region_coordinates=np.array(all_region_coordinates) # Convert list to numpy array
+    #     plane_coordinates.append(np.mean(all_region_coordinates,axis=0)) # Take the average to get average coordinate
         
 
     # Calculate plane coeffs
