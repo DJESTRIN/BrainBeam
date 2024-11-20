@@ -32,7 +32,6 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     atlas_images=glob.glob(os.path.join(atlas_path,'*.tiff*')) # Get all atlas images
 
     plane_coordinates=[] 
-    ipdb.set_trace()
     for region in default_region_keys: #Loop over default regions
         all_region_coordinates=[]
         for atlas_image in atlas_images:
@@ -154,7 +153,6 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir)
 
 def main(atlas_path_oh, OutputPath):
-    ipdb.set_trace()
     coeffs_oh, coordinates_oh, formula_oh = find_midline_plane(atlas_path=atlas_path_oh)
 
     test_cell1=np.array([500,1000,500])
