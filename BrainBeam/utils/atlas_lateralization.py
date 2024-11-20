@@ -64,7 +64,7 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
             coordinates_oh=np.mean(coordinates_oh,axis=0)
             return [coordinates_oh, region]
 
-    plane_coordinates = Parallel(n_jobs=1)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in tqdm.tqdm(atlas_images))
+    plane_coordinates = Parallel(n_jobs=-1)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in tqdm.tqdm(atlas_images))
     ipdb.set_trace()
     # plane_coordinates=[] 
     # for region in default_region_keys: #Loop over default regions
