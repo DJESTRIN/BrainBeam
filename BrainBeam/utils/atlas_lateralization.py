@@ -39,8 +39,11 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
             ipdb.set_trace()
             image_oh=np.array(imread(atlas_image))
             coordinates_oh=image_oh[np.where(region==image_oh),:] 
-            all_region_coordinates.append(coordinates_oh)
 
+            if coordinates_oh.size!=0:
+                all_region_coordinates.append(coordinates_oh)
+
+        ipdb.set_trace()
         all_region_coordinates=np.array(all_region_coordinates) # Convert list to numpy array
         plane_coordinates.append(np.mean(all_region_coordinates,axis=0)) # Take the average to get average coordinate
         
