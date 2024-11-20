@@ -74,22 +74,20 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
             return [int(np.round(coordinates_oh[0])), int(np.round(coordinates_oh[1])), Zlevel, region]
 
     plane_coordinates = Parallel(n_jobs=-1)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in tqdm.tqdm(atlas_images))
+    filtered_list = [item for item in plane_coordinates if item is not None]
+    filtered_list = np.asarray(filtered_list)
+
+    # Extract the unique values in the 4th column
+    unique_values = np.unique(filtered_list[:, 3])
+
+    # Compute the average of columns 1-3 for each unique value in column 4
+    averages = []
+    for value in unique_values:
+        rows = filtered_list[filtered_list[:, 3] == value]  # Filter rows with the specific value in the 4th column
+        avg = rows[:, :3].mean(axis=0)    # Compute mean of columns 1-3
+        averages.append((value, avg))
+    
     ipdb.set_trace()
-    # plane_coordinates=[] 
-    # for region in default_region_keys: #Loop over default regions
-    #     all_region_coordinates=[]
-    #     for atlas_image in tqdm.tqdm(atlas_images):
-    #         image_oh=np.array(imread(atlas_image))
-    #         coordinates_oh=image_oh[np.where(image_oh==region),:] 
-
-    #         if coordinates_oh.size!=0:
-    #             ipdb.set_trace()
-    #             all_region_coordinates.append(coordinates_oh)
-
-    #     ipdb.set_trace()
-    #     all_region_coordinates=np.array(all_region_coordinates) # Convert list to numpy array
-    #     plane_coordinates.append(np.mean(all_region_coordinates,axis=0)) # Take the average to get average coordinate
-        
 
     # Calculate plane coeffs
     vector1 = plane_coordinates[1] - plane_coordinates[0]
