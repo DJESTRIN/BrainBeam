@@ -53,7 +53,7 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
 
     def match_region_to_image(atlas_image,region):
         image_oh=np.array(imread(atlas_image))
-        coordinates_oh=np.where(image_oh==region)
+        coordinates_oh=np.asarray(np.where(image_oh==region))
         if coordinates_oh.size!=0:
             coordinates_oh=np.mean(coordinates_oh,axis=0)
             return coordinates_oh
