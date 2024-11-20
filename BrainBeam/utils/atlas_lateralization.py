@@ -37,7 +37,7 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
         for atlas_image in atlas_images:
             ipdb.set_trace()
             image_oh=np.array(imread(atlas_image))
-            coordinates_oh=image_oh[np.where(region==image_oh),:] 
+            coordinates_oh=image_oh[np.where(image_oh==region),:] 
             ipdb.set_trace()
 
             if coordinates_oh.size!=0:
