@@ -52,19 +52,27 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     check_filesizes(atlas_images)
 
     def match_region_to_image(atlas_image,region):
+        # Open up image
         try:
             atlas_im_oh = imread(atlas_image)
         except:
             return None
         
+        # Get Z level number
+        Zlevel,_=os.path.basename(atlas_image).split('.t')
+        Zlevel=int(Zlevel)
+
+        # Find X and Y coordinates
         image_oh=np.array(atlas_im_oh)
         coordinates_oh=np.asarray(np.where(image_oh==region))
-        if coordinates_oh.size!=0:
-            ipdb.set_trace()
-            coordinates_oh=np.mean(coordinates_oh,axis=0)
-            return [coordinates_oh, region]
 
-    ipdb.set_trace()
+        if coordinates_oh.size!=0:
+            # Get average X and Y coordinate
+            coordinates_oh=coordinates_oh.mean(axis=1)
+
+            # Output coordinates and region
+            return [int(np.round(coordinates_oh[0])), int(np.round(coordinates_oh[1])), Zlevel, region]
+
     plane_coordinates = Parallel(n_jobs=-1)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in tqdm.tqdm(atlas_images))
     ipdb.set_trace()
     # plane_coordinates=[] 
