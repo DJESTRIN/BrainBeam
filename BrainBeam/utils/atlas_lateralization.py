@@ -29,7 +29,13 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     # Find plane coordinates:
     # Loop over atlas images and find all pixels associated with region of interest
     # Take the average of X, y and z of pixels to get average coordinate
+
+    def extract_number(file_path):
+        filename = os.path.basename(file_path)
+        return int(os.path.splitext(filename)[0])
+
     atlas_images=glob.glob(os.path.join(atlas_path,'*.tiff*')) # Get all atlas images
+    atlas_images=sorted(atlas_images,key=extract_number)
 
     plane_coordinates=[] 
     for region in default_region_keys: #Loop over default regions
