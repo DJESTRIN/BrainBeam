@@ -16,7 +16,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import argparse
 import ipdb
 
-def find_midline_plane(atlas_path, default_region_keys=[1,2,3]):
+def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     """ Find mindline plane -- This method utalizes a few key brain regions to 
     find the midline of the sample. This midline plane will be used to determine whether
     cell counts are on the ipsilateral or contra lateral side of an injection.
@@ -176,7 +176,7 @@ def cli_parser():
     # Generate output path if it does not exist
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
-        
+
     return args
 
 if __name__=='__main__':
