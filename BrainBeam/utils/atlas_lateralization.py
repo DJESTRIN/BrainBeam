@@ -36,8 +36,20 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     def extract_number(file_path):
         filename = os.path.basename(file_path)
         return int(os.path.splitext(filename)[0])
+    
+    def check_filesizes(file_list):
+        for i,file in enumerate(file_list):
+            sizoh=os.path.getsize(file)
+            if i==0:
+                original_size=sizoh
+            else:
+                if sizoh != original_size:
+                    print(f'sizoh change {sizoh}')
+                    original_size=sizoh
+            
     atlas_images=glob.glob(os.path.join(atlas_path,'*.tiff*')) # Get all atlas images
     atlas_images=sorted(atlas_images,key=extract_number)
+    check_filesizes(atlas_images)
 
     def match_region_to_image(atlas_image,region):
         image_oh=np.array(imread(atlas_image))
