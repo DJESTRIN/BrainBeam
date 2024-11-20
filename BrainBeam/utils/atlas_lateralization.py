@@ -39,7 +39,7 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     
     def check_filesizes(file_list):
         for i,file in enumerate(file_list):
-            sizoh=os.path.getsize(file)
+            sizoh=np.round(os.path.getsize(file)/1000000)
             if i==0:
                 original_size=sizoh
             else:
@@ -55,11 +55,12 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
         image_oh=np.array(imread(atlas_image))
         coordinates_oh=image_oh[np.where(image_oh==region),:] 
         if coordinates_oh.size!=0:
+            ipdb.set_trace()
             return coordinates_oh
         else:
             return None
 
-    plane_coordinates = Parallel(n_jobs=-1)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in tqdm.tqdm(atlas_images))
+    plane_coordinates = Parallel(n_jobs=1)(delayed(match_region_to_image)(atlas_image_path,region) for region in default_region_keys for atlas_image_path in tqdm.tqdm(atlas_images))
 
     # plane_coordinates=[] 
     # for region in default_region_keys: #Loop over default regions
