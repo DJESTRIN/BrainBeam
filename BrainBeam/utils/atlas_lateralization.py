@@ -14,6 +14,7 @@ from skimage.io import imread
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import argparse
+import tqdm
 import ipdb
 
 def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
@@ -40,7 +41,7 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     plane_coordinates=[] 
     for region in default_region_keys: #Loop over default regions
         all_region_coordinates=[]
-        for atlas_image in atlas_images:
+        for atlas_image in tqdm.tqdm(atlas_images):
             image_oh=np.array(imread(atlas_image))
             coordinates_oh=image_oh[np.where(image_oh==region),:] 
 
