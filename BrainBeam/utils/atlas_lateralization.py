@@ -211,11 +211,11 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     atlas_ds_new = reassign_atlas_keys(atlas_stack=atlas_ds)
 
     r1=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
-    r2=np.asarray(np.where(atlas_ds==1080)).mean(axis=1)
+    r2=np.asarray(np.where(atlas_ds==507)).mean(axis=1)
     r3=np.asarray(np.where(atlas_ds==844)).mean(axis=1)
     r4=np.asarray(np.where(atlas_ds==749)).mean(axis=1) 
-    r5=np.asarray(np.where(atlas_ds==631)).mean(axis=1) 
-    r6=np.asarray(np.where(atlas_ds==528)).mean(axis=1) 
+    r5=np.asarray(np.where(atlas_ds==192)).mean(axis=1) 
+    r6=np.asarray(np.where(atlas_ds==797)).mean(axis=1) 
     points = np.asarray([r1,r2,r3,r4,r5,r6])
 
     ipdb.set_trace()
