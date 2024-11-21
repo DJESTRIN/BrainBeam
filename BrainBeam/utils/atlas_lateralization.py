@@ -175,14 +175,19 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     def plot_plane(ax,coeffs,OutputDir):
         # Plot the plane
         ipdb.set_trace()
+
+    def extract_number(file_path):
+        filename = os.path.basename(file_path)
+        return int(os.path.splitext(filename)[0])
     
     # Get image stack
-    ipdb.set_trace()
     print('Finding Images ...')
     atlas_images = glob.glob(os.path.join(atlas_image_directory,'*.tiff*')) # Get all atlas images
+    atlas_images=sorted(atlas_images,key=extract_number)
 
     # Downsample Image stack
     print('Downsampling image stack ...')
+    ipdb.set_trace()
     atlas_ds = downsample(image_stack=atlas_images,skip_factor=skip_factor_oh)
 
     # Re-assign atlas keys to new keys
@@ -200,7 +205,6 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 def main(atlas_path_oh, OutputPath):
     coeffs_oh, coordinates_oh, formula_oh = find_midline_plane(atlas_path=atlas_path_oh)
 
-    ipdb.set_trace()
     test_cell1=np.array([500,1000,500])
     test_res1 = cell_lateralization(coordinates_oh,coeffs_oh,test_cell1)
     print(f'Test cell 1 is located {test_res1}')
