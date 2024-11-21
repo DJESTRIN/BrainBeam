@@ -89,11 +89,11 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
         averages.append(avg)
         vals.append(value)
     
-    ipdb.set_trace()
+    plane_coordinates=np.asarray(averages)
 
     # Calculate plane coeffs
     vector1 = plane_coordinates[1] - plane_coordinates[0]
-    vector2 = plane_coordinates[2] - plane_coordinates[2]
+    vector2 = plane_coordinates[2] - plane_coordinates[0]
     plane_coeffs = np.cross(vector1, vector2)
 
     midline_plane_formula= -(plane_coeffs[0] * plane_coordinates[0][0] + 
@@ -177,6 +177,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         ipdb.set_trace()
     
     # Get image stack
+    ipdb.set_trace()
     print('Finding Images ...')
     atlas_images = glob.glob(os.path.join(atlas_image_directory,'*.tiff*')) # Get all atlas images
 
@@ -199,6 +200,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 def main(atlas_path_oh, OutputPath):
     coeffs_oh, coordinates_oh, formula_oh = find_midline_plane(atlas_path=atlas_path_oh)
 
+    ipdb.set_trace()
     test_cell1=np.array([500,1000,500])
     test_res1 = cell_lateralization(coordinates_oh,coeffs_oh,test_cell1)
     print(f'Test cell 1 is located {test_res1}')
