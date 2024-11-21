@@ -94,13 +94,10 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     # Calculate plane coeffs
     vector1 = plane_coordinates[1] - plane_coordinates[0]
     vector2 = plane_coordinates[2] - plane_coordinates[0]
-    plane_coeffs = np.cross(vector1, vector2)
-
-    midline_plane_formula= -(plane_coeffs[0] * plane_coordinates[0][0] + 
-            plane_coeffs[1] * plane_coordinates[0][1] + 
-            plane_coeffs[2] * plane_coordinates[0][2])
-    
-    return plane_coeffs, plane_coordinates, midline_plane_formula
+    normal = np.cross(vector1, vector2)
+    a,b,c = normal
+    d = -np.dot(normal,plane_coordinates[0])
+    return a,b,c,d,plane_coordinates
 
 def cell_lateralization(plane_coordinates, plane_coeffs, cell_coordinate):
     """ Using cell coordinate and plane coordinates, 
@@ -133,7 +130,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         """ Re-sample an image stack given a skip factor """
         z_skip=0
         downsampled=[]
-        for image in image_stack:
+        for image in tqdm.tqdm(image_stack):
             if z_skip%skip_factor==0:
                 image_oh=np.array(imread(image))
                 image_oh=image_oh[::skip_factor,::skip_factor]
@@ -169,12 +166,28 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         ax.set_ylabel("Lateral to Medial to Lateral")
         ax.set_zlabel("Dorsal to Ventral")
         ax.set_title("Registered Allen Reference Atlas")
+        ax.view_init(elev=-125, azim=152)  # Elevation & Azimuth
         return fig, ax
 
     
-    def plot_plane(ax,coeffs,OutputDir):
+    def plot_plane(ax,coeffs,OutputDir,atlas_shape):
         # Plot the plane
         ipdb.set_trace()
+        a,b,c,d=coeffs
+        x_range = np.arange(atlas_shape[0])
+        y_range = np.arange(atlas_shape[1])
+        z_range = np.arange(atlas_shape[2])
+
+        # Create a grid for plotting
+        xx, yy = np.meshgrid(x_range, y_range)
+
+        # Solve for z on the plane: z = (-a*x - b*y - d) / c
+        zz = (-a * xx - b * yy - d) / c
+
+        # Clip z values to be within the atlas dimensions
+        zz_clipped = np.clip(zz, 0, atlas_shape[2] - 1)
+        ax.plot_surface(xx, yy, zz_clipped, alpha=0.5, color='cyan', edgecolor='none')
+
 
     def extract_number(file_path):
         filename = os.path.basename(file_path)
@@ -200,24 +213,24 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
-    plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir)
+    plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape())
 
 def main(atlas_path_oh, OutputPath):
-    coeffs_oh, coordinates_oh, formula_oh = find_midline_plane(atlas_path=atlas_path_oh)
+    a, b, c, d, coordinates_oh = find_midline_plane(atlas_path=atlas_path_oh)
 
-    test_cell1=np.array([500,1000,500])
-    test_res1 = cell_lateralization(coordinates_oh,coeffs_oh,test_cell1)
-    print(f'Test cell 1 is located {test_res1}')
+    # test_cell1=np.array([500,1000,500])
+    # test_res1 = cell_lateralization(coordinates_oh,a,b,c,d,test_cell1)
+    # print(f'Test cell 1 is located {test_res1}')
 
-    test_cell2=np.array([500,1000,500])
-    test_res2 = cell_lateralization(coordinates_oh,coeffs_oh,test_cell2)
-    print(f'Test cell 2 is located {test_res2}')
+    # test_cell2=np.array([500,1000,500])
+    # test_res2 = cell_lateralization(coordinates_oh,a,b,c,d,test_cell2)
+    # print(f'Test cell 2 is located {test_res2}')
 
-    test_cell3=np.array([500,1000,500])
-    test_res3 = cell_lateralization(coordinates_oh,coeffs_oh,test_cell3)
-    print(f'Test cell 3 is located {test_res3}')
+    # test_cell3=np.array([500,1000,500])
+    # test_res3 = cell_lateralization(coordinates_oh,a,b,c,d,test_cell3)
+    # print(f'Test cell 3 is located {test_res3}')
 
-    visualize_atlas_plane(atlas_image_directory=atlas_path_oh, OutputDir=OutputPath, coeffs_oh=coeffs_oh, skip_factor_oh=50)
+    visualize_atlas_plane(atlas_image_directory=atlas_path_oh, OutputDir=OutputPath, coeffs_oh=[a,b,c,d], skip_factor_oh=50)
 
 def cli_parser():
     """ Parse command line arguments """
