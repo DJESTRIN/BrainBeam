@@ -183,7 +183,6 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         y_range = np.arange(atlas_shape[1])
      
         # Create a grid for plotting
-        ipdb.set_trace()
         xx, yy = np.meshgrid(x_range, y_range)
 
         # Solve for z on the plane: z = (-a*x - b*y - d) / c
@@ -191,7 +190,6 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
         # Clip z values to be within the atlas dimensions
         zz_clipped = np.clip(zz, 0, atlas_shape[2] - 1)
-        ipdb.set_trace()
         ax.plot_surface(xx, yy, zz_clipped, alpha=0.5, color='cyan', edgecolor='none')
         return ax
 
@@ -214,7 +212,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     caud=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
     hippo=np.asarray(np.where(atlas_ds==749)).mean(axis=1)
-    vent=np.asarray(np.where(atlas_ds==1089)).mean(axis=1)
+    vent=np.asarray(np.where(atlas_ds==698)).mean(axis=1)
 
     vector1 = hippo - caud
     vector2 = vent - caud
@@ -222,7 +220,6 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     a,b,c = normal
     d = -np.dot(normal,caud)
     coeffs_oh=[a,b,c,d]
-    ipdb.set_trace()
 
     # Plot Image stack
     print('Plotting Image Stack ...')
@@ -287,6 +284,10 @@ def cli_parser():
         os.mkdir(args.output_path)
 
     return args
+
+def load_fig(fig):
+    with open(r"C:\Users\listo\tempdrop\AtlasWithPlane.pkl") as f: 
+        loaded_fig=pickle.load(f) 
 
 if __name__=='__main__':
     args=cli_parser()
