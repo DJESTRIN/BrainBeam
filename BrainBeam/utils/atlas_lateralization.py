@@ -211,8 +211,8 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     atlas_ds_new = reassign_atlas_keys(atlas_stack=atlas_ds)
 
     caud=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
-    hippo=np.asarray(np.where(atlas_ds==749)).mean(axis=1)
-    vent=np.asarray(np.where(atlas_ds==698)).mean(axis=1)
+    hippo=np.asarray(np.where(atlas_ds==993)).mean(axis=1)
+    vent=np.asarray(np.where(atlas_ds==985)).mean(axis=1)
 
     vector1 = hippo - caud
     vector2 = vent - caud
