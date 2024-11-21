@@ -82,10 +82,12 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
 
     # Compute the average of columns 1-3 for each unique value in column 4
     averages = []
+    vals=[]
     for value in unique_values:
         rows = filtered_list[filtered_list[:, 3] == value]  # Filter rows with the specific value in the 4th column
         avg = rows[:, :3].mean(axis=0)    # Compute mean of columns 1-3
-        averages.append((value, avg))
+        averages.append(avg)
+        vals.append(value)
     
     ipdb.set_trace()
 
