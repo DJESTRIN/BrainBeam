@@ -208,7 +208,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Plot Image stack
     print('Plotting Image Stack ...')
-    fig_oh, ax_oh = plot_stack(stack=atlas_ds_new, OutputDir=OutputDir)
+    fig_oh, ax_oh = plot_stack(atlas_array=atlas_ds_new, OutputDir=OutputDir)
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
