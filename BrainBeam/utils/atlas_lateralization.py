@@ -190,7 +190,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
         # Clip z values to be within the atlas dimensions
         zz_clipped = np.clip(zz, 15, atlas_shape[2] - 15)
-        ax.plot_surface(xx, yy, zz_clipped, alpha=0.5, color='cyan', edgecolor='none')
+        ax.plot_surface(xx, yy, zz_clipped, alpha=0.5, color='red', edgecolor='none')
         return ax
 
     def extract_number(file_path):
