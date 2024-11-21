@@ -200,7 +200,6 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Downsample Image stack
     print('Downsampling image stack ...')
-    ipdb.set_trace()
     atlas_ds = downsample(image_stack=atlas_images,skip_factor=skip_factor_oh)
 
     # Re-assign atlas keys to new keys
