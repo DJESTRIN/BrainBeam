@@ -210,16 +210,33 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     print('Re-assigning atlas keys ...')
     atlas_ds_new = reassign_atlas_keys(atlas_stack=atlas_ds)
 
-    caud=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
-    hippo=np.asarray(np.where(atlas_ds==1080)).mean(axis=1)
-    vent=np.asarray(np.where(atlas_ds==844)).mean(axis=1)
+    r1=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
+    r2=np.asarray(np.where(atlas_ds==1080)).mean(axis=1)
+    r3=np.asarray(np.where(atlas_ds==844)).mean(axis=1)
+    r4=np.asarray(np.where(atlas_ds==749)).mean(axis=1) 
+    r5=np.asarray(np.where(atlas_ds==631)).mean(axis=1) 
+    r6=np.asarray(np.where(atlas_ds==528)).mean(axis=1) 
+    points = np.asarray([r1,r2,r3,r4,r5,r6])
+
     ipdb.set_trace()
 
-    vector1 = hippo - caud
-    vector2 = vent - caud
-    normal = np.cross(vector1, vector2)
+     # Calculate the centroid of the points
+    centroid = np.mean(points, axis=0)
+
+    # Center the points around the centroid
+    centered_points = points - centroid
+
+    # Perform Singular Value Decomposition
+    _, _, vh = np.linalg.svd(centered_points)
+
+    # The normal vector of the plane is the last row of vh (right singular vectors)
+    normal = vh[-1]
+
+    # vector1 = hippo - caud
+    # vector2 = vent - caud
+    # normal = np.cross(vector1, vector2)
     a,b,c = normal
-    d = -np.dot(normal,caud)
+    d = -np.dot(normal,centroid)
     coeffs_oh=[a,b,c,d]
 
     # Plot Image stack
