@@ -212,10 +212,17 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     print('Re-assigning atlas keys ...')
     atlas_ds_new = reassign_atlas_keys(atlas_stack=atlas_ds)
 
+    caud=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
+    hippo=np.asarray(np.where(atlas_ds==749)).mean(axis=1)
+    vent=np.asarray(np.where(atlas_ds==1089)).mean(axis=1)
+
+    vector1 = hippo - caud
+    vector2 = vent - caud
+    normal = np.cross(vector1, vector2)
+    a,b,c = normal
+    d = -np.dot(normal,caud)
+    coeffs_oh=[a,b,c,d]
     ipdb.set_trace()
-    caud=np.where(atlas_ds_new==672)
-    hippo=np.where(atlas_ds_new==749)
-    vent=np.where(atlas_ds_new==1089)
 
     # Plot Image stack
     print('Plotting Image Stack ...')
