@@ -16,6 +16,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import argparse
 import tqdm
 from joblib import Parallel, delayed
+import pickle
 import ipdb
 
 def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
@@ -216,7 +217,20 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape)
 
 def main(atlas_path_oh, OutputPath):
-    a, b, c, d, coordinates_oh = find_midline_plane(atlas_path=atlas_path_oh)
+    if os.path.isfile(os.path.join(OutputPath,"planedata.pkl")):
+        with open(os.path.join(OutputPath,"planedata.pkl"), "rb") as f:
+            loaded_list = pickle.load(f)
+        a,b,c,d,coordinates_oh=loaded_list
+        
+    else:
+        a, b, c, d, coordinates_oh = find_midline_plane(atlas_path=atlas_path_oh)
+
+        # Example list
+        saved_list = [a,b,c,d,coordinates_oh]
+
+        # Save the list to a file
+        with open(os.path.join(OutputPath,"planedata.pkl"), "wb") as f:
+            pickle.dump(saved_list, f)
 
     # test_cell1=np.array([500,1000,500])
     # test_res1 = cell_lateralization(coordinates_oh,a,b,c,d,test_cell1)
