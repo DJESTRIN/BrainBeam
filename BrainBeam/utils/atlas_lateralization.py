@@ -212,6 +212,11 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     print('Re-assigning atlas keys ...')
     atlas_ds_new = reassign_atlas_keys(atlas_stack=atlas_ds)
 
+    ipdb.set_trace()
+    caud=np.where(atlas_ds_new==672)
+    hippo=np.where(atlas_ds_new==749)
+    vent=np.where(atlas_ds_new==1089)
+
     # Plot Image stack
     print('Plotting Image Stack ...')
     fig_oh, ax_oh = plot_stack(atlas_array=atlas_ds_new)
