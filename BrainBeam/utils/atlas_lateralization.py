@@ -214,11 +214,11 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Plot Image stack
     print('Plotting Image Stack ...')
-    fig_oh, ax_oh = plot_stack(atlas_array=atlas_ds_new, OutputDir=OutputDir)
+    fig_oh, ax_oh = plot_stack(atlas_array=atlas_ds_new)
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
-    ax_oh = plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape)
+    ax_oh = plot_plane(ax=ax_oh,coeffs=coeffs_oh, atlas_shape=atlas_ds_new.shape, skip_factor=50)
     
     # Save the Figure as jpg and fig file
     print('Saving figure in jpg and pkl formats...')
@@ -233,11 +233,13 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
 def main(atlas_path_oh, OutputPath):
     if os.path.isfile(os.path.join(OutputPath,"planedata.pkl")):
+        print('Loading pkl file containing plane data ...')
         with open(os.path.join(OutputPath,"planedata.pkl"), "rb") as f:
             loaded_list = pickle.load(f)
         a,b,c,d,coordinates_oh=loaded_list
         
     else:
+        print('Calculating plane data...')
         a, b, c, d, coordinates_oh = find_midline_plane(atlas_path=atlas_path_oh)
 
         # Example list
