@@ -152,7 +152,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         
         return atlas_stack_copy
 
-    def plot_stack(atlas_array, OutputDir):
+    def plot_stack(atlas_array):
         # Generate 3d plot
         fig = plt.figure(figsize=(20, 20))
         ax = fig.add_subplot(111, projection='3d')
@@ -169,26 +169,31 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         ax.set_title("Registered Allen Reference Atlas")
         ax.view_init(elev=-125, azim=152)  # Elevation & Azimuth
         return fig, ax
-
     
-    def plot_plane(ax,coeffs,OutputDir,atlas_shape):
+    def plot_plane(ax,coeffs,atlas_shape,skip_factor):
         # Plot the plane
-        ipdb.set_trace()
-        a,b,c,d=coeffs
+        aa,bb,cc,dd=coeffs
+
+        aa=aa/skip_factor
+        bb=bb/skip_factor
+        cc=cc/skip_factor
+        dd=dd/skip_factor
+
         x_range = np.arange(atlas_shape[0])
         y_range = np.arange(atlas_shape[1])
-        z_range = np.arange(atlas_shape[2])
-
+     
         # Create a grid for plotting
+        ipdb.set_trace()
         xx, yy = np.meshgrid(x_range, y_range)
 
         # Solve for z on the plane: z = (-a*x - b*y - d) / c
-        zz = (-a * xx - b * yy - d) / c
+        zz = (-aa * xx - bb * yy - dd) / cc
 
         # Clip z values to be within the atlas dimensions
         zz_clipped = np.clip(zz, 0, atlas_shape[2] - 1)
+        ipdb.set_trace()
         ax.plot_surface(xx, yy, zz_clipped, alpha=0.5, color='cyan', edgecolor='none')
-
+        return ax
 
     def extract_number(file_path):
         filename = os.path.basename(file_path)
@@ -213,8 +218,18 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
-    ipdb.set_trace()
-    plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape)
+    ax_oh = plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape)
+    
+    # Save the Figure as jpg and fig file
+    print('Saving figure in jpg and pkl formats...')
+    plt.savefig(os.path.join(OutputDir,'AtlasWithPlane.jpg'))
+
+    with open(os.path.join(OutputDir,'AtlasWithPlane.pkl'), "wb") as f:
+        pickle.dump(fig_oh, f)
+
+    print('Completed ... ')
+    return
+
 
 def main(atlas_path_oh, OutputPath):
     if os.path.isfile(os.path.join(OutputPath,"planedata.pkl")):
