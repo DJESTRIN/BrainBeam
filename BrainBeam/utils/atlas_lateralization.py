@@ -212,7 +212,8 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
-    plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape())
+    ipdb.set_trace()
+    plot_plane(ax=ax_oh,coeffs=coeffs_oh, OutputDir=OutputDir,atlas_shape=atlas_ds_new.shape)
 
 def main(atlas_path_oh, OutputPath):
     a, b, c, d, coordinates_oh = find_midline_plane(atlas_path=atlas_path_oh)
