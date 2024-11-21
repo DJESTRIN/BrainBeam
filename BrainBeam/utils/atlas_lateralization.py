@@ -217,6 +217,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     r5=np.asarray(np.where(atlas_ds==192)).mean(axis=1) 
     r6=np.asarray(np.where(atlas_ds==797)).mean(axis=1) 
     points = np.asarray([r1,r2,r3,r4,r5,r6])
+    points = points[~np.isnan(points).any(axis=1)]
 
     ipdb.set_trace()
 
