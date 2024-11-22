@@ -159,7 +159,6 @@ class channel:
               self.plane_coeffs[1] * self.plane_coordinates[0][1] + 
               self.plane_coeffs[2] * self.plane_coordinates[0][2])
 
-
     def cell_lateralization(self,cell_coordinate):
         """ Using cell coordinate and plane coordinates, 
         determine which side cell is located on """

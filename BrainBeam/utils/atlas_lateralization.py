@@ -152,6 +152,17 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         
         return atlas_stack_copy
 
+    def get_all_points(atlas_stack):
+        """ Calculate the average point for all regions """
+        all_points=[]
+        for region in np.unique(atlas_stack):
+            if region==0:
+                continue
+            else:
+                pointoh=np.asarray(np.where(atlas_stack==region)).mean(axis=1)
+                all_points.append(pointoh)
+        return all_points
+
     def plot_stack(atlas_array):
         # Generate 3d plot
         fig = plt.figure(figsize=(20, 20))
@@ -210,18 +221,11 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     print('Re-assigning atlas keys ...')
     atlas_ds_new = reassign_atlas_keys(atlas_stack=atlas_ds)
 
-    r1=np.asarray(np.where(atlas_ds==672)).mean(axis=1)
-    r2=np.asarray(np.where(atlas_ds==507)).mean(axis=1)
-    r3=np.asarray(np.where(atlas_ds==844)).mean(axis=1)
-    r4=np.asarray(np.where(atlas_ds==749)).mean(axis=1) 
-    r5=np.asarray(np.where(atlas_ds==192)).mean(axis=1) 
-    r6=np.asarray(np.where(atlas_ds==797)).mean(axis=1) 
-    points = np.asarray([r1,r2,r3,r4,r5,r6])
-    points = points[~np.isnan(points).any(axis=1)]
-
+    # Get all average points
+    points=np.asarray(get_all_points(atlas_stack=atlas_ds_new))
     ipdb.set_trace()
 
-     # Calculate the centroid of the points
+    # Calculate the centroid of the points
     centroid = np.mean(points, axis=0)
 
     # Center the points around the centroid
