@@ -178,10 +178,10 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         ax.set_ylabel("Lateral to Medial to Lateral")
         ax.set_zlabel("Dorsal to Ventral")
         ax.set_title("Registered Allen Reference Atlas")
-        ax.view_init(elev=-125, azim=152)  # Elevation & Azimuth
+        ax.view_init(elev=180, azim=-156)  # Elevation & Azimuth
         return fig, ax
     
-    def plot_plane(ax,coeffs,atlas_shape,skip_factor):
+    def plot_plane(ax,coeffs,atlas_shape, points_oh, skip_factor):
         # Plot the plane
         aa,bb,cc,dd=coeffs
 
@@ -202,6 +202,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
         # Clip z values to be within the atlas dimensions
         #zz_clipped = np.clip(zz, 15, atlas_shape[2] - 15)
         ax.plot_surface(xx, yy, zz, alpha=0.5, color='red', edgecolor='none')
+        ax.scatter(points_oh[:,0], points_oh[:,1], points_oh[:,2], color='red', s=8)
         return ax
 
     def extract_number(file_path):
@@ -250,7 +251,7 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
-    ax_oh = plot_plane(ax=ax_oh,coeffs=coeffs_oh, atlas_shape=atlas_ds_new.shape, skip_factor=50)
+    ax_oh = plot_plane(ax=ax_oh, coeffs=coeffs_oh, atlas_shape=atlas_ds_new.shape, points_oh=points, skip_factor=50)
     
     # Save the Figure as jpg and fig file
     print('Saving figure in jpg and pkl formats...')
