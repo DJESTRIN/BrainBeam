@@ -1,8 +1,0 @@
-LICENSE
-README.md
-setup.py
-BrainBeam.egg-info/PKG-INFO
-BrainBeam.egg-info/SOURCES.txt
-BrainBeam.egg-info/dependency_links.txt
-BrainBeam.egg-info/requires.txt
-BrainBeam.egg-info/top_level.txt
