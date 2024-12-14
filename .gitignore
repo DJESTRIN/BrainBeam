@@ -3,3 +3,4 @@ Archive/
 **/*.out
 **/*.err
 tempshowfig.py
+BrainBeam.egg-info/
