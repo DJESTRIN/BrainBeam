@@ -23,6 +23,29 @@ def print_results_every_n_trials(study, trial, n=10):
     if trial.number % n == 0:
         print(f"Trial {trial.number}: Best Value = {study.best_value:.5f}, Best Params = {study.best_params}")
 
+def compute_mattes_mutual_information(fixed_image, moving_image):
+    # Initialize the registration method
+    registration_method = sitk.ImageRegistrationMethod()
+    
+    # Set the metric as Mattes Mutual Information
+    registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+    
+    # Use an identity transform (no transformation applied)
+    identity_transform = sitk.Transform(3, sitk.sitkIdentity)
+    
+    # Set the fixed and moving images without performing optimization
+    registration_method.SetInitialTransform(identity_transform, inPlace=False)
+    registration_method.SetOptimizerAsGradientDescent(learningRate=1.0, numberOfIterations=1)  # Zero iterations
+    
+    # Compute the mutual information by "executing" with zero optimization steps
+    try:
+        registration_method.Execute(fixed_image, moving_image)
+        mutual_information = registration_method.GetMetricValue()
+    except:
+        mutual_information = -0.00000000000000000001 # default value suggesting failure
+
+    return mutual_information
+
 def compute_mse(fixed_image, moving_image,lambda_overlap=0.5):
     """
     Compute the Mean Squared Error (MSE) between two SimpleITK images.
@@ -165,7 +188,7 @@ def plot_arrays_3d(array1,array2,array1_thresh,array2_thresh,ds_factor=10):
     output_filename = f"bayesian_mapping_{timestamp}.html"
     fig.write_html(os.path.join(r"C:\Users\listo\example_registration_data",output_filename))
 
-def find_affine_matrix(fixed_image,moving_image,ntrials=10000,best_params=None):
+def find_affine_matrix(fixed_image,moving_image,ntrials=5000,best_params=None):
     fixed_image_threshold = np.percentile(fixed_image,65)
     moving_image_threshold = np.percentile(moving_image,45)
 
@@ -176,18 +199,19 @@ def find_affine_matrix(fixed_image,moving_image,ntrials=10000,best_params=None):
 
         # Define the objective function for Optuna optimization
         def objective(trial):
+            """ In this study, we are trying to determine which angles """
             # Sample rotation angles for x, y, and z axes
-            theta_x = trial.suggest_float("theta_x", -np.pi / 2, np.pi / 2)  # -45° to +45°
-            theta_y = trial.suggest_float("theta_y", -np.pi / 2, np.pi / 2)  # -45° to +45°
-            theta_z = trial.suggest_float("theta_z", -np.pi / 2, np.pi / 2)  # -45° to +45°
+            theta_x = trial.suggest_float("theta_x", -np.pi/4, np.pi/4)  
+            theta_y = trial.suggest_float("theta_y", -np.pi/4, np.pi/4) 
+            theta_z = trial.suggest_float("theta_z", -np.pi/4, np.pi/4)  
 
             # Translation parameters
-            translation_x = trial.suggest_float("translation_x", -10, 10)
-            translation_y = trial.suggest_float("translation_y", -10, 10)
-            translation_z = trial.suggest_float("translation_z", -10, 10)
+            translation_x = trial.suggest_float("translation_x", -100, 100)
+            translation_y = trial.suggest_float("translation_y", -100, 100)
+            translation_z = trial.suggest_float("translation_z", -100, 100)
 
             # Scaling factor
-            scale = trial.suggest_float("scale", 1, 5)
+            scale = trial.suggest_float("scale", 0.1, 5)
 
             # Create an AffineTransform
             affine_transform = sitk.AffineTransform(3)
@@ -204,11 +228,13 @@ def find_affine_matrix(fixed_image,moving_image,ntrials=10000,best_params=None):
             transformed_image = resampler.Execute(moving_image)
 
             # Calculate the similarity metric (Mean Squared Error)
-            mse = compute_mse(fixed_image, transformed_image)
+            # mse = compute_mse(fixed_image, transformed_image)
             # Alternatively, you can use:
-            # metric = sitk.MutualInformation(fixed_image, transformed_image)
+            metric = compute_mattes_mutual_information(fixed_image, transformed_image)
 
-            return mse  # Return the metric value (Optuna tries to minimize this)
+            print(f'MMI value is {metric}')
+
+            return metric  # Return the metric value (Optuna tries to minimize this)
 
         # Create an Optuna study to optimize the objective function
         study = optuna.create_study(direction="minimize")  # We want to minimize the metric

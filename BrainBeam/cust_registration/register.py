@@ -21,12 +21,14 @@ from scipy.ndimage import zoom
 import tqdm
 import SimpleITK as sitk
 from BrainBeam.cust_registration.padding import zero_pad_arrays
-from BrainBeam.cust_registration.BayesSearch import find_affine_matrix
+from BrainBeam.cust_registration.bayessearch import find_affine_matrix
+from BrainBeam.cust_registration.graphics import volume_scatter_plot
 from datetime import datetime
 from functools import partial
 import argparse
 import time
 import pickle
+from itertools import permutations
 
 # Set max hyper threading
 max_threads = os.cpu_count()
@@ -55,9 +57,70 @@ class target:
         self.template, self.template_meta = rspc.get_template_volume()
     
     def determine_orientation(self):
-        mean_intensity_x = np.mean(self.template, axis=(1, 2))  # mean along x-axis (rows)
-        mean_intensity_y = np.mean(self.template, axis=(0, 2))  # mean along y-axis (columns)
-        mean_intensity_z = np.mean(self.template, axis=(0, 1))  # mean along z-axis (slices)
+        def symmetry_score(line):
+            """ Calculate symmetry to find the Right left axis """
+            mirrored_line = line[::-1]  
+            mse = np.mean((line - mirrored_line)**2)  
+            return mse
+        
+        # Threshold data to remove background
+        thresh_oh = np.percentile(self.template,60)
+        threshed_sample = self.template.copy()
+        threshed_sample[threshed_sample<thresh_oh] = 0
+
+        # Calculate average intensity of data
+        mean_intensity_x = np.nanmean(threshed_sample, axis=(1, 2)) 
+        mean_intensity_y = np.nanmean(threshed_sample, axis=(0, 2)) 
+        mean_intensity_z = np.nanmean(threshed_sample, axis=(0, 1))  
+
+        # Gather meta data on average intensities
+        av_szs = np.array([len(mean_intensity_x), len(mean_intensity_y), len(mean_intensity_z)])
+        avs = np.array([mean_intensity_x, mean_intensity_y, mean_intensity_z])
+
+        # Find the AP axis and determine whether it needs to be flipped
+        longest_dim = np.where(av_szs == av_szs.max())
+        
+        AP = avs[longest_dim]
+        if np.argmax(AP) < (len(AP) // 2):
+            AP_flip=-1 # flip orientation
+        else:
+            AP_flip=1 # Keep orientation as not flipped
+
+        # Determine the Right to Left axis
+        # Note: We are not able to heuristically determine how to flip this dim
+        scores = np.array([symmetry_score(line) for line in avs])
+        mirror_dim = np.where(scores == scores.max())
+        if mirror_dim[0] == longest_dim[0]:
+            second_largest = np.partition(scores, -2)[-2]
+            mirror_dim = np.where(scores == second_largest)
+
+        # By process of elimination, determine Superior -> Inferior axis
+        # Check whether any axes were chosen twice
+        # Determine whether S->I needs to be flipped
+        dims = {0, 1, 2}
+        previous_dims = {int(longest_dim[0]), int(mirror_dim[0])}
+        leftover_dim = list(dims - previous_dims)  # Subtract sets and extract the value
+
+        if len(leftover_dim) == 1:
+            leftover_dim=leftover_dim[0]
+            SP = avs[leftover_dim]
+        else:
+            raise RuntimeError('Two dimensions were unable to be seperated')
+
+        if np.argmax(SP) > (len(SP) // 2):
+            SP_flip=-1 # flip orientation
+        else:
+            SP_flip=1 # Keep orientation as not flipped
+
+        # Reioreint axes to R->L, S->I, A->P formattiong
+        self.template_transposed = np.transpose(self.template, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
+
+        if SP_flip == -1:
+            self.template_transposed = self.template_transposed[:, ::-1, :]  # Flip the second axis (A)
+        if AP_flip == -1:
+            self.template_transposed = self.template_transposed[:, :, ::-1]  # Flip the third axis (R)
+
+        self.template = self.template_transposed
 
     def generate_gif(self, volume, full_filename, volume2=None):
         if not os.path.isfile(full_filename):
@@ -95,10 +158,11 @@ class target:
 
 
 class MovingImage:
-    def __init__(self, image_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, visualize=True):
+    def __init__(self, image_path, drop_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, visualize=True):
         self.image_path = image_path
         self.target_size = ds_voxelsize
         self.voxel_size = voxel_size
+        self.drop_path = drop_path 
 
     def extract_number(self,file_path):
         # Extract digits using regex
@@ -111,16 +175,70 @@ class MovingImage:
         self.images = sorted(self.images, key=self.extract_number)
 
     def determine_orientation(self):
-        mean_intensity_x = np.mean(self.downsampled_volume, axis=(1, 2))  # mean along x-axis (rows)
-        mean_intensity_y = np.mean(self.downsampled_volume, axis=(0, 2))  # mean along y-axis (columns)
-        mean_intensity_z = np.mean(self.downsampled_volume, axis=(0, 1))  # mean along z-axis (slices)
+        def symmetry_score(line):
+            """ Calculate symmetry to find the Right left axis """
+            mirrored_line = line[::-1]  
+            mse = np.mean((line - mirrored_line)**2)  
+            return mse
+        
+        # Threshold data to remove background
+        thresh_oh = np.percentile(self.downsampled_volume,60)
+        threshed_sample = self.downsampled_volume.copy()
+        threshed_sample[threshed_sample<thresh_oh] = np.nan
 
-        # Use AUC to determine which side has olfactory bulb
-        halfway = len(mean_intensity_x) // 2
-        if np.trapz(mean_intensity_x[:halfway])<np.trapz(mean_intensity_x[halfway:]):
-            print('front on left')
+        # Calculate average intensity of data
+        mean_intensity_x = np.nanmean(threshed_sample, axis=(1, 2)) 
+        mean_intensity_y = np.nanmean(threshed_sample, axis=(0, 2)) 
+        mean_intensity_z = np.nanmean(threshed_sample, axis=(0, 1))  
+
+        # Gather meta data on average intensities
+        av_szs = np.array([len(mean_intensity_x), len(mean_intensity_y), len(mean_intensity_z)])
+        avs = np.array([mean_intensity_x, mean_intensity_y, mean_intensity_z])
+
+        # Find the AP axis and determine whether it needs to be flipped
+        longest_dim = np.where(av_szs == av_szs.max())
+        
+        AP = avs[longest_dim]
+        if np.argmax(AP) < (len(AP) // 2):
+            AP_flip=1 # flip orientation
         else:
-            print('front on right')
+            AP_flip=-1 # Keep orientation as not flipped
+
+        # Determine the Right to Left axis
+        # Note: We are not able to heuristically determine how to flip this dim
+        scores = np.array([symmetry_score(line) for line in avs])
+        mirror_dim = np.where(scores == scores.max())
+        if mirror_dim[0] == longest_dim[0]:
+            second_largest = np.partition(scores, -2)[-2]
+            mirror_dim = np.where(scores == second_largest)
+
+        # By process of elimination, determine Superior -> Inferior axis
+        # Check whether any axes were chosen twice
+        # Determine whether S->I needs to be flipped
+        dims = {0, 1, 2}
+        previous_dims = {int(longest_dim[0]), int(mirror_dim[0])}
+        leftover_dim = list(dims - previous_dims)  # Subtract sets and extract the value
+
+        if len(leftover_dim) == 1:
+            leftover_dim=leftover_dim[0]
+            SP = avs[leftover_dim]
+        else:
+            raise RuntimeError('Two dimensions were unable to be seperated')
+
+        if np.argmax(SP) > (len(SP) // 2):
+            SP_flip=-1 # flip orientation
+        else:
+            SP_flip=1 # Keep orientation as not flipped
+
+        # Reioreint axes to R->L, S->I, A->P formattiong
+        self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
+
+        if SP_flip == -1:
+            self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
+        if AP_flip == -1:
+            self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
+
+        self.downsampled_volume = self.downsampled_volume_transposed
 
     def downsample(self,output_filename):
         if not os.path.isfile(output_filename):
@@ -151,11 +269,9 @@ class MovingImage:
 
     def __call__(self):
         self.get_image_list()
-        self.downsample(output_filename=r'C:\Users\listo\example_registration_data\test.tiff')
+        self.downsample(output_filename=os.path.join(self.drop_path,'downsampled_moving_image.tiff'))
         self.normalize_image_stack()
         self.downsampled_volume = self.adjust_brightness(stack_oh = self.downsampled_volume)
-        self.downsampled_volume = np.transpose(self.downsampled_volume, (1, 0, 2))
-        self.downsampled_volume = self.downsampled_volume[::-1, :, :] 
         self.determine_orientation()
 
 class alignment:
@@ -168,35 +284,20 @@ class alignment:
         self.target_array = self.TargetImageObject.template.astype(np.float64)
         self.annotation_array = self.TargetImageObject.annotation.astype(np.float64)
 
-    def multiresolution_align(self,  resolutions=None):
+    def multiresolution_align(self,  resolutions=None, iters=None):
         """ Multi-Resolution Alignment -- 
             Used for aligning two image volumes for light sheet imaging data.  """
 
         print('Setting up multiresolution alignment, generating global variables and call back command ... ')
-        global best_metric, plateau_counter
-        best_metric = 0 
-        plateau_counter = 0  
 
-        def command_iteration(method, n=20, patience=15):
-            global best_metric, plateau_counter
+        def command_iteration(method, n=5):
             iteration_oh = method.GetOptimizerIteration()
             metric_oh = method.GetMetricValue()
-            abs_metric = np.abs(metric_oh)
-
+ 
             # Print current iteration
             if iteration_oh % n == 0:
                 print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
-            # Determine if data has plateaud 
-            if abs_metric > best_metric :
-                best_metric = abs_metric 
-                plateau_counter = 0
-            else:
-                plateau_counter += 1 
-            
-            # Stop optimization if plateau detected
-            if plateau_counter >= patience:
-                raise RuntimeError('Plateu detected so stopping optimization. Please wait for next resolution if there is one.') 
 
         # Convert arrays to SimpleITK images
         fixed = sitk.GetImageFromArray(self.fixed_image) if isinstance(self.fixed_image, np.ndarray) else self.fixed_image
@@ -207,10 +308,13 @@ class alignment:
         moving = sitk.Cast(moving, sitk.sitkFloat32)
 
         if resolutions is None:
-            resolutions = [80.0, 40.0, 30.0, 20.0, 15.0] 
+            resolutions = [80.0, 40.0, 30.0] 
+        
+        if iters is None:
+            iters = [100, 100, 50] 
 
-        for resolution in resolutions:
-            transform_file = os.path.join(self.drop_path, f"transform.pkl")
+        for resolution, nits in zip(resolutions,iters):
+            transform_file = os.path.join(self.drop_path, f"transform_res{resolution}_iters{nits}.pkl")
 
             # Check if transform already exists
             if os.path.exists(transform_file):
@@ -219,7 +323,7 @@ class alignment:
                     current_transform = pickle.load(f)
 
             else:
-                print(f"Resolution: {resolution}")
+                print(f"Resolution: {resolution}, Iterations {nits}")
                 
                 # Set grid physical spacing and compute mesh size
                 grid_physical_spacing = [resolution] * 3
@@ -236,7 +340,7 @@ class alignment:
                 # Set up the registration method
                 registration_method = sitk.ImageRegistrationMethod()
                 registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=10000)
+                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits)
                 registration_method.SetInitialTransform(init_transform, inPlace=False)
                 registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
 
@@ -244,10 +348,7 @@ class alignment:
                 current_time = time.localtime()  # or time.gmtime() for UTC
                 formatted_time = time.strftime("%I:%M %p", current_time)
                 print(f"Starting registration at {formatted_time}...")
-                try:
-                    current_transform = registration_method.Execute(fixed, moving)
-                except Exception as e:
-                    print(f"Registration ended: {e}")
+                current_transform = registration_method.Execute(fixed, moving)
 
                 print("Saving transform into a file! ")
                 with open(transform_file, "wb") as f:
@@ -263,6 +364,7 @@ class alignment:
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
         resampler = sitk.ResampleImageFilter()
+        ipdb.set_trace()
         resampler.SetReferenceImage(self.fixed_image)
         resampler.SetInterpolator(sitk.sitkLinear)
         resampler.SetTransform(current_transform)
@@ -292,6 +394,7 @@ class alignment:
     def time_to_str(self):
         now = datetime.now()
         return now.strftime("%Y_%m_%d_%H_%M_%S")
+    
 
     def __call__(self):
         # Zero pad both arrays for consistent dimensions
@@ -302,6 +405,10 @@ class alignment:
                                                                         array2=self.annotation_array)
 
         # Perform a rigid transformation
+        self.generate_gif(volume=self.moving_array_original, 
+                        volume2=self.target_array, 
+                        full_filename=os.path.join(self.drop_path, f'PRE_Rigid_Bayes_Alignment_{self.time_to_str()}.gif'))
+
         print('Performing Bayesian-based rigid transformation ... ') 
         self.fixed_image, self.moving_image = find_affine_matrix(fixed_image=self.target_array,
                                                                 moving_image=self.moving_array_original,
@@ -332,13 +439,20 @@ class alignment:
 
 def cli_parser():
     """ Takes command line inputs and parses them for downstream """
-    # Note: Replace later with real
-    data_path=r'C:\Users\listo\example_registration_data\Ex_561_Em_600'
-    atlas_path=r'C:\Users\listo\example_registration_data\atlas'
-    results_drop_path=r'C:\Users\listo\example_registration_data\full_run2'
-    
     now = datetime.now()
     init_date_time= now.strftime("%Y_%m_%d_%H_%M_%S")
+
+    # Note: Replace later with real
+    data_path=r'C:\Users\listo\example_registration_data\sub2\Ex_561_Em_600'
+    atlas_path=r'C:\Users\listo\example_registration_data\atlas'
+
+    # Generate fresh output path for testing ...
+    #new_folder = f'full_run_{init_date_time}'
+    new_folder='full_run_2024_12_18_22_44_11'
+    results_drop_path=os.path.join(r'C:\Users\listo\example_registration_data',new_folder)
+    if not os.path.exists(results_drop_path): 
+        os.mkdir(results_drop_path)
+
     return data_path, atlas_path, results_drop_path, init_date_time
 
 if __name__=='__main__':
@@ -353,17 +467,17 @@ if __name__=='__main__':
     target_oh = target(target_path=atlas_path)
     target_oh()
 
-    Image_oh = MovingImage(image_path = data_path)
+    Image_oh = MovingImage(image_path = data_path, drop_path=results_drop_path)
     Image_oh()
-    Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(results_drop_path,'init_moving_array_{init_date_time}.gif'))
 
+    Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(results_drop_path,f'init_moving_array_{init_date_time}.gif'))
+    Image_oh.generate_gif(volume=target_oh.template,full_filename=os.path.join(results_drop_path,f'init_target_array_{init_date_time}.gif'))    
+    
+    volume_scatter_plot(brain_volume=Image_oh.downsampled_volume, 
+                        drop_path = results_drop_path, 
+                        label = 'dsimageandatals', 
+                        volume2=target_oh.template)
+   
     # Perform alignment
     alignment_object = alignment(MovingImageObject=Image_oh,TargetImageObject=target_oh, drop_path=results_drop_path)
-    alignment_object.best_params_oh = {'theta_x': -0.06592113854402398, 
-                                       'theta_y': -0.05142325682030642, 
-                                       'theta_z': -0.09306829138697534, 
-                                       'translation_x': 0.11337105960975358, 
-                                       'translation_y': -4.433834555094086, 
-                                       'translation_z': -7.1064966638613605, 
-                                       'scale': 1.0502485559828962}
     alignment_object() 
