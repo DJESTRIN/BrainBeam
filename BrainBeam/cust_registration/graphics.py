@@ -1,82 +1,116 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import ipdb
+import numpy as np
+from skimage import measure, morphology
+from scipy import ndimage
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import os
+from scipy.ndimage import zoom
+from skimage.filters import threshold_otsu
+from PIL import Image
+from io import BytesIO
+import tqdm
 
-def volume_scatter_plot(brain_volume, drop_path, volume2=None, label='Atlas'):
-    if volume2 is None:
-        thresh = np.percentile(brain_volume,65)
-        coords = np.argwhere(brain_volume > thresh)  
-        x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
-        intensity = brain_volume[x, y, z]  # Can be replaced with other measures
-        downsample_fraction = 0.1  # Keep 10% of the points
-
-        num_points = len(x)
-        num_samples = int(num_points * downsample_fraction)
-        print(num_samples)
-        selected_indices = np.random.choice(num_points, num_samples, replace=False)
-
-        x_down = x[selected_indices]
-        y_down = y[selected_indices]
-        z_down = z[selected_indices]
-        intensity_down = intensity[selected_indices]
-
-        fig = plt.figure(figsize=(8, 8))
-        ax = fig.add_subplot(111, projection='3d')
-
-        ax.scatter(z_down, x_down, -y_down, c=intensity_down, cmap='jet', s=1, alpha=0.7)
-        ax.grid(False)  
-        ax.set_axis_off()      
-        ax.set_xticks([]) 
-        ax.set_yticks([]) 
-        ax.set_zticks([])  
-        ax.set_title(label, pad=20)
+class volume_graphics:
+    """ Generates 2D and 3D graphics for documenting registration. 
+     These graphs include:
+      (1) 3D volume images
+      (2) 3D volume gifs
+      (3) 2D slice images
+      (4) 2D slice gifs """
     
-    else:
-        thresh = np.percentile(brain_volume,65)
-        coords = np.argwhere(brain_volume > thresh)  
-        x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
-        intensity = brain_volume[x, y, z]  # Can be replaced with other measures
-        downsample_fraction = 0.1  # Keep 10% of the points
+    def __init__(self, angles=None):
+        self.gifs={}
+        self.angles = angles
 
-        num_points = len(x)
-        num_samples = int(num_points * downsample_fraction)
-        print(num_samples)
-        selected_indices = np.random.choice(num_points, num_samples, replace=False)
+    def spin_volume(self,volume1,volume2,label,output):
+        self.initiate_gif(label=label)
 
-        x_down = x[selected_indices]
-        y_down = y[selected_indices]
-        z_down = z[selected_indices]
-        intensity_down = intensity[selected_indices]
+        for angle in tqdm.tqdm(range(0, 360, 10)):
+            self.angles=[0,angle]
+            self.build_gif(volume1=volume1,volume2=volume2,label=label)
+        
+        self.save_current_gif(label=label,output_filename=output)
 
-        thresh = np.percentile(volume2,65)
-        coords = np.argwhere(volume2 > thresh)  
-        x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
-        intensity = volume2[x, y, z]  # Can be replaced with other measures
-        downsample_fraction = 0.1  # Keep 10% of the points
+    def initiate_gif(self,label):
+        self.gifs[label]=[]
 
-        num_points = len(x)
-        num_samples = int(num_points * downsample_fraction)
-        print(num_samples)
-        selected_indices = np.random.choice(num_points, num_samples, replace=False)
+    def add_image_to_gif(self, image, label):
+        listoh = self.gifs[label]
+        listoh.append(image)
+        self.gifs[label] = listoh
 
-        x_down2 = x[selected_indices]
-        y_down2 = y[selected_indices]
-        z_down2 = z[selected_indices]
-        intensity_down2 = intensity[selected_indices]
+    def build_gif(self,volume1,volume2, label):
+        current_image = self.plot_surface(volume1=volume1,volume2=volume2)
+        self.add_image_to_gif(image=current_image,label=label)
 
+    def save_current_gif(self,label,output_filename):
+        listoh = self.gifs[label]
+        frames = []
 
-        fig = plt.figure(figsize=(8, 8))
+        for imageoh in tqdm.tqdm(listoh):
+            imageoh = np.asarray(imageoh)
+            fig, ax = plt.subplots()
+            ax.imshow(imageoh)
+            ax.axis("off")
+            fig.canvas.draw()
+            image = Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+            frames.append(image)
+            plt.close(fig)
+
+        frames[0].save(output_filename, save_all=True, append_images=frames[1:], duration=100, loop=0)
+
+    def extract_surface(self, volume):
+        # Step 1: Thresholding to create a binary mask
+        threshold_value = threshold_otsu(volume.ravel())
+        binary_mask = volume > threshold_value
+
+        # Step 2: Largest connected component filtering
+        labeled_volume, num_features = ndimage.label(binary_mask)
+        sizes = ndimage.sum(binary_mask, labeled_volume, range(num_features + 1))
+        largest_label = sizes.argmax() # +1 because labels start from 1
+        largest_component = labeled_volume == largest_label # +1 because labels start from 1
+
+        # Step 3: Surface extraction using marching cubes
+        verts, faces, _, _ = measure.marching_cubes(largest_component, level=0)
+        
+        return verts, faces
+
+    def plot_surface(self, volume1, volume2, downsample_factor = 0.25):
+        # Downsample the volume by a factor of 2 in each dimension
+
+        downsampled_volume1 = zoom(volume1, zoom=downsample_factor, order=1)
+        verts1, faces1 = self.extract_surface(downsampled_volume1)
+
+        downsampled_volume2 = zoom(volume2, zoom=downsample_factor, order=1)
+        verts2, faces2 = self.extract_surface(downsampled_volume2)
+
+        # Visualization of the surface mesh
+        fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(111, projection='3d')
+        ax.add_collection3d(Poly3DCollection(verts1[faces1], alpha=0.05, edgecolor='b'))
+        ax.add_collection3d(Poly3DCollection(verts2[faces2], alpha=0.05, edgecolor='g'))
+        pad = 50  # Padding value to add around the object
+        ax.set_xlim(0 - pad, downsampled_volume1.shape[0] + pad)
+        ax.set_ylim(0 - pad, downsampled_volume1.shape[1] + pad)
+        ax.set_zlim(0 - pad, downsampled_volume1.shape[2] + pad)
+        if self.angles is not None:
+            elevoh,azimoh = self.angles
+            ax.view_init(elev=elevoh, azim=azimoh)
+        ax.axis("off")
+        
+        buf = BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight')  # Render to a buffer as PNG
+        buf.seek(0)  # Rewind the buffer to the beginning
 
-        ax.scatter(z_down, x_down, -y_down, c=intensity_down, cmap='jet', s=1, alpha=0.7)
-        ax.scatter(z_down2, x_down2, -y_down2, c=intensity_down2, cmap='Greens', s=1, alpha=0.7)
-        ax.grid(False)  
-        ax.set_axis_off()      
-        ax.set_xticks([]) 
-        ax.set_yticks([]) 
-        ax.set_zticks([])  
-        ax.set_title(label, pad=20)
-    
-    plt.savefig(os.path.join(drop_path,f'{label}.jpg'))
+        # Convert the image to a NumPy array
+        image = np.array(Image.open(buf))
+
+        # Close the buffer and figure
+        buf.close()
+        plt.close(fig)
+
+        return image
+

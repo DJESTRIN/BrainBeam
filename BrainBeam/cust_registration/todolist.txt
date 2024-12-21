@@ -1,0 +1,17 @@
+registration
+    Double check registration code works on new sample
+    Output necessary data at the end of main for cellregistration code. Need to output original data too. 
+    Save data (final image, translations into the drop directory.... )
+
+cellregistration
+    Make sure inputs are lined up so necessary data is received...
+    Down sample and create mask for cell counts
+    Transform mask based on previous data
+    Save 4D array to file which contains all atlas, raw and cell count data
+
+Update code for pulling together and merging data into a dataframe
+
+Slurm implemetation  .... How can we run the above code so that it can use best recourse managment for many brains?
+
+Update statistics and graphics for final graphs... 
+

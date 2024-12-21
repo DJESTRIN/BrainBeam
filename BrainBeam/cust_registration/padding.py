@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Module Name: padding.py
+Description: pads 3d arrays to match in size
+Author: David Estrin
+Date: 2024-12-20
+Version: 1.0
+"""
+
 import numpy as np
 
 # Function to calculate padding for an array

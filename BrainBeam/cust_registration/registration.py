@@ -21,8 +21,8 @@ from scipy.ndimage import zoom
 import tqdm
 import SimpleITK as sitk
 from BrainBeam.cust_registration.padding import zero_pad_arrays
-from BrainBeam.cust_registration.bayessearch import find_affine_matrix
-from BrainBeam.cust_registration.graphics import volume_scatter_plot
+from BrainBeam.cust_registration.bayessearch import find_affine_matrix, set_affine_rotation
+from BrainBeam.cust_registration.graphics import volume_graphics
 from datetime import datetime
 from functools import partial
 import argparse
@@ -156,7 +156,6 @@ class target:
             self.generate_gif(volume=self.template,full_filename=os.path.join(self.target_path,'template.gif'))
             self.generate_gif(volume=self.annotation,full_filename=os.path.join(self.target_path,'annotation.gif'))
 
-
 class MovingImage:
     def __init__(self, image_path, drop_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, visualize=True):
         self.image_path = image_path
@@ -275,7 +274,7 @@ class MovingImage:
         self.determine_orientation()
 
 class alignment:
-    def __init__(self, MovingImageObject,TargetImageObject,drop_path):
+    def __init__(self, MovingImageObject,TargetImageObject,drop_path,graphobjoh=None):
         self.MovingImageObject = MovingImageObject
         self.TargetImageObject = TargetImageObject
         self.drop_path = drop_path
@@ -283,6 +282,7 @@ class alignment:
         self.moving_array_original = self.MovingImageObject.downsampled_volume.astype(np.float64)
         self.target_array = self.TargetImageObject.template.astype(np.float64)
         self.annotation_array = self.TargetImageObject.annotation.astype(np.float64)
+        self.graphobjoh = graphobjoh
 
     def multiresolution_align(self,  resolutions=None, iters=None):
         """ Multi-Resolution Alignment -- 
@@ -358,17 +358,18 @@ class alignment:
             moving = sitk.Resample(moving, fixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
             moving_np = sitk.GetArrayFromImage(moving)
 
-            self.generate_gif(volume2=sitk.GetArrayFromImage(fixed), volume=moving_np, 
-                        full_filename=os.path.join(self.drop_path, f'multir_Non_Rigid_vs_fixed_{self.time_to_str()}.gif'))
-
+            self.graphobjoh.spin_volume(volume1 = moving_np, 
+                                   volume2 = sitk.GetArrayFromImage(fixed), 
+                                   label='multires',
+                                   output=os.path.join(self.drop_path, f'MultiRes3d_{self.time_to_str()}.gif'))
+            
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
         resampler = sitk.ResampleImageFilter()
-        ipdb.set_trace()
-        resampler.SetReferenceImage(self.fixed_image)
+        resampler.SetReferenceImage(sitk.GetImageFromArray(self.fixed_image))
         resampler.SetInterpolator(sitk.sitkLinear)
         resampler.SetTransform(current_transform)
-        aligned_image = resampler.Execute(self.moving_image)
+        aligned_image = resampler.Execute(sitk.GetImageFromArray(self.moving_image))
         aligned_array = sitk.GetArrayFromImage(aligned_image)
         self.final_transform = current_transform
         return aligned_array
@@ -395,7 +396,6 @@ class alignment:
         now = datetime.now()
         return now.strftime("%Y_%m_%d_%H_%M_%S")
     
-
     def __call__(self):
         # Zero pad both arrays for consistent dimensions
         self.moving_array_original, self.target_array = zero_pad_arrays(array1=self.moving_array_original, 
@@ -403,81 +403,117 @@ class alignment:
 
         _, self.annotation_array_original = zero_pad_arrays(array1=self.moving_array_original, 
                                                                         array2=self.annotation_array)
-
+        
+    
         # Perform a rigid transformation
-        self.generate_gif(volume=self.moving_array_original, 
-                        volume2=self.target_array, 
-                        full_filename=os.path.join(self.drop_path, f'PRE_Rigid_Bayes_Alignment_{self.time_to_str()}.gif'))
+        self.graphobjoh.spin_volume(volume1 = self.moving_array_original, 
+                                   volume2 = self.target_array, 
+                                   label='prerigid',
+                                   output=os.path.join(self.drop_path, f'Pre_Rigid_3d_{self.time_to_str()}.gif'))
+             
+        best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
+        if os.path.exists(best_params_file):
+            """ If real, load in best rigid parameters """
+            print(f"Bayes Opt file previously calculated, loading file ...")
+            with open(best_params_file, "rb") as f:
+                self.best_params_oh = pickle.load(f)
 
-        print('Performing Bayesian-based rigid transformation ... ') 
-        self.fixed_image, self.moving_image = find_affine_matrix(fixed_image=self.target_array,
-                                                                moving_image=self.moving_array_original,
-                                                                best_params=self.best_params_oh)
-        self.generate_gif(volume=self.moving_image, 
-                        volume2=self.fixed_image, 
-                        full_filename=os.path.join(self.drop_path, f'Rigid_Bayes_Alignment_{self.time_to_str()}.gif'))
+            # Perform rigid transform on moving image
+            best_affine_transform = sitk.AffineTransform(3)
+            best_affine_transform = set_affine_rotation(best_affine_transform, self.best_params_oh['theta_x'], self.best_params_oh['theta_y'], self.best_params_oh['theta_z'])
+            best_affine_transform.SetTranslation([self.best_params_oh['translation_x'], self.best_params_oh['translation_y'], self.best_params_oh['translation_z']])
+            best_affine_transform.Scale(self.best_params_oh['scale'])
+            best_resampler = sitk.ResampleImageFilter()
+            best_resampler.SetSize(sitk.GetImageFromArray(self.target_array).GetSize())
+            best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array).GetSpacing())
+            best_resampler.SetTransform(best_affine_transform)
+            best_resampler.SetInterpolator(sitk.sitkLinear)
+            best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original))
+            self.moving_image = sitk.GetArrayFromImage(best_aligned_image)
+            self.fixed_image = self.target_array
 
+        else:
+            """ If no file exists, perform rigid transform via bayes search """
+            print('Performing Bayesian-based rigid transformation ... ') 
+            self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.target_array,
+                                                                    moving_image=self.moving_array_original,
+                                                                    best_params=self.best_params_oh,ntrials=1500)
+            
+            with open(best_params_file, "wb") as f:
+                pickle.dump(self.best_params_oh, f)
+                print('Saved BayesOpt best parameters ...')
+
+        # Graph fixed and moving volumes
+        self.graphobjoh.spin_volume(volume1 = self.moving_image, volume2 = self.target_array, 
+                                   label='postrigid', output=os.path.join(self.drop_path, f'Post_Rigid_3d_{self.time_to_str()}.gif'))
+          
         # Perform non-rigid alignment
         print('Performing Non-Rigid Multiresolution Alignment ... ') 
         self.nonrigid_moving_image = self.multiresolution_align()
 
-        # Generate final visualizations
-        self.generate_gif(volume=self.nonrigid_moving_image, 
-                        volume2=self.fixed_image, 
-                        full_filename=os.path.join(self.drop_path, f'FINAL_Non_Rigid_Alignment_{self.time_to_str()}.gif'))
-
-        # Map fixed image to moving image
-        self.fixed2moving, self.annotation2moving = self.inverse_multiresolution_align()
-
-        self.generate_gif(volume=self.moving_array_original, 
-                        volume2=self.fixed2moving, 
-                        full_filename=os.path.join(self.drop_path, f'Fixed_On_Moving_{self.time_to_str()}.gif'))
-        
-        self.generate_gif(volume=self.moving_array_original, 
-                        volume2=self.annotation2moving, 
-                        full_filename=os.path.join(self.drop_path, f'Annotation_On_Moving_{self.time_to_str()}.gif'))
+        # Graph non-rigid alignment
+        self.graphobjoh.spin_volume(volume1 = self.nonrigid_moving_image, volume2 = self.target_array, 
+                                   label='nonrigid', output=os.path.join(self.drop_path, f'Non_Rigid_Alignment_{self.time_to_str()}.gif'))
 
 def cli_parser():
     """ Takes command line inputs and parses them for downstream """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image_path',type=str,help='Full path to best qualtiy light sheet images for registration ...')
+    parser.add_argument('--atlas_path',type=str,help="Full path to folder containing atlas. If folder is empty, atlas is downloaded")
+    parser.add_argument('--output_path',type=str,help='Full path containin results. Path will be appended with subfolder containing current date and time. \
+                        These subfolders are where data will be saved.')
+    args = parser.parse_args()
+
+    # Get current time as string and generate output folder
     now = datetime.now()
     init_date_time= now.strftime("%Y_%m_%d_%H_%M_%S")
+    new_folder = f'current_run_{init_date_time}'
+    output_path = os.path.join(args.output_path,new_folder)
+    if not os.path.exists(output_path): 
+        os.mkdir(output_path)
 
-    # Note: Replace later with real
-    data_path=r'C:\Users\listo\example_registration_data\sub2\Ex_561_Em_600'
-    atlas_path=r'C:\Users\listo\example_registration_data\atlas'
+    # Append a few new arguments
+    args.output_path = output_path
+    args.init_date_time = init_date_time
+    return args
 
-    # Generate fresh output path for testing ...
-    #new_folder = f'full_run_{init_date_time}'
-    new_folder='full_run_2024_12_18_22_44_11'
-    results_drop_path=os.path.join(r'C:\Users\listo\example_registration_data',new_folder)
-    if not os.path.exists(results_drop_path): 
-        os.mkdir(results_drop_path)
-
-    return data_path, atlas_path, results_drop_path, init_date_time
-
-if __name__=='__main__':
+def main():
     # Parse command line inputs
-    data_path, atlas_path, results_drop_path, init_date_time = cli_parser()
+    args = cli_parser()
 
     # Update classes to have matching methods
     MovingImage.generate_gif = target.generate_gif 
     alignment.generate_gif = target.generate_gif 
 
     # Generate target and MovingImage objects
-    target_oh = target(target_path=atlas_path)
+    target_oh = target(target_path=args.atlas_path)
     target_oh()
 
-    Image_oh = MovingImage(image_path = data_path, drop_path=results_drop_path)
+    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path)
     Image_oh()
 
-    Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(results_drop_path,f'init_moving_array_{init_date_time}.gif'))
-    Image_oh.generate_gif(volume=target_oh.template,full_filename=os.path.join(results_drop_path,f'init_target_array_{init_date_time}.gif'))    
-    
-    volume_scatter_plot(brain_volume=Image_oh.downsampled_volume, 
-                        drop_path = results_drop_path, 
-                        label = 'dsimageandatals', 
-                        volume2=target_oh.template)
-   
+    Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(args.output_path,f'init_moving_array_{args.init_date_time}.gif'))
+    Image_oh.generate_gif(volume=target_oh.template,full_filename=os.path.join(args.output_path,f'init_target_array_{args.init_date_time}.gif'))    
+     
     # Perform alignment
-    alignment_object = alignment(MovingImageObject=Image_oh,TargetImageObject=target_oh, drop_path=results_drop_path)
+    graphobj = volume_graphics()
+    alignment_object = alignment(MovingImageObject=Image_oh, TargetImageObject=target_oh, graphobjoh = graphobj, drop_path=args.output_path)
     alignment_object() 
+
+    # Save most important arrays
+    np.save(os.path.join(args.output_path,'downsampled_volume.npy'), Image_oh.downsampled_volume) # The original downsampled array without padding
+    np.save(os.path.join(args.output_path,'template_volume.npy'), target_oh.template) # The orignal atlas without padding as np array
+    np.save(os.path.join(args.output_path,'moving_array_original.npy'), alignment_object.moving_array_original) # The original array with zero padding
+    np.save(os.path.join(args.output_path,'nonrigid_moving_image.npy'), alignment_object.nonrigid_moving_image) # The final array after alignment
+    np.save(os.path.join(args.output_path,'target_array.npy'), alignment_object.target_array) # The target array with zero padding
+
+    # Append saved numpy file paths to args
+    args.downsampled_volume_path = os.path.join(args.output_path,'downsampled_volume.npy')
+    args.template_volume_path = os.path.join(args.output_path,'template_volume.npy')
+    args.moving_array_original_path = os.path.join(args.output_path,'moving_array_original.npy')
+    args.nonrigid_moving_image_path = os.path.join(args.output_path,'nonrigid_moving_image.npy')
+    args.target_array_path = os.path.join(args.output_path,'target_array.npy')
+    return args
+   
+if __name__=='__main__':
+    main()
