@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -21,14 +22,15 @@ class volume_graphics:
       (3) 2D slice images
       (4) 2D slice gifs """
     
-    def __init__(self, angles=None):
+    def __init__(self, shots = 10, angles=None):
         self.gifs={}
         self.angles = angles
+        self.shots = shots 
 
     def spin_volume(self,volume1,volume2,label,output):
         self.initiate_gif(label=label)
 
-        for angle in tqdm.tqdm(range(0, 360, 10)):
+        for angle in tqdm.tqdm(range(0, 360, self.shots)):
             self.angles=[0,angle]
             self.build_gif(volume1=volume1,volume2=volume2,label=label)
         
@@ -88,18 +90,46 @@ class volume_graphics:
         verts2, faces2 = self.extract_surface(downsampled_volume2)
 
         # Visualization of the surface mesh
-        fig = plt.figure(figsize=(10, 10))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.add_collection3d(Poly3DCollection(verts1[faces1], alpha=0.05, edgecolor='b'))
-        ax.add_collection3d(Poly3DCollection(verts2[faces2], alpha=0.05, edgecolor='g'))
+        fig = plt.figure(figsize=(20, 10))  # Adjust size to accommodate all subplots
+        ax1 = fig.add_subplot(131, projection='3d')  # Subplot in the first column
+        ax1.add_collection3d(Poly3DCollection(verts1[faces1], alpha=0.05, edgecolor='b'))
+        ax1.add_collection3d(Poly3DCollection(verts2[faces2], alpha=0.05, edgecolor='g'))
         pad = 50  # Padding value to add around the object
-        ax.set_xlim(0 - pad, downsampled_volume1.shape[0] + pad)
-        ax.set_ylim(0 - pad, downsampled_volume1.shape[1] + pad)
-        ax.set_zlim(0 - pad, downsampled_volume1.shape[2] + pad)
+        ax1.set_xlim(0 - pad, downsampled_volume1.shape[0] + pad)
+        ax1.set_ylim(0 - pad, downsampled_volume1.shape[1] + pad)
+        ax1.set_zlim(0 - pad, downsampled_volume1.shape[2] + pad)
         if self.angles is not None:
-            elevoh,azimoh = self.angles
-            ax.view_init(elev=elevoh, azim=azimoh)
-        ax.axis("off")
+            elevoh, azimoh = self.angles
+            ax1.view_init(elev=elevoh, azim=azimoh)
+        ax1.axis("off")
+        ax1.set_title("3D Subplot 1")
+
+        # Second subplot
+        ax2 = fig.add_subplot(132, projection='3d')  
+        ax2.add_collection3d(Poly3DCollection(verts1[faces1], alpha=0.05, edgecolor='b'))  
+        ax2.set_xlim(0 - pad, downsampled_volume1.shape[0] + pad)
+        ax2.set_ylim(0 - pad, downsampled_volume1.shape[1] + pad)
+        ax2.set_zlim(0 - pad, downsampled_volume1.shape[2] + pad)
+        if self.angles is not None:
+            elevoh, azimoh = self.angles
+            ax2.view_init(elev=elevoh, azim=azimoh)
+        ax2.axis("off")
+        ax2.set_title("3D Subplot 2")
+
+        # Third subplot
+        ax3 = fig.add_subplot(133, projection='3d')  
+        ax3.add_collection3d(Poly3DCollection(verts2[faces2], alpha=0.05, edgecolor='g'))  
+        ax3.set_xlim(0 - pad, downsampled_volume1.shape[0] + pad)
+        ax3.set_ylim(0 - pad, downsampled_volume1.shape[1] + pad)
+        ax3.set_zlim(0 - pad, downsampled_volume1.shape[2] + pad)
+        if self.angles is not None:
+            elevoh, azimoh = self.angles
+            ax3.view_init(elev=elevoh, azim=azimoh)
+        ax3.axis("off")
+        ax3.set_title("3D Subplot 3")
+
+        # Show the figure
+        plt.tight_layout()
         
         buf = BytesIO()
         fig.savefig(buf, format='png', bbox_inches='tight')  # Render to a buffer as PNG

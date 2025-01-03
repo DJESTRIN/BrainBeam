@@ -13,7 +13,9 @@ import os
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from pathlib import Path
 import ipdb
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')
 from PIL import Image
 import glob
 import tifffile as tiff
@@ -148,20 +150,27 @@ class target:
                     plt.close(fig)
                 frames[0].save(full_filename, save_all=True, append_images=frames[1:], duration=50, loop=0)
 
+    def normalize_template_stack(self):
+        self.template = (self.template - self.template.min())/(self.template.max() - self.template.min())
+        self.template = self.template * 255
+
     def __call__(self):
         self.download_atlas()
         self.download_template()
         self.determine_orientation()
+        self.normalize_template_stack()
         if self.visualize:
             self.generate_gif(volume=self.template,full_filename=os.path.join(self.target_path,'template.gif'))
             self.generate_gif(volume=self.annotation,full_filename=os.path.join(self.target_path,'annotation.gif'))
 
 class MovingImage:
-    def __init__(self, image_path, drop_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, visualize=True):
+    def __init__(self, image_path, drop_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, force_orientations=None, force_flips=None):
         self.image_path = image_path
         self.target_size = ds_voxelsize
         self.voxel_size = voxel_size
         self.drop_path = drop_path 
+        self.force_orientations = force_orientations
+        self.force_flips = force_flips
 
     def extract_number(self,file_path):
         # Extract digits using regex
@@ -174,80 +183,96 @@ class MovingImage:
         self.images = sorted(self.images, key=self.extract_number)
 
     def determine_orientation(self):
-        def symmetry_score(line):
-            """ Calculate symmetry to find the Right left axis """
-            mirrored_line = line[::-1]  
-            mse = np.mean((line - mirrored_line)**2)  
-            return mse
-        
-        # Threshold data to remove background
-        thresh_oh = np.percentile(self.downsampled_volume,60)
-        threshed_sample = self.downsampled_volume.copy()
-        threshed_sample[threshed_sample<thresh_oh] = np.nan
+        if self.force_flips is not None or self.force_orientations is not None:
+            """ Use force orientations for inputs """
+            if self.force_orientations is not None:
+                self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, 
+                                                                  (int(self.force_orientations[0]), 
+                                                                   int(self.force_orientations[1]), 
+                                                                   int(self.force_orientations[2]))) 
 
-        # Calculate average intensity of data
-        mean_intensity_x = np.nanmean(threshed_sample, axis=(1, 2)) 
-        mean_intensity_y = np.nanmean(threshed_sample, axis=(0, 2)) 
-        mean_intensity_z = np.nanmean(threshed_sample, axis=(0, 1))  
+            if self.force_flips is not None:
+                if self.force_flips[1] == -1:
+                    self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
+                if self.force_flips[2] == -1:
+                    self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
 
-        # Gather meta data on average intensities
-        av_szs = np.array([len(mean_intensity_x), len(mean_intensity_y), len(mean_intensity_z)])
-        avs = np.array([mean_intensity_x, mean_intensity_y, mean_intensity_z])
-
-        # Find the AP axis and determine whether it needs to be flipped
-        longest_dim = np.where(av_szs == av_szs.max())
-        
-        AP = avs[longest_dim]
-        if np.argmax(AP) < (len(AP) // 2):
-            AP_flip=1 # flip orientation
         else:
-            AP_flip=-1 # Keep orientation as not flipped
+            """ Automatically determine the orientation of brain """
+            def symmetry_score(line):
+                """ Calculate symmetry to find the Right left axis """
+                mirrored_line = line[::-1]  
+                mse = np.mean((line - mirrored_line)**2)  
+                return mse
+            
+            # Threshold data to remove background
+            thresh_oh = np.percentile(self.downsampled_volume,60)
+            threshed_sample = self.downsampled_volume.copy()
+            threshed_sample[threshed_sample<thresh_oh] = np.nan
 
-        # Determine the Right to Left axis
-        # Note: We are not able to heuristically determine how to flip this dim
-        scores = np.array([symmetry_score(line) for line in avs])
-        mirror_dim = np.where(scores == scores.max())
-        if mirror_dim[0] == longest_dim[0]:
-            second_largest = np.partition(scores, -2)[-2]
-            mirror_dim = np.where(scores == second_largest)
+            # Calculate average intensity of data
+            mean_intensity_x = np.nanmean(threshed_sample, axis=(1, 2)) 
+            mean_intensity_y = np.nanmean(threshed_sample, axis=(0, 2)) 
+            mean_intensity_z = np.nanmean(threshed_sample, axis=(0, 1))  
 
-        # By process of elimination, determine Superior -> Inferior axis
-        # Check whether any axes were chosen twice
-        # Determine whether S->I needs to be flipped
-        dims = {0, 1, 2}
-        previous_dims = {int(longest_dim[0]), int(mirror_dim[0])}
-        leftover_dim = list(dims - previous_dims)  # Subtract sets and extract the value
+            # Gather meta data on average intensities
+            av_szs = np.array([len(mean_intensity_x), len(mean_intensity_y), len(mean_intensity_z)])
+            avs = np.array([mean_intensity_x, mean_intensity_y, mean_intensity_z])
 
-        if len(leftover_dim) == 1:
-            leftover_dim=leftover_dim[0]
-            SP = avs[leftover_dim]
-        else:
-            raise RuntimeError('Two dimensions were unable to be seperated')
+            # Find the AP axis and determine whether it needs to be flipped
+            longest_dim = np.where(av_szs == av_szs.max())
+            
+            AP = avs[longest_dim]
+            if np.argmax(AP) < (len(AP) // 2):
+                AP_flip=1 # flip orientation
+            else:
+                AP_flip=-1 # Keep orientation as not flipped
 
-        if np.argmax(SP) > (len(SP) // 2):
-            SP_flip=-1 # flip orientation
-        else:
-            SP_flip=1 # Keep orientation as not flipped
+            # Determine the Right to Left axis
+            # Note: We are not able to heuristically determine how to flip this dim
+            scores = np.array([symmetry_score(line) for line in avs])
+            mirror_dim = np.where(scores == scores.max())
+            if mirror_dim[0] == longest_dim[0]:
+                second_largest = np.partition(scores, -2)[-2]
+                mirror_dim = np.where(scores == second_largest)
 
-        # Reioreint axes to R->L, S->I, A->P formattiong
-        self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
+            # By process of elimination, determine Superior -> Inferior axis
+            # Check whether any axes were chosen twice
+            # Determine whether S->I needs to be flipped
+            dims = {0, 1, 2}
+            previous_dims = {int(longest_dim[0]), int(mirror_dim[0])}
+            leftover_dim = list(dims - previous_dims)  # Subtract sets and extract the value
 
-        if SP_flip == -1:
-            self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
-        if AP_flip == -1:
-            self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
+            if len(leftover_dim) == 1:
+                leftover_dim=leftover_dim[0]
+                SP = avs[leftover_dim]
+            else:
+                raise RuntimeError('Two dimensions were unable to be seperated')
+
+            if np.argmax(SP) > (len(SP) // 2):
+                SP_flip=-1 # flip orientation
+            else:
+                SP_flip=1 # Keep orientation as not flipped
+
+            # Reioreint axes to R->L, S->I, A->P formattiong
+            self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
+
+            if SP_flip == -1:
+                self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
+            if AP_flip == -1:
+                self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
 
         self.downsampled_volume = self.downsampled_volume_transposed
 
     def downsample(self,output_filename):
         if not os.path.isfile(output_filename):
             scaling_factors = [self.voxel_size[i] / self.target_size for i in range(3)]
-            skip_factors = np.round(np.array([self.target_size, self.target_size, self.target_size]) / self.voxel_size).astype(np.uint8)
+            self.skip_factors = np.round(np.array([self.target_size, self.target_size, self.target_size]) / self.voxel_size).astype(np.uint8)
             downsampled_slices = []
             for i,slice_path in tqdm.tqdm(enumerate(self.images),total=len(self.images)):  # Replace with actual slice range
-                if i%skip_factors[0]==0:
+                if i% self.skip_factors[0]==0:
                     slice_img = tiff.imread(slice_path)  # Load 2D slice
-                    downsampled_slice = slice_img[::skip_factors[1],::skip_factors[2]]
+                    downsampled_slice = slice_img[:: self.skip_factors[1],:: self.skip_factors[2]]
                     downsampled_slices.append(downsampled_slice)
 
             self.downsampled_volume = np.stack(downsampled_slices, axis=0)
@@ -265,6 +290,16 @@ class MovingImage:
         stack_oh = stack_oh * factor
         stack_oh = np.clip(stack_oh, 0, 255)  # Ensure values are within the 0-255 range
         return stack_oh
+    
+    def clip_high_signal(self,stack_oh,percentile=95):
+        # Clip data based on percentile
+        threshold = np.percentile(stack_oh,percentile)
+        stack_oh = np.clip(stack_oh, a_min = 0, a_max = threshold)
+
+        # Re-normalize to 0 -> 255 range
+        stack_oh = (stack_oh - stack_oh.min())/(stack_oh.max() - stack_oh.min())
+        stack_oh = stack_oh * 255
+        return stack_oh
 
     def __call__(self):
         self.get_image_list()
@@ -272,6 +307,7 @@ class MovingImage:
         self.normalize_image_stack()
         self.downsampled_volume = self.adjust_brightness(stack_oh = self.downsampled_volume)
         self.determine_orientation()
+        self.downsampled_volume = self.clip_high_signal(stack_oh = self.downsampled_volume)
 
 class alignment:
     def __init__(self, MovingImageObject,TargetImageObject,drop_path,graphobjoh=None):
@@ -340,7 +376,9 @@ class alignment:
                 # Set up the registration method
                 registration_method = sitk.ImageRegistrationMethod()
                 registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits)
+                registration_method.SetMetricSamplingStrategy(registration_method.RANDOM, percentage=0.2)
+                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits,boundsScaling=[1e-3] * init_transform.GetNumberOfParameters())
+                registration_method.SetOptimizerScalesFromPhysicalShift()
                 registration_method.SetInitialTransform(init_transform, inPlace=False)
                 registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
 
@@ -437,7 +475,7 @@ class alignment:
             print('Performing Bayesian-based rigid transformation ... ') 
             self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.target_array,
                                                                     moving_image=self.moving_array_original,
-                                                                    best_params=self.best_params_oh,ntrials=1500)
+                                                                    best_params=self.best_params_oh, drop_dir = self.drop_path)
             
             with open(best_params_file, "wb") as f:
                 pickle.dump(self.best_params_oh, f)
@@ -462,6 +500,8 @@ def cli_parser():
     parser.add_argument('--atlas_path',type=str,help="Full path to folder containing atlas. If folder is empty, atlas is downloaded")
     parser.add_argument('--output_path',type=str,help='Full path containin results. Path will be appended with subfolder containing current date and time. \
                         These subfolders are where data will be saved.')
+    parser.add_argument('--force_orientation',type=int,nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
+    parser.add_argument('--force_flips',type=int,nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
     args = parser.parse_args()
 
     # Get current time as string and generate output folder
@@ -470,16 +510,15 @@ def cli_parser():
     new_folder = f'current_run_{init_date_time}'
     output_path = os.path.join(args.output_path,new_folder)
     if not os.path.exists(output_path): 
-        os.mkdir(output_path)
+        os.makedirs(output_path)
 
     # Append a few new arguments
     args.output_path = output_path
     args.init_date_time = init_date_time
     return args
 
-def main():
+def main(args):
     # Parse command line inputs
-    args = cli_parser()
 
     # Update classes to have matching methods
     MovingImage.generate_gif = target.generate_gif 
@@ -489,12 +528,12 @@ def main():
     target_oh = target(target_path=args.atlas_path)
     target_oh()
 
-    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path)
+    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=args.force_orientation, force_flips=args.force_flips)
     Image_oh()
 
     Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(args.output_path,f'init_moving_array_{args.init_date_time}.gif'))
     Image_oh.generate_gif(volume=target_oh.template,full_filename=os.path.join(args.output_path,f'init_target_array_{args.init_date_time}.gif'))    
-     
+
     # Perform alignment
     graphobj = volume_graphics()
     alignment_object = alignment(MovingImageObject=Image_oh, TargetImageObject=target_oh, graphobjoh = graphobj, drop_path=args.output_path)
@@ -516,4 +555,12 @@ def main():
     return args
    
 if __name__=='__main__':
-    main()
+    args = cli_parser()
+    main(args)
+
+   
+    # Example cli usage
+
+    # python ./registration.py --image_path c:\Users\listo\example_registration_data\sub3 --atlas_path c:\Users\listo\example_registration_data\atlas --output_path c:\Users\listo\example_registration_data\sub3_output --force_orientation 1 0 2 --force_flips 1 -1 1 
+    
+    
