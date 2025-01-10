@@ -40,3 +40,17 @@ def zero_pad_arrays(array1,array2):
     padded_array1 = np.pad(array1, padding1, mode='constant', constant_values=0)
     padded_array2 = np.pad(array2, padding2, mode='constant', constant_values=0)
     return padded_array1, padded_array2
+
+def zoom_padding(array, target_shape):
+    current_shape = array.shape
+    slices = tuple(
+        slice((cs - ts) // 2, (cs - ts) // 2 + ts) if cs > ts else slice(0, cs)
+        for cs, ts in zip(current_shape, target_shape)
+    )
+    padded = np.zeros(target_shape)
+    slices_pad = tuple(
+        slice((ts - cs) // 2, (ts - cs) // 2 + cs) if cs < ts else slice(0, ts)
+        for cs, ts in zip(current_shape, target_shape)
+    )
+    padded[slices_pad] = array[slices]
+    return padded

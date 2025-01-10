@@ -13,6 +13,19 @@ from skimage.filters import threshold_otsu
 from PIL import Image
 from io import BytesIO
 import tqdm
+from scipy.ndimage import binary_fill_holes
+import trimesh
+import ipdb
+
+def slice_views(array,output_filename):
+    fig, axs = plt.subplots(3, 1, figsize=(30, 5))
+    for i in range(3):
+        maxes = array.max(axis=i)
+        ax = axs[i]
+        ax.imshow(maxes,aspect='equal', cmap='gray', vmin = np.min(maxes), vmax = np.max(maxes))
+        ax.axis('off') 
+    plt.tight_layout()
+    plt.savefig(output_filename)
 
 class volume_graphics:
     """ Generates 2D and 3D graphics for documenting registration. 
@@ -65,30 +78,61 @@ class volume_graphics:
         frames[0].save(output_filename, save_all=True, append_images=frames[1:], duration=100, loop=0)
 
     def extract_surface(self, volume):
-        # Step 1: Thresholding to create a binary mask
+        # Thresholding to create a binary mask
         threshold_value = threshold_otsu(volume.ravel())
         binary_mask = volume > threshold_value
 
-        # Step 2: Largest connected component filtering
+        # Largest connected component filtering
         labeled_volume, num_features = ndimage.label(binary_mask)
         sizes = ndimage.sum(binary_mask, labeled_volume, range(num_features + 1))
         largest_label = sizes.argmax() # +1 because labels start from 1
         largest_component = labeled_volume == largest_label # +1 because labels start from 1
+        non_zero_indices = np.nonzero(largest_component.astype(np.uint16)) # get non zero values
 
-        # Step 3: Surface extraction using marching cubes
-        verts, faces, _, _ = measure.marching_cubes(largest_component, level=0)
-        
-        return verts, faces
+        # find bounding box info and crop largest component
+        start_x, start_y, start_z = np.min(non_zero_indices[0]), np.min(non_zero_indices[1]), np.min(non_zero_indices[2]) # get offset
+        end_x, end_y, end_z = np.max(non_zero_indices[0]), np.max(non_zero_indices[1]), np.max(non_zero_indices[2])
+        cropped_volume = largest_component[start_x:end_x+1, start_y:end_y+1, start_z:end_z+1]
 
-    def plot_surface(self, volume1, volume2, downsample_factor = 0.25):
+        # Marching cubes
+        verts, faces, _, _ = measure.marching_cubes(cropped_volume, level=0)
+        pre_offset = np.array([start_x, start_y, start_z])
+        post_offset = np.array([end_x, end_y, end_z])
+        return verts, faces, pre_offset, post_offset
+
+    def get_binary_mask(self, verts, faces, start_shape, final_shape, pre_offset, post_offset):
+        # Convert verts and faces to binary mask
+        mesh = trimesh.Trimesh(vertices=verts, faces=faces)
+        voxel_grid = mesh.voxelized(pitch=1.0)  
+        binary_mask = voxel_grid.fill()
+        binary_mask = binary_mask.matrix.astype(np.uint16)
+        binary_mask_filled = np.zeros(start_shape)
+        binary_mask_filled[pre_offset[0]:(post_offset[0]+1), pre_offset[1]:(post_offset[1]+1), pre_offset[2]:(post_offset[2]+1)] = binary_mask
+
+        #Upsample binary mask to original shape
+        scaling_factors = [final_shape[i] / binary_mask_filled.shape[i] for i in range(len(final_shape))]
+        upsampled_binary_mask_filled = zoom(binary_mask_filled, scaling_factors, order=0)
+        upsampled_binary_mask_filled = np.round(upsampled_binary_mask_filled).astype(np.uint16)
+        return upsampled_binary_mask_filled
+
+    def plot_surface(self, volume1, volume2, downsample_factor = 0.25, pull_binary_mask=False):
         # Downsample the volume by a factor of 2 in each dimension
 
         downsampled_volume1 = zoom(volume1, zoom=downsample_factor, order=1)
-        verts1, faces1 = self.extract_surface(downsampled_volume1)
+        verts1, faces1, pre1, post1 = self.extract_surface(downsampled_volume1)
 
         downsampled_volume2 = zoom(volume2, zoom=downsample_factor, order=1)
-        verts2, faces2 = self.extract_surface(downsampled_volume2)
+        verts2, faces2, pre2, post2 = self.extract_surface(downsampled_volume2)
 
+        if pull_binary_mask:
+            self.binary_mask1 = self.get_binary_mask(verts = verts1, faces = faces1, start_shape = downsampled_volume1.shape, final_shape=volume1.shape, 
+                                                    pre_offset=pre1, post_offset=post1)
+            
+            self.binary_mask2 = self.get_binary_mask(verts = verts2, faces = faces2, start_shape = downsampled_volume2.shape, final_shape=volume2.shape, 
+                                                    pre_offset=pre2, post_offset=post2)
+            
+            return self.binary_mask1, self.binary_mask2
+        
         # Visualization of the surface mesh
         fig = plt.figure(figsize=(20, 10))  # Adjust size to accommodate all subplots
         ax1 = fig.add_subplot(131, projection='3d')  # Subplot in the first column

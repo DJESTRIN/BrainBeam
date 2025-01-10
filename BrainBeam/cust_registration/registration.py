@@ -376,8 +376,8 @@ class alignment:
                 # Set up the registration method
                 registration_method = sitk.ImageRegistrationMethod()
                 registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-                registration_method.SetMetricSamplingStrategy(registration_method.RANDOM, percentage=0.2)
-                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits,boundsScaling=[1e-3] * init_transform.GetNumberOfParameters())
+                registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
+                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits)
                 registration_method.SetOptimizerScalesFromPhysicalShift()
                 registration_method.SetInitialTransform(init_transform, inPlace=False)
                 registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
@@ -444,10 +444,9 @@ class alignment:
         
     
         # Perform a rigid transformation
-        self.graphobjoh.spin_volume(volume1 = self.moving_array_original, 
-                                   volume2 = self.target_array, 
-                                   label='prerigid',
-                                   output=os.path.join(self.drop_path, f'Pre_Rigid_3d_{self.time_to_str()}.gif'))
+        self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
+                                     volume2 = self.target_array,
+                                     pull_binary_mask = True)
              
         best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
         if os.path.exists(best_params_file):
@@ -473,8 +472,8 @@ class alignment:
         else:
             """ If no file exists, perform rigid transform via bayes search """
             print('Performing Bayesian-based rigid transformation ... ') 
-            self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.target_array,
-                                                                    moving_image=self.moving_array_original,
+            self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.target_mask,
+                                                                    moving_image=self.moving_mask,
                                                                     best_params=self.best_params_oh, drop_dir = self.drop_path)
             
             with open(best_params_file, "wb") as f:
