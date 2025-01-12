@@ -38,7 +38,6 @@ from optuna.samplers import CmaEsSampler
 from scipy.ndimage import zoom
 from skimage.filters import threshold_otsu, threshold_li, threshold_yen
 
-
 def print_results_every_n_trials(study, trial, n=10):
     """
     Callback function to print study results every n trials.
@@ -46,8 +45,7 @@ def print_results_every_n_trials(study, trial, n=10):
     if trial.number % n == 0:
         print(f"Trial {trial.number}: Best Value = {study.best_value:.5f}, Best Params = {study.best_params}")
 
-
-def compute_mattes_mutual_information(fixed_image, moving_image):
+def MMI(fixed_image, moving_image):
     registration_method = sitk.ImageRegistrationMethod()
     registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
     identity_transform = sitk.Transform(3, sitk.sitkIdentity)
@@ -116,7 +114,7 @@ def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_par
             resampler.SetInterpolator(sitk.sitkLinear)  # Use linear interpolation
             transformed_image = resampler.Execute(moving_image)
 
-            metric = compute_mattes_mutual_information(fixed_image, transformed_image)
+            metric = MMI(fixed_image, transformed_image)
             print(f'MMI value is {metric}')
             return metric  # Return the metric value (Optuna tries to minimize this)
 
@@ -199,4 +197,67 @@ def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_par
     aligned_array = sitk.GetArrayFromImage(best_aligned_image)
     fixed_image = sitk.GetArrayFromImage(fixed_image)
     return fixed_image, aligned_array, best_params
+
+
+def find_best_axes_sampling(fixed_image,moving_image,drop_dir,ntrials=5000,best_params=None):
+    if best_params is None:
+        def objective(trial, fixed_image, moving_image):
+            """ In this study, we are trying to determine which angles """
+            scale_x = trial.suggest_uniform('scale_x', 0.5, 2.0)
+            scale_y = trial.suggest_uniform('scale_y', 0.5, 2.0)
+            scale_z = trial.suggest_uniform('scale_z', 0.5, 2.0)
+
+            # Rescale with zoom
+            rescaled_moving_image = zoom(moving_image, (scale_x, scale_y, scale_z))
+            
+            # Convert numpy to sitk
+            fixed_image = sitk.GetImageFromArray(fixed_image)
+            moving_image = sitk.GetImageFromArray(moving_image)
+
+            metric = MMI(fixed_image, rescaled_moving_image)
+            print(f'MMI value is {metric}')
+            return metric  # Return the metric value (Optuna tries to minimize this)
+
+        def current_param_graph(study, trial, moving_image, fixed_image, droppath, n=1000):
+            if trial.number % n == 0:
+                if trial.number ==0:
+                    return 
+                
+                best_trial = study.best_trial
+                best_params = best_trial.params
+                best_aligned_image = zoom(moving_image, (best_params['scale_x'], best_params['scale_y'], best_params['scale_z']))
+               
+                # Plot the results
+                fig, axs = plt.subplots(3, 2, figsize=(30, 5))
+                for i in range(3):
+                    aligned_av = best_aligned_image.max(axis=i)
+                    fixed_av = fixed_image.max(axis=i)
+
+                    ax = axs[i, 0]
+                    ax.imshow(aligned_av)
+                    ax.axis('off') 
+
+                    ax = axs[i, 1]
+                    ax.imshow(fixed_av)
+                    ax.axis('off')  
+
+                plt.savefig(os.path.join(droppath,f'slices_trial_stretch_{trial.number}.jpg'))
+
+        # Create an Optuna study to optimize the objective function
+        sampler = CmaEsSampler()
+        study = optuna.create_study(sampler=sampler, direction="minimize", pruner=MedianPruner())  # We want to minimize the metric
+        study.optimize(lambda trial: objective(trial, fixed_image, moving_image), n_trials=ntrials, n_jobs=-1,  show_progress_bar=True, callbacks=[lambda s, t: current_param_graph(s, t, moving_image, fixed_image, drop_dir)])  # Run optimization for 100 trials
+
+        # Get the best parameters from the optimization
+        best_trial = study.best_trial
+        print(f"Best trial: {best_trial.number}")
+        print(f"Best value: {best_trial.value}")
+        print(f"Best parameters: {best_trial.params}")
+
+        # Apply the best affine transform to the moving image
+        best_params = best_trial.params
+  
+    aligned_array = zoom(moving_image, (best_params['scale_x'], best_params['scale_y'], best_params['scale_z']))  
+    return fixed_image, aligned_array, best_params
+
 

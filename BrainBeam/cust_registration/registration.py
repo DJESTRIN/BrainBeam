@@ -23,8 +23,9 @@ from scipy.ndimage import zoom
 import tqdm
 import SimpleITK as sitk
 from BrainBeam.cust_registration.padding import zero_pad_arrays
-from BrainBeam.cust_registration.bayessearch import find_affine_matrix, set_affine_rotation
+from BrainBeam.cust_registration.bayessearch import find_affine_matrix, set_affine_rotation, find_best_axes_sampling
 from BrainBeam.cust_registration.graphics import volume_graphics
+from BrainBeam.cust_registration.preprocess import replace_signal
 from datetime import datetime
 from functools import partial
 import argparse
@@ -315,6 +316,8 @@ class alignment:
         self.TargetImageObject = TargetImageObject
         self.drop_path = drop_path
         self.best_params_oh = None # Default assumption
+        self.best_params_mask_oh = None
+        self.best_params_mask_stretch_oh = None
         self.moving_array_original = self.MovingImageObject.downsampled_volume.astype(np.float64)
         self.target_array = self.TargetImageObject.template.astype(np.float64)
         self.annotation_array = self.TargetImageObject.annotation.astype(np.float64)
@@ -435,19 +438,69 @@ class alignment:
         return now.strftime("%Y_%m_%d_%H_%M_%S")
     
     def __call__(self):
-        # Zero pad both arrays for consistent dimensions
-        self.moving_array_original, self.target_array = zero_pad_arrays(array1=self.moving_array_original, 
-                                                                        array2=self.target_array)
+        # Preprocess image volumes ... eliminate high signal
+        self.moving_array_original = replace_signal(volume=self.moving_array_original) 
+        self.target_array = replace_signal(volume = self.target_array, normalize=True)
 
-        _, self.annotation_array_original = zero_pad_arrays(array1=self.moving_array_original, 
-                                                                        array2=self.annotation_array)
-        
+        # Zero pad both arrays for consistent dimensions
+        self.moving_array_original, self.target_array = zero_pad_arrays(array1=self.moving_array_original, array2=self.target_array)
+
+        _, self.annotation_array_original = zero_pad_arrays(array1=self.moving_array_original, array2=self.annotation_array)
     
-        # Perform a rigid transformation
+        # Binary mask alignment and stretching/squeezing
         self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
-                                     volume2 = self.target_array,
-                                     pull_binary_mask = True)
-             
+                                     volume2 = self.target_array, pull_binary_mask = True) # Get binary masks 
+        
+        best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
+        best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
+        if os.path.exists(best_params_mask_file):
+            """ If real, load in best rigid parameters """
+            print(f"Bayes Opt file previously calculated for mask, loading file ...")
+            with open(best_params_mask_file, "rb") as f:
+                self.best_params_mask_oh = pickle.load(f)
+
+        else:
+            """ If no file exists, perform rigid transform via bayes search """
+            print('Performing Bayesian-based rigid transformation ... ') 
+            self.fixed_mask, self.moving_mask, self.best_params_mask_oh = find_affine_matrix(fixed_image=self.target_mask,
+                                                                                             moving_image=self.moving_mask,
+                                                                                             best_params=self.best_params_mask_oh, 
+                                                                                             drop_dir = self.drop_path,
+                                                                                             ntrials=5000)
+            
+            self.fixed_mask,self.moving_mask,self.best_params_mask_stretch_oh = find_best_axes_sampling(fixed_image=self.fixed_mask,
+                                                                                                        moving_image=self.moving_mask,
+                                                                                                        best_params=self.best_params_mask_stretch_oh, 
+                                                                                                        drop_dir = self.drop_path, 
+                                                                                                        ntrials=5000)
+
+            with open(best_params_mask_file, "wb") as f:
+                pickle.dump(self.best_params_mask_oh, f)
+                print('Saved BayesOpt best parameters rigid mask ...')
+
+            with open(best_params_mask_stretch_file, "wb") as f:
+                pickle.dump(self.best_params_mask_stretch_oh, f)
+                print('Saved BayesOpt best parameters stretch mask ...')
+
+        # Apply alignment to data 
+        assert self.best_params_mask_oh is not None
+        assert self.best_params_mask_stretch_oh is not None
+        
+        best_affine_transform = sitk.AffineTransform(3)
+        best_affine_transform = set_affine_rotation(best_affine_transform, self.best_params_mask_oh['theta_x'], self.best_params_mask_oh['theta_y'], self.best_params_mask_oh['theta_z'])
+        best_affine_transform.SetTranslation([self.best_params_mask_oh['translation_x'], self.best_params_mask_oh['translation_y'], self.best_params_mask_oh['translation_z']])
+        best_affine_transform.Scale(self.best_params_mask_oh['scale'])
+        best_resampler = sitk.ResampleImageFilter()
+        best_resampler.SetSize(sitk.GetImageFromArray(self.target_array).GetSize())
+        best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array).GetSpacing())
+        best_resampler.SetTransform(best_affine_transform)
+        best_resampler.SetInterpolator(sitk.sitkLinear)
+        best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original))
+        self.moving_image = sitk.GetArrayFromImage(best_aligned_image)
+        self.fixed_image = self.target_array
+        self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh['scale_x'], self.best_params_mask_stretch_oh['scale_y'], self.best_params_mask_stretch_oh['scale_z'])) 
+
+        # Perform Rigid Alignment on original data 
         best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
         if os.path.exists(best_params_file):
             """ If real, load in best rigid parameters """
@@ -472,25 +525,18 @@ class alignment:
         else:
             """ If no file exists, perform rigid transform via bayes search """
             print('Performing Bayesian-based rigid transformation ... ') 
-            self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.target_mask,
-                                                                    moving_image=self.moving_mask,
-                                                                    best_params=self.best_params_oh, drop_dir = self.drop_path)
+            self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.fixed_image,
+                                                                    moving_image=self.moving_image,
+                                                                    best_params=self.best_params_oh, 
+                                                                    drop_dir = self.drop_path)
             
             with open(best_params_file, "wb") as f:
                 pickle.dump(self.best_params_oh, f)
                 print('Saved BayesOpt best parameters ...')
 
-        # Graph fixed and moving volumes
-        self.graphobjoh.spin_volume(volume1 = self.moving_image, volume2 = self.target_array, 
-                                   label='postrigid', output=os.path.join(self.drop_path, f'Post_Rigid_3d_{self.time_to_str()}.gif'))
-          
         # Perform non-rigid alignment
         print('Performing Non-Rigid Multiresolution Alignment ... ') 
         self.nonrigid_moving_image = self.multiresolution_align()
-
-        # Graph non-rigid alignment
-        self.graphobjoh.spin_volume(volume1 = self.nonrigid_moving_image, volume2 = self.target_array, 
-                                   label='nonrigid', output=os.path.join(self.drop_path, f'Non_Rigid_Alignment_{self.time_to_str()}.gif'))
 
 def cli_parser():
     """ Takes command line inputs and parses them for downstream """

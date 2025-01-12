@@ -17,13 +17,44 @@ from scipy.ndimage import binary_fill_holes
 import trimesh
 import ipdb
 
-def slice_views(array,output_filename):
+def adjust_image(image, contrast=1.0, brightness=0):
+    image = image * contrast
+    image = image + brightness
+    image = np.clip(image, 0, 255)
+    return image
+
+def slice_views(array,output_filename, contrast = None, brightness = None,image_type='max'):
+    # contrast and brightness must both be numbers
+    if contrast is not None and brightness is not None:
+        assert isinstance(contrast, (int, float)), "variable1 must be an int or float"
+        assert isinstance(brightness, (int, float)), "variable2 must be an int or float"
+        adjust = True
+    else:
+        adjust = False
+
     fig, axs = plt.subplots(3, 1, figsize=(30, 5))
     for i in range(3):
-        maxes = array.max(axis=i)
+        if image_type == 'max':
+            maxes = array.max(axis=i)
+        elif image_type =='mean':
+            maxes = array.mean(axis=i)
+        elif image_type =='median':
+            maxes = np.median(array,axis=i)
+        elif image_type == 'std':
+            maxes = np.std(array,axis=i)
+        else:
+            raise("image type must be either 'max', 'mean', 'median' or 'std'")
+
+        # Adjust brightness and contrast
+        if adjust:
+            maxes = adjust_image(maxes, contrast = contrast, brightness = brightness)
+
+        print(maxes.max())
+        print(maxes.min())
         ax = axs[i]
         ax.imshow(maxes,aspect='equal', cmap='gray', vmin = np.min(maxes), vmax = np.max(maxes))
         ax.axis('off') 
+
     plt.tight_layout()
     plt.savefig(output_filename)
 

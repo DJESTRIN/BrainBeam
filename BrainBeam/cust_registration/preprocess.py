@@ -11,19 +11,26 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from BrainBeam.cust_registration.graphics import slice_views
 from BrainBeam.cust_registration.padding import zero_pad_arrays
+from allensdk.core.reference_space_cache import ReferenceSpaceCache
+from pathlib import Path
 import ipdb
 
-def replace_signal(volume,threshold=95, cube_size=9):
+def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
     """
     
     """
+    # normalize data if set
+    if normalize:
+        volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
+
     # plot original volume
-    slice_views(array=(volume/2),output_filename='presignalextract.jpg')
+    slice_views(array=volume,output_filename='presignalextract.jpg', image_type='max')
 
     # Threshold the data
     non_zero_array = volume[volume != 0]
     threshold_value = np.percentile(non_zero_array, threshold)
     signal_points = np.where(volume>=threshold_value)
+    volume = volume.astype(np.float16)
 
     # Replace these signal points with nan
     volume[signal_points] = np.nan
@@ -61,7 +68,11 @@ def replace_signal(volume,threshold=95, cube_size=9):
         
     # remove zero padding
     volume = volume_padded[cube_size:-cube_size,cube_size:-cube_size,cube_size:-cube_size]
-    slice_views(array=(volume/2),output_filename='postsignalextract.jpg')
+
+    if normalize:
+        volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
+
+    slice_views(array=volume,output_filename='postsignalextract.jpg', image_type='max')
     return volume 
 
 def blur(volume, sigma=2):
@@ -74,6 +85,12 @@ def preprocess(volume):
     return volume
 
 if __name__=='__main__':
-    file=r'C:\Users\listo\example_registration_data\sub1_output\current_run_2025_01_09_22_33_11\downsampled_volume.npy'
-    volume_test = np.load(file)
-    desig_volume = replace_signal(volume=volume_test)
+    atlas_path = r'c:\Users\listo\example_registration_data\atlas'
+    reference_space_key = 'average_template/'
+    rspc = ReferenceSpaceCache(50, reference_space_key, manifest=Path(atlas_path) / 'manifest.json')
+    template, template_meta = rspc.get_template_volume()
+
+    # file=r'C:\Users\listo\example_registration_data\sub1_output\current_run_2025_01_09_22_33_11\downsampled_volume.npy'
+    # volume_test = np.load(file)
+    # desig_volume = replace_signal(volume=volume_test)
+    desig_template = replace_signal(volume = template, normalize=True)
