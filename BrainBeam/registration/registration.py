@@ -22,10 +22,10 @@ import tifffile as tiff
 from scipy.ndimage import zoom
 import tqdm
 import SimpleITK as sitk
-from BrainBeam.cust_registration.padding import zero_pad_arrays
-from BrainBeam.cust_registration.bayessearch import find_affine_matrix, set_affine_rotation, find_best_axes_sampling
-from BrainBeam.cust_registration.graphics import volume_graphics
-from BrainBeam.cust_registration.preprocess import replace_signal
+from BrainBeam.registration.padding import zero_pad_arrays
+from BrainBeam.registration.bayessearch import find_affine_matrix, set_affine_rotation, find_best_axes_sampling
+from BrainBeam.registration.graphics import volume_graphics
+from BrainBeam.registration.preprocess import replace_signal
 from datetime import datetime
 from functools import partial
 import argparse
@@ -439,15 +439,17 @@ class alignment:
     
     def __call__(self):
         # Preprocess image volumes ... eliminate high signal
+        print('Replace high signal values to prevent misalignments...')
         self.moving_array_original = replace_signal(volume=self.moving_array_original) 
         self.target_array = replace_signal(volume = self.target_array, normalize=True)
 
         # Zero pad both arrays for consistent dimensions
+        print('Zero padding data...')
         self.moving_array_original, self.target_array = zero_pad_arrays(array1=self.moving_array_original, array2=self.target_array)
-
         _, self.annotation_array_original = zero_pad_arrays(array1=self.moving_array_original, array2=self.annotation_array)
     
         # Binary mask alignment and stretching/squeezing
+        print('Performing alingment and stretching on binary masks of data...')
         self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
                                      volume2 = self.target_array, pull_binary_mask = True) # Get binary masks 
         
@@ -466,13 +468,13 @@ class alignment:
                                                                                              moving_image=self.moving_mask,
                                                                                              best_params=self.best_params_mask_oh, 
                                                                                              drop_dir = self.drop_path,
-                                                                                             ntrials=5000)
+                                                                                             ntrials=1000)
             
             self.fixed_mask,self.moving_mask,self.best_params_mask_stretch_oh = find_best_axes_sampling(fixed_image=self.fixed_mask,
                                                                                                         moving_image=self.moving_mask,
                                                                                                         best_params=self.best_params_mask_stretch_oh, 
                                                                                                         drop_dir = self.drop_path, 
-                                                                                                        ntrials=5000)
+                                                                                                        ntrials=1000)
 
             with open(best_params_mask_file, "wb") as f:
                 pickle.dump(self.best_params_mask_oh, f)
@@ -483,6 +485,7 @@ class alignment:
                 print('Saved BayesOpt best parameters stretch mask ...')
 
         # Apply alignment to data 
+        print('Applying binary mask transformations to original data ...')
         assert self.best_params_mask_oh is not None
         assert self.best_params_mask_stretch_oh is not None
         
@@ -501,6 +504,7 @@ class alignment:
         self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh['scale_x'], self.best_params_mask_stretch_oh['scale_y'], self.best_params_mask_stretch_oh['scale_z'])) 
 
         # Perform Rigid Alignment on original data 
+        print('Non-rigid alignment of orignal data ...')
         best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
         if os.path.exists(best_params_file):
             """ If real, load in best rigid parameters """
@@ -528,7 +532,8 @@ class alignment:
             self.fixed_image, self.moving_image, self.best_params_oh = find_affine_matrix(fixed_image=self.fixed_image,
                                                                     moving_image=self.moving_image,
                                                                     best_params=self.best_params_oh, 
-                                                                    drop_dir = self.drop_path)
+                                                                    drop_dir = self.drop_path,
+                                                                    ntrials=5000)
             
             with open(best_params_file, "wb") as f:
                 pickle.dump(self.best_params_oh, f)

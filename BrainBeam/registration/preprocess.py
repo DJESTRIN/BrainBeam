@@ -9,8 +9,8 @@ Version: 1.0
 """
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from BrainBeam.cust_registration.graphics import slice_views
-from BrainBeam.cust_registration.padding import zero_pad_arrays
+from BrainBeam.registration.graphics import slice_views
+from BrainBeam.registration.padding import zero_pad_arrays
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from pathlib import Path
 import ipdb

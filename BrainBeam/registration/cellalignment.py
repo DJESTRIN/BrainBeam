@@ -13,8 +13,8 @@ Author: David Estrin
 Date: 2024-12-11
 Version: 1.0
 """
-from BrainBeam.cust_registration.registration import main as register
-from BrainBeam.cust_registration.registration import cli_parser
+from BrainBeam.registration.registration import main as register
+from BrainBeam.registration.registration import cli_parser
 from functools import wraps
 import argparse
 import pandas as pd

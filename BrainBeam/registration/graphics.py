@@ -49,8 +49,6 @@ def slice_views(array,output_filename, contrast = None, brightness = None,image_
         if adjust:
             maxes = adjust_image(maxes, contrast = contrast, brightness = brightness)
 
-        print(maxes.max())
-        print(maxes.min())
         ax = axs[i]
         ax.imshow(maxes,aspect='equal', cmap='gray', vmin = np.min(maxes), vmax = np.max(maxes))
         ax.axis('off') 
@@ -148,11 +146,10 @@ class volume_graphics:
 
     def plot_surface(self, volume1, volume2, downsample_factor = 0.25, pull_binary_mask=False):
         # Downsample the volume by a factor of 2 in each dimension
-
-        downsampled_volume1 = zoom(volume1, zoom=downsample_factor, order=1)
+        downsampled_volume1 = zoom(volume1.astype(np.float32), zoom=downsample_factor, order=1)
         verts1, faces1, pre1, post1 = self.extract_surface(downsampled_volume1)
 
-        downsampled_volume2 = zoom(volume2, zoom=downsample_factor, order=1)
+        downsampled_volume2 = zoom(volume2.astype(np.float32), zoom=downsample_factor, order=1)
         verts2, faces2, pre2, post2 = self.extract_surface(downsampled_volume2)
 
         if pull_binary_mask:

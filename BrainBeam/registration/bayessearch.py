@@ -32,8 +32,8 @@ import ipdb
 import plotly.graph_objects as go
 from datetime import datetime
 import os
-from BrainBeam.cust_registration.graphics import volume_graphics, slice_views
-from BrainBeam.cust_registration.padding import zoom_padding
+from BrainBeam.registration.graphics import volume_graphics, slice_views
+from BrainBeam.registration.padding import zoom_padding
 from optuna.samplers import CmaEsSampler
 from scipy.ndimage import zoom
 from skimage.filters import threshold_otsu, threshold_li, threshold_yen
@@ -212,7 +212,7 @@ def find_best_axes_sampling(fixed_image,moving_image,drop_dir,ntrials=5000,best_
             
             # Convert numpy to sitk
             fixed_image = sitk.GetImageFromArray(fixed_image)
-            moving_image = sitk.GetImageFromArray(moving_image)
+            rescaled_moving_image = sitk.GetImageFromArray(rescaled_moving_image)
 
             metric = MMI(fixed_image, rescaled_moving_image)
             print(f'MMI value is {metric}')
