@@ -19,12 +19,12 @@ matplotlib.use('Agg')
 from PIL import Image
 import glob
 import tifffile as tiff
-from scipy.ndimage import zoom
+from scipy.ndimage import zoom, binary_dilation, binary_fill_holes
 import tqdm
 import SimpleITK as sitk
 from BrainBeam.registration.padding import zero_pad_arrays
-from BrainBeam.registration.bayessearch import find_affine_matrix, set_affine_rotation, find_best_axes_sampling
-from BrainBeam.registration.graphics import volume_graphics
+from BrainBeam.registration.bayessearch import find_affine_matrix, set_affine_rotation, find_best_axes_sampling, manual_find_axes_sampling, adjust_volume_shape, MMI
+from BrainBeam.registration.graphics import volume_graphics, slice_views
 from BrainBeam.registration.preprocess import replace_signal
 from datetime import datetime
 from functools import partial
@@ -337,6 +337,61 @@ class alignment:
             if iteration_oh % n == 0:
                 print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
+        def alignoh(resolution, nits, fixed, moving, current_transform=None, ntrials=1, transform_file="transform.pkl"):
+            """Runs alignment and collects MMI data for each trial."""
+            print(f"Resolution: {resolution}, Iterations: {nits}")
+            
+            # Set grid physical spacing and compute mesh size
+            grid_physical_spacing = [resolution] * 3
+            image_physical_size = [size * spacing for size, spacing in zip(fixed.GetSize(), fixed.GetSpacing())]
+            grid_size = [int(image_physical_size[i] / grid_physical_spacing[i] + 0.5) for i in range(3)]
+            
+            # Compute B-spline mesh size
+            transform_domain_mesh_size = [max(1, grid_size[i] - 3) for i in range(3)]
+            print(f"Mesh size: {transform_domain_mesh_size}")
+
+            # Initialize list to store MMI data
+            mmi_results = []
+
+            for trial in range(ntrials):
+                print(f"Trial {trial + 1}/{ntrials}")
+                
+                # Initialize or update the transform
+                if current_transform is None or trial == 0:
+                    init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+                else:
+                    init_transform = current_transform
+
+                # Set up the registration method
+                registration_method = sitk.ImageRegistrationMethod()
+                registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
+                registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
+                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits, gradientConvergenceTolerance=1e-5, regularizationWeight=0.1)
+                registration_method.SetOptimizerScalesFromPhysicalShift()
+                registration_method.SetInitialTransform(init_transform, inPlace=False)
+                registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
+
+                # Execute registration and capture the MMI value
+                current_time = time.localtime()  # or time.gmtime() for UTC
+                formatted_time = time.strftime("%I:%M %p", current_time)
+                print(f"Starting registration at {formatted_time}...")
+                current_transform = registration_method.Execute(fixed, moving)
+
+                # Store the final MMI value for this trial
+                final_mmi_value = registration_method.GetMetricValue()
+                mmi_results.append(final_mmi_value)
+
+            # Save the final transform into a file
+            print("Saving transform into a file!")
+            with open(transform_file, "wb") as f:
+                pickle.dump(current_transform, f)
+                print(f"Transform saved to {transform_file}.")
+
+            return mmi_results, current_transform
+
+        def check_for_plateau():
+            learning=True
+            return learning
 
         # Convert arrays to SimpleITK images
         fixed = sitk.GetImageFromArray(self.fixed_image) if isinstance(self.fixed_image, np.ndarray) else self.fixed_image
@@ -350,8 +405,9 @@ class alignment:
             resolutions = [80.0, 40.0, 30.0] 
         
         if iters is None:
-            iters = [100, 100, 50] 
+            iters = [10, 10, 10] 
 
+        criteria_results = []
         for resolution, nits in zip(resolutions,iters):
             transform_file = os.path.join(self.drop_path, f"transform_res{resolution}_iters{nits}.pkl")
 
@@ -362,47 +418,18 @@ class alignment:
                     current_transform = pickle.load(f)
 
             else:
-                print(f"Resolution: {resolution}, Iterations {nits}")
-                
-                # Set grid physical spacing and compute mesh size
-                grid_physical_spacing = [resolution] * 3
-                image_physical_size = [size * spacing for size, spacing in zip(fixed.GetSize(), fixed.GetSpacing())]
-                grid_size = [int(image_physical_size[i] / grid_physical_spacing[i] + 0.5) for i in range(3)]
-                
-                # Compute B-spline mesh size
-                transform_domain_mesh_size = [max(1, grid_size[i] - 3) for i in range(3)]
-                print(f"Mesh size: {transform_domain_mesh_size}")
-
-                # Update the transform mesh size (keeping current_transform values)
-                init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
-        
-                # Set up the registration method
-                registration_method = sitk.ImageRegistrationMethod()
-                registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-                registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
-                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits)
-                registration_method.SetOptimizerScalesFromPhysicalShift()
-                registration_method.SetInitialTransform(init_transform, inPlace=False)
-                registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
-
-                # Execute registration and update the transform for the next resolution
-                current_time = time.localtime()  # or time.gmtime() for UTC
-                formatted_time = time.strftime("%I:%M %p", current_time)
-                print(f"Starting registration at {formatted_time}...")
-                current_transform = registration_method.Execute(fixed, moving)
-
-                print("Saving transform into a file! ")
-                with open(transform_file, "wb") as f:
-                    pickle.dump(current_transform, f)
-                    print(f"Transform saved to {transform_file}.")
+                """ Repeadetly run alignment until a learning plateau is detected. When detected, the next resolution level is then run. """
+                while learning:
+                    mmi_results, moving_image = alignoh()
+                    criteria_results.append(mmi_results)
+                    learning = check_for_plateau(criteria_results)
+                    
+                    # plot current results 
+                    slice_views(array=moving_np,output_filename=os.path.join(self.drop_path,f'MultiRes3d_movingnp_{self.time_to_str()}.jpg'), image_type='max')
+                    slice_views(array=sitk.GetArrayFromImage(fixed),output_filename=os.path.join(self.drop_path,f'MultiRes3d_fixednp_{self.time_to_str()}.jpg'), image_type='max')
 
             moving = sitk.Resample(moving, fixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
             moving_np = sitk.GetArrayFromImage(moving)
-
-            self.graphobjoh.spin_volume(volume1 = moving_np, 
-                                   volume2 = sitk.GetArrayFromImage(fixed), 
-                                   label='multires',
-                                   output=os.path.join(self.drop_path, f'MultiRes3d_{self.time_to_str()}.gif'))
             
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
@@ -453,14 +480,18 @@ class alignment:
         self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
                                      volume2 = self.target_array, pull_binary_mask = True) # Get binary masks 
         
-        best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
-        best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
+        #best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
+        #best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
+        best_params_mask_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_bayesopt.pkl"
+        best_params_mask_stretch_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_stretch_bayesopt.pkl"
         if os.path.exists(best_params_mask_file):
             """ If real, load in best rigid parameters """
             print(f"Bayes Opt file previously calculated for mask, loading file ...")
             with open(best_params_mask_file, "rb") as f:
                 self.best_params_mask_oh = pickle.load(f)
 
+            with open(best_params_mask_stretch_file, "rb") as f:
+                self.best_params_mask_stretch_oh = pickle.load(f)
         else:
             """ If no file exists, perform rigid transform via bayes search """
             print('Performing Bayesian-based rigid transformation ... ') 
@@ -468,13 +499,12 @@ class alignment:
                                                                                              moving_image=self.moving_mask,
                                                                                              best_params=self.best_params_mask_oh, 
                                                                                              drop_dir = self.drop_path,
-                                                                                             ntrials=1000)
+                                                                                             ntrials=2000)
             
-            self.fixed_mask,self.moving_mask,self.best_params_mask_stretch_oh = find_best_axes_sampling(fixed_image=self.fixed_mask,
-                                                                                                        moving_image=self.moving_mask,
-                                                                                                        best_params=self.best_params_mask_stretch_oh, 
-                                                                                                        drop_dir = self.drop_path, 
-                                                                                                        ntrials=1000)
+            self.moving_mask, self.best_params_mask_stretch_oh = manual_find_axes_sampling(self.fixed_mask,
+                                                                                           self.moving_mask,
+                                                                                           drop_dir=self.drop_path,
+                                                                                           best_params=self.best_params_mask_stretch_oh)
 
             with open(best_params_mask_file, "wb") as f:
                 pickle.dump(self.best_params_mask_oh, f)
@@ -488,24 +518,42 @@ class alignment:
         print('Applying binary mask transformations to original data ...')
         assert self.best_params_mask_oh is not None
         assert self.best_params_mask_stretch_oh is not None
-        
+
+        # Filter background data
+        self.moving_mask = binary_fill_holes(self.moving_mask)
+        structure = np.ones((3, 3, 3))
+        self.dialed_moving_mask = binary_dilation(self.moving_mask, structure=structure)
+        self.moving_array_original = np.where(self.dialed_moving_mask == 0, 0, self.moving_array_original)
+
+        # Perform rigid alignment
         best_affine_transform = sitk.AffineTransform(3)
         best_affine_transform = set_affine_rotation(best_affine_transform, self.best_params_mask_oh['theta_x'], self.best_params_mask_oh['theta_y'], self.best_params_mask_oh['theta_z'])
         best_affine_transform.SetTranslation([self.best_params_mask_oh['translation_x'], self.best_params_mask_oh['translation_y'], self.best_params_mask_oh['translation_z']])
         best_affine_transform.Scale(self.best_params_mask_oh['scale'])
         best_resampler = sitk.ResampleImageFilter()
-        best_resampler.SetSize(sitk.GetImageFromArray(self.target_array).GetSize())
-        best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array).GetSpacing())
+        best_resampler.SetSize(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSize())
+        best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSpacing())
         best_resampler.SetTransform(best_affine_transform)
         best_resampler.SetInterpolator(sitk.sitkLinear)
-        best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original))
+        best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original.astype(np.float32)))
         self.moving_image = sitk.GetArrayFromImage(best_aligned_image)
         self.fixed_image = self.target_array
-        self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh['scale_x'], self.best_params_mask_stretch_oh['scale_y'], self.best_params_mask_stretch_oh['scale_z'])) 
+        try:
+            self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh[0], self.best_params_mask_stretch_oh[1], self.best_params_mask_stretch_oh[2])) 
+        except:
+            raise(" Must change previous line if using bayes opt for stretching code")
+        self.moving_image = adjust_volume_shape(volume=self.moving_image,target_shape = self.fixed_image.shape)
+
+        slice_views(array=self.moving_image,output_filename=os.path.join(self.drop_path,'orig_moving_image_post.jpg'), image_type='max')
+        slice_views(array=self.fixed_image,output_filename=os.path.join(self.drop_path,'orig_fixed_image_post.jpg'), image_type='max')
 
         # Perform Rigid Alignment on original data 
+        self.moving_image = self.moving_image.astype(np.float32)
+        self.fixed_image = self.fixed_image.astype(np.float32)
+
         print('Non-rigid alignment of orignal data ...')
-        best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
+        best_params_file =r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_bayesopt.pkl"
+        #best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
         if os.path.exists(best_params_file):
             """ If real, load in best rigid parameters """
             print(f"Bayes Opt file previously calculated, loading file ...")
@@ -518,11 +566,11 @@ class alignment:
             best_affine_transform.SetTranslation([self.best_params_oh['translation_x'], self.best_params_oh['translation_y'], self.best_params_oh['translation_z']])
             best_affine_transform.Scale(self.best_params_oh['scale'])
             best_resampler = sitk.ResampleImageFilter()
-            best_resampler.SetSize(sitk.GetImageFromArray(self.target_array).GetSize())
-            best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array).GetSpacing())
+            best_resampler.SetSize(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSize())
+            best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSpacing())
             best_resampler.SetTransform(best_affine_transform)
             best_resampler.SetInterpolator(sitk.sitkLinear)
-            best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original))
+            best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original.astype(np.float32)))
             self.moving_image = sitk.GetArrayFromImage(best_aligned_image)
             self.fixed_image = self.target_array
 
@@ -541,6 +589,11 @@ class alignment:
 
         # Perform non-rigid alignment
         print('Performing Non-Rigid Multiresolution Alignment ... ') 
+        self.fixed_image = self.fixed_image.astype(np.float32) if self.fixed_image.dtype == np.float16 else self.fixed_image
+        self.moving_image = self.moving_image.astype(np.float32) if self.moving_image.dtype == np.float16 else self.moving_image
+
+        starting_mmi = MMI(sitk.GetImageFromArray(self.fixed_image),sitk.GetImageFromArray(self.moving_image))
+        print(f' The MMI prior to nonrigid alignment is {starting_mmi}')
         self.nonrigid_moving_image = self.multiresolution_align()
 
 def cli_parser():
@@ -608,9 +661,7 @@ if __name__=='__main__':
     args = cli_parser()
     main(args)
 
-   
     # Example cli usage
-
     # python ./registration.py --image_path c:\Users\listo\example_registration_data\sub3 --atlas_path c:\Users\listo\example_registration_data\atlas --output_path c:\Users\listo\example_registration_data\sub3_output --force_orientation 1 0 2 --force_flips 1 -1 1 
     
     

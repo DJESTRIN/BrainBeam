@@ -38,6 +38,23 @@ from optuna.samplers import CmaEsSampler
 from scipy.ndimage import zoom
 from skimage.filters import threshold_otsu, threshold_li, threshold_yen
 
+def quick_slice_plot(best_aligned_image,fixed_image,droppath,label):
+    # Plot the results
+    fig, axs = plt.subplots(3, 2, figsize=(30, 5))
+    for i in range(3):
+        aligned_av = best_aligned_image.max(axis=i)
+        fixed_av = fixed_image.max(axis=i)
+
+        ax = axs[i, 0]
+        ax.imshow(aligned_av)
+        ax.axis('off') 
+
+        ax = axs[i, 1]
+        ax.imshow(fixed_av)
+        ax.axis('off')  
+
+    plt.savefig(os.path.join(droppath,f'slices_trial_{label}.jpg'))
+
 def print_results_every_n_trials(study, trial, n=10):
     """
     Callback function to print study results every n trials.
@@ -260,4 +277,86 @@ def find_best_axes_sampling(fixed_image,moving_image,drop_dir,ntrials=5000,best_
     aligned_array = zoom(moving_image, (best_params['scale_x'], best_params['scale_y'], best_params['scale_z']))  
     return fixed_image, aligned_array, best_params
 
+def adjust_volume_shape(volume, target_shape):
+    """
+    Adjust a 3D volume array to match a target shape by cropping or zero-padding.
+    
+    Parameters:
+    volume (numpy array): The input 3D volume.
+    target_shape (tuple): The target shape for the 3D volume (depth, height, width).
+    
+    Returns:
+    numpy array: The adjusted 3D volume.
+    """
+    # Initialize the list to store slices for each dimension
+    slices = []
+
+    # Loop over each dimension (depth, height, width)
+    for i in range(3):
+        current_dim_size = volume.shape[i]
+        target_dim_size = target_shape[i]
+        
+        # If the current dimension is larger than the target, crop it
+        if current_dim_size > target_dim_size:
+            start = (current_dim_size - target_dim_size) // 2
+            end = start + target_dim_size
+            slices.append(slice(start, end))
+        
+        # If the current dimension is smaller than the target, pad it with zeros
+        elif current_dim_size < target_dim_size:
+            pad_before = (target_dim_size - current_dim_size) // 2
+            pad_after = target_dim_size - current_dim_size - pad_before
+            slices.append(slice(None))  # This is for the original range, padding will happen next
+            volume = np.pad(volume, 
+                            [(pad_before, pad_after), (0, 0), (0, 0)] if i == 0 else
+                            [(0, 0), (pad_before, pad_after), (0, 0)] if i == 1 else
+                            [(0, 0), (0, 0), (pad_before, pad_after)], 
+                            mode='constant', constant_values=0)
+        # If the current dimension is equal to the target, just take the whole range
+        else:
+            slices.append(slice(None))
+    
+    # Return the adjusted volume using the slices for cropping and padding
+    return volume[tuple(slices)]
+
+def manual_find_axes_sampling(fixed_image_mask,moving_image_mask,drop_dir,best_params=None):
+    """ Finds the two bounding boxes for fixed_image and moving_image binary masks. 
+        Tries to align them by stretching or squeezing each axis.  """
+    
+    if best_params is None:
+        # Get bounding box coordinates for fixed image
+        fixed_coords = np.array(np.where(fixed_image_mask>0)).T
+        fix_min_coords = fixed_coords.min(axis=0)
+        fix_max_coords = fixed_coords.max(axis=0)
+
+        # Get bounding box coordinates for moving image
+        moving_coords = np.array(np.where(moving_image_mask>0)).T
+        moving_min_coords = moving_coords.min(axis=0)
+        moving_max_coords = moving_coords.max(axis=0)
+
+        # Calculate scaling factors
+        fix_img_length = fix_max_coords - fix_min_coords
+        moving_img_length = moving_max_coords - moving_min_coords
+        scaling_factors_oh = fix_img_length/moving_img_length
+
+        # Rescale moving image so bounding boxes align
+        moving_image_mask = zoom(moving_image_mask, scaling_factors_oh, order=1)
+
+        # Resample moving image so its shape is the same as when it started
+        moving_image_mask = adjust_volume_shape(volume=moving_image_mask,target_shape=fixed_image_mask.shape)
+
+    else:
+        # Best params to scaling_factors_oh
+        scaling_factors_oh = best_params
+
+        # Rescale moving image so bounding boxes align
+        moving_image_mask = zoom(moving_image_mask, scaling_factors_oh, order=1)
+
+        # Resample moving image so its shape is the same as when it started
+        zoom_factors = np.array(fixed_image_mask.shape) / np.array(moving_image_mask.shape)
+        moving_image_mask = zoom(moving_image_mask, zoom_factors, order=1)
+
+    quick_slice_plot(best_aligned_image=moving_image_mask,fixed_image=fixed_image_mask,droppath=drop_dir,label='manual_boundbox_stretch')
+    best_params = scaling_factors_oh
+    return moving_image_mask, best_params
 

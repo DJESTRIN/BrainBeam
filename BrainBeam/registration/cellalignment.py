@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Module Name: cellregistration.py
+Module Name: cellalignment.py
 Description: The point of this algorithm is to:
     (1) Downsample stitched data to atlas size
     (2) Downsample cell coordinates to atlas size
@@ -13,81 +13,120 @@ Author: David Estrin
 Date: 2024-12-11
 Version: 1.0
 """
-from BrainBeam.registration.registration import main as register
-from BrainBeam.registration.registration import cli_parser
-from functools import wraps
-import argparse
 import pandas as pd
 import numpy as np
 import ipdb
 import os
 
-# Extebd cli inputs
-def extended_cli_parser():
-    # Get the original argument parser
-    parser = cli_parser()
-    ipdb.set_trace()
-    print('Adding additional arguments to CLI parser')
-    parser.add_argument('--cell_counts', type=str, help="A CSV file containing cell counts")
+"""
+Load cell count files
+    if 1, do thing
+    if multiple, do thing multiple times
+    if none
 
-    # Parse the arguments (including the new one)
-    args = parser.parse_args()
-    
-    return args
+Convert cell counts to binary mask aggregate image [0 to inf]
+    Down sample coordinate space from original image size to ds size
+    Create binary aggregate mask from DS data
 
-def extended_main():
-    args = extended_cli_parser()  # Get arguments from the extended parser
-    args = register(args)
-    print(f"Cell counts file path: {args.cell_counts}")  # Show the new argument
-    return args
+Apply all transformations (in correct order) to the mask image
+    Do not forget any zero padding 
+
+Final path should contain:
+    (1) all transformation files
+    (2) the orginal moving image
+    (3) transformed moving image
+    (4) original cell mask
+    (5) transformed cell mask
+    (6) the target image
+    (7) the atlas associated with target image
+    (8) a way to get atlas hierarchy dict ...
+
+Data is now ready for merger code which will put all data into dataframes ...
+"""
 
 class cellalignment():
-    def __init__(self, cell_count_file):
-        self.cell_count_file = cell_count_file
-        # cell counts file
-        # atlas image
-        # template image
-        # Moving_image orginal
-        # moving image size
-        # original moving image sizes. 
-        # all transformations made to moving image
+    def __init__(self, cell_count_files = None):
+        self.cell_count_files = cell_count_files
+
+        self.new_x_dim = None
+        self.new_y_dim = None
+        self.new_z_dim = None
+        self.original_x_dim = None
+        self.original_y_dim = None
+        self.original_z_dim = None
     
+    def update_coordinate_systems(self,new_x_dim, new_y_dim, new_z_dim, original_x_dim,original_y_dim,original_z_dim):
+        # Set dimensions for new and original arrays for reference by code
+        self.new_x_dim = new_x_dim
+        self.new_y_dim = new_y_dim
+        self.new_z_dim = new_z_dim
+        self.original_x_dim = original_x_dim
+        self.original_y_dim = original_y_dim
+        self.original_z_dim = original_z_dim
+
     def __call__(self):
+        # Load in cell coordinates for all files
         self.read_cell_count_file()
-        self.downsample_cell_coordinate_system()
+
+        # Down sample cell coordinate system
+        if self.skip_flag: # Skip if no files given
+            return
+        else:
+            self.downsample_cell_coordinate_system()
+
+        # Convert cell coordinates to aggregate mask
+        self.cell_coordinates_to_aggregate_mask()
         
     def read_cell_count_file(self):
-        self.cell_coordinates = pd.read_csv(self.cell_count_file).to_numpy()
+        self.cell_coordinates=[]
+        if len(self.cell_count_files)==1:
+            self.cell_coordinates.append(pd.read_csv(self.cell_count_file).to_numpy())
+
+        elif len(self.cell_count_files)>1:
+            for i in range(len(self.cell_count_files)):
+              self.cell_coordinates.append(pd.read_csv(self.cell_count_file).to_numpy())
+
+        else:
+            self.skip_flag = True
+            print('No cell coordinate files provided, so all cell alignment code will be skipped')
 
     def downsample_cell_coordinate_system(self):
+        # Check and make sure parameters were defined
+        if self.original_x_dim is None or self.original_y_dim is None or self.original_z_dim is None:
+            raise("User must call update_coordinate_systems method before call to cell alignment.")
+        elif self.original_x_dim is None or self.original_y_dim is None or self.original_z_dim is None:
+            raise("User must call update_coordinate_systems method before call to cell alignment.")
+
         # Determine new scaling... must be moving image orignal prior to zero padding. 
-        self.x_factor = self.moving_image.shape[0]/self.original_x_dim
-        self.y_factor = self.moving_image.shape[1]/self.original_y_dim
-        self.z_factor = self.moving_image.shape[2]/self.original_z_dim
+        self.x_factor = self.new_x_dim/self.original_x_dim
+        self.y_factor = self.new_y_dim/self.original_y_dim
+        self.z_factor = self.new_z_dim/self.original_z_dim
  
         # Downsample cell coordinates based on scaling factors
-        self.ds_cell_coordinates = []
-        for cell in self.cell_coordinates:
-            x,y,z = cell
-            ds_x, ds_y, ds_z = int(round(x*self.x_factor)), int(round(y*self.y_factor)), int(round(z*self.z_factor))
+        self.ds_cell_coordinates_all=[]
+        for cell_list in self.cell_coordinates:
+            self.ds_cell_coordinates = []
+            for cell in cell_list:
+                x,y,z = cell
+                ds_x, ds_y, ds_z = int(round(x*self.x_factor)), int(round(y*self.y_factor)), int(round(z*self.z_factor))
 
-            # Clip any values that are accidently greater than ds dimensions.
-            # However, this code should ideally not be used
-            if ds_x>self.moving_image.shape[0]:
-                ds_x=int(self.moving_image.shape[0])
+                # Clip any values that are accidently greater than ds dimensions.
+                # However, this code should ideally not be used
+                if ds_x>self.moving_image.shape[0]:
+                    ds_x=int(self.moving_image.shape[0])
 
-            if ds_y>self.moving_image.shape[1]:
-                ds_y=int(self.moving_image.shape[1])
+                if ds_y>self.moving_image.shape[1]:
+                    ds_y=int(self.moving_image.shape[1])
 
-            if ds_z>self.moving_image.shape[2]:
-                ds_z=int(self.moving_image.shape[2])
+                if ds_z>self.moving_image.shape[2]:
+                    ds_z=int(self.moving_image.shape[2])
 
-            # Append new coordinates to the list
-            self.ds_cell_coordinates.append([ds_x, ds_y, ds_z])
+                # Append new coordinates to the list
+                self.ds_cell_coordinates.append([ds_x, ds_y, ds_z])
 
-        # Convert to a numpy array and make sure no values are greater then dims
-        self.ds_cell_coordinates = np.asarray(self.ds_cell_coordinates)
-    
+            # Convert to a numpy array and make sure no values are greater then dims
+            self.ds_cell_coordinates_all.append(np.asarray(self.ds_cell_coordinates))
+
     def cell_coordinates_to_aggregate_mask(self):
         # Generate 3D array of zeros
         self.coordinate_mask = np.zeros(self.moving_image.shape, dtype=int)
