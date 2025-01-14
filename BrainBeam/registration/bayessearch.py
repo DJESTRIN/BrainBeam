@@ -99,7 +99,7 @@ def set_affine_rotation(affine_transform, theta_x, theta_y, theta_z):
     affine_transform.SetMatrix(R.flatten().tolist())
     return affine_transform
 
-def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_params=None):
+def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_params=None,graph_trial=500):
     # Convert from numpy to sitk image
     slice_views(array1=moving_image, array2=fixed_image, output_filename='imagemask.jpg')
     fixed_image = sitk.GetImageFromArray(fixed_image)
@@ -134,7 +134,7 @@ def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_par
             print(f'MMI value is {metric}')
             return metric  # Return the metric value (Optuna tries to minimize this)
 
-        def current_param_graph(study, trial, moving_image, fixed_image, droppath, n=1000):
+        def current_param_graph(study, trial, moving_image, fixed_image, droppath, n=graph_trial):
             if trial.number % n == 0:
 
                 if trial.number ==0:
@@ -352,8 +352,7 @@ def manual_find_axes_sampling(fixed_image_mask,moving_image_mask,drop_dir,best_p
         moving_image_mask = zoom(moving_image_mask, scaling_factors_oh, order=1)
 
         # Resample moving image so its shape is the same as when it started
-        zoom_factors = np.array(fixed_image_mask.shape) / np.array(moving_image_mask.shape)
-        moving_image_mask = zoom(moving_image_mask, zoom_factors, order=1)
+        moving_image_mask = adjust_volume_shape(volume=moving_image_mask,target_shape=fixed_image_mask.shape)
 
     quick_slice_plot(best_aligned_image=moving_image_mask,fixed_image=fixed_image_mask,droppath=drop_dir,label='manual_boundbox_stretch')
     best_params = scaling_factors_oh

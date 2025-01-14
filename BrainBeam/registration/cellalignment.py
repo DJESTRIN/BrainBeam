@@ -16,7 +16,10 @@ Version: 1.0
 import pandas as pd
 import numpy as np
 import ipdb
-import os
+import os, glob
+import pickle
+from BrainBeam.registration.padding import zero_pad_arrays
+from BrainBeam.registration.transforms import *
 
 """
 Load cell count files
@@ -45,21 +48,36 @@ Data is now ready for merger code which will put all data into dataframes ...
 """
 
 class cellalignment():
-    def __init__(self, cell_count_files = None):
+    def __init__(self, zp_id_atlas, 
+                 zp_template_atlas, 
+                 ds_zp_transformed_moving_image, 
+                 drop_path, 
+                 cell_count_files = None):
+        self.zp_id_atlas = zp_id_atlas
+        self.zp_template_atlas = zp_template_atlas
+        self.ds_zp_transformed_moving_image = ds_zp_transformed_moving_image
+        self.drop_path = drop_path # Path containing pkl transformation files
         self.cell_count_files = cell_count_files
 
+        # Set default as None, updated via method
         self.new_x_dim = None
         self.new_y_dim = None
         self.new_z_dim = None
+        self.new_x_pad_dim = None
+        self.new_y_pad_dim = None
+        self.new_z_pad_dim = None
         self.original_x_dim = None
         self.original_y_dim = None
         self.original_z_dim = None
     
-    def update_coordinate_systems(self,new_x_dim, new_y_dim, new_z_dim, original_x_dim,original_y_dim,original_z_dim):
+    def update_coordinate_systems(self, new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim):
         # Set dimensions for new and original arrays for reference by code
         self.new_x_dim = new_x_dim
         self.new_y_dim = new_y_dim
         self.new_z_dim = new_z_dim
+        self.new_x_pad_dim = self.ds_zp_transformed_moving_image.shape[0]
+        self.new_y_pad_dim = self.ds_zp_transformed_moving_image.shape[1]
+        self.new_z_pad_dim = self.ds_zp_transformed_moving_image.shape[2]
         self.original_x_dim = original_x_dim
         self.original_y_dim = original_y_dim
         self.original_z_dim = original_z_dim
@@ -76,6 +94,12 @@ class cellalignment():
 
         # Convert cell coordinates to aggregate mask
         self.cell_coordinates_to_aggregate_mask()
+
+        # Grab alignment file(s) data
+        self.gather_transformations()
+
+        # Apply transform(s) to aggregate mask
+        self.transform_cell_mask()
         
     def read_cell_count_file(self):
         self.cell_coordinates=[]
@@ -112,14 +136,14 @@ class cellalignment():
 
                 # Clip any values that are accidently greater than ds dimensions.
                 # However, this code should ideally not be used
-                if ds_x>self.moving_image.shape[0]:
-                    ds_x=int(self.moving_image.shape[0])
+                if ds_x>self.new_x_dim:
+                    ds_x=int(self.new_x_dim)
 
-                if ds_y>self.moving_image.shape[1]:
-                    ds_y=int(self.moving_image.shape[1])
+                if ds_y>self.new_y_dim:
+                    ds_y=int(self.new_y_dim)
 
-                if ds_z>self.moving_image.shape[2]:
-                    ds_z=int(self.moving_image.shape[2])
+                if ds_z>self.new_z_dim:
+                    ds_z=int(self.new_z_dim)
 
                 # Append new coordinates to the list
                 self.ds_cell_coordinates.append([ds_x, ds_y, ds_z])
@@ -128,61 +152,118 @@ class cellalignment():
             self.ds_cell_coordinates_all.append(np.asarray(self.ds_cell_coordinates))
 
     def cell_coordinates_to_aggregate_mask(self):
-        # Generate 3D array of zeros
-        self.coordinate_mask = np.zeros(self.moving_image.shape, dtype=int)
+        self.coordinate_mask_all = []
+        for cell_list in self.ds_cell_coordinates_all:
+            # Generate 3D array of zeros
+            self.coordinate_mask_oh = np.zeros((self.new_x_dim,self.new_y_dim,self.new_z_dim), dtype=int)
 
-        # Aggregate total number of cells per voxel in 3d mask
-        for cell in self.ds_cell_coordinates:
-            x, y, z = cell
-            self.coordinate_mask[x, y, z] += 1
+            # Aggregate total number of cells per voxel in 3d mask
+            for cell in cell_list:
+                x, y, z = cell
+                self.coordinate_mask_oh[x, y, z] += 1
+            
+            # Append numpy array to list
+            self.coordinate_mask_all.append(self.coordinate_mask_oh)
+
+    def gather_transformations(self):
+        """ Through self.drop_dir, code will find all transform files, open them and save as attributes for nonrigid and rigid seperately.
+            Files must end with an integer or will not be included. Integer is strictly for determining order of application to image volumes."""
+        def transform_sort(full_file_path):
+            nameoh = full_file_path.split('_')[-1]
+            return int(nameoh.split('.')[0])
+
+        # get rigid transformations including stretching
+        rigid_transform_files = glob.glob(os.path.join(self.drop_path,"*rigid_only*.pkl"), key=transform_sort)
+        self.rigid_transforms = []
+        self.rigid_transform_types = []
+        for file in rigid_transform_files:
+            # Open file
+            with open(file, "rb") as f:
+                transform_oh = pickle.load(f)
+
+            # Add to list
+            self.rigid_transforms.append(transform_oh)
+
+            # determine rigid transform type
+            if "stretch" in file:
+                self.rigid_transform_types.append(1)
+            else:
+                self.rigid_transform_types.append(0)
+            
+        # get non-rigid transformations
+        nonrigid_transform_files = glob.glob(os.path.join(self.drop_path,"*nonrigid*.pkl"), key=transform_sort)
+        self.nonrigid_transforms = []
+        for file in nonrigid_transform_files:
+            # Open file
+            with open(file, "rb") as f:
+                transform_oh = pickle.load(f)
+
+            # Add to list
+            self.nonrigid_transforms.append(transform_oh)
 
     def transform_cell_mask(self):
-        #
-        transformed_mask = self.coordinate_mask.copy()
+        """ Apply transformations to aggregate mask """
+        self.transformed_volumes = []
+        for maskoh in self.coordinate_mask_all:
+            transformed_mask = maskoh.copy()
 
-        # Add zero padding 
+            # Add zero padding to aggregate mask
+            template_array = np.zeros((self.new_x_pad_dim, self.new_y_pad_dim, self.new_z_pad_dim))
+            transformed_mask, _ = zero_pad_arrays(array1=transformed_mask, array2=template_array)
 
-        # Perform Rigid transformation
+            # Perform rigid transformations
+            for transform_oh, transform_type in zip(self.rigid_transforms,self.rigid_transform_types):
+                if transform_type==0:
+                    transformed_mask = rigid_transform(best_params = transform_oh,
+                                                       moving_image = sitk.GetImageFromArray(transformed_mask), 
+                                                       fixed_image = sitk.GetImageFromArray(self.zp_template_atlas))
+                elif transform_type==1:
+                    transformed_mask = stretch_transform(best_params = transform_oh, 
+                                                         moving_image = sitk.GetImageFromArray(transformed_mask), 
+                                                         fixed_image = sitk.GetImageFromArray(self.zp_template_atlas))
+                else:
+                    raise("Transform type should be either 0 or 1. Other type given")
+                
+            # Perform Non Rigid transformation(s)
+            for transform_oh in self.nonrigid_transforms:
+                transformed_mask = nonrigid_transform(best_params = transform_oh,
+                                                      moving_image = sitk.GetImageFromArray(transformed_mask), 
+                                                      fixed_image = sitk.GetImageFromArray(self.zp_template_atlas))
 
-        # Perform Non Rigid transformation(s)
+            self.transformed_volumes.append(transformed_mask)
     
-    def save_final_array(self):
+    def generate_4D_array(self):
         """ Save the final array (4D) where 3D are Height, Width, Depth
-            4th D is:
-            Atlas image -- the acutal ARA
-            Template image --  orignal template image from ARA
-            Moving image -- Transformed raw data image
-            Aggregate Cell Count Mask -- the mask containing values [0-inf) for number of cells in voxel. 
+            4th dimension contains:
+                Atlas image -- the acutal ARA
+                Template image --  orignal template image from ARA
+                Moving image -- Transformed raw data image
+                Aggregate Cell Count Mask -- the mask containing values [0-inf) for number of cells in voxel. 
 
             Output will be a numpy array 
             """
 
         # Put all relevant arrays into a single array
-        mapped_array = np.stack([self.atlas_array, self.template_array, self.moving_array, self.transformed_mask], axis=3)
+        mapped_array = np.stack([self.zp_id_atlas, self.zp_template_atlas, self.ds_zp_transformed_moving_image], axis=3)
+        for cell_list in self.transformed_volumes:
+            mapped_array = np.stack([mapped_array,np.array(cell_list)],axis=3)
 
-        # Crop out all zero padding for ease of use
-        non_zero_x = np.any(mapped_array != 0, axis=(1, 2, 3))  # Collapse y, z, 4th D
-        non_zero_y = np.any(mapped_array != 0, axis=(0, 2, 3))  # Collapse x, z, 4th D
-        non_zero_z = np.any(mapped_array != 0, axis=(0, 1, 3))  # Collapse x, y, 4th D
-        x_min, x_max = np.where(non_zero_x)[0][[0, -1]]
-        y_min, y_max = np.where(non_zero_y)[0][[0, -1]]
-        z_min, z_max = np.where(non_zero_z)[0][[0, -1]]
+        # Save data into numpy file 
+        self.mapped_array = mapped_array
+        np.save(os.path.join(self.drop_path,'mapped_array.npy'), self.mapped_array) 
 
-        # Slice the array to crop out unnecessary zeros
-        self.cropped_mapped_array = mapped_array[x_min:x_max+1, y_min:y_max+1, z_min:z_max+1, :]
-        np.save(os.path.join(self.drop_path,'cropped_mapped_array.npy'), self.mapped_array_cropped ) 
-            
+def main():
+    print(' No code in cell alignment main function yet. This is a place holder')
+
 if __name__=='__main__':
-    extended_main()
+    main()
 
 """
-Example call 
+Here is an example of how this class is meant to be run in the registration script ... 
 
-& C:/Users/listo/AppData/Local/anaconda3/envs/registration/python.exe c:/Users/listo/BrainBeam/BrainBeam/cust_registration/cellalignment.py 
---image_path c:/Users/listo/example_registration_data/sub1 
---atlas_path c:/Users/listo/example_registration_data/atlas 
---output_path c:/Users/listo/example_registration_data/sub1_outputs 
---cell_counts c:/Users/listo/example_registration_data/cellcount/cell_counts.csv
+from BrainBeam.registration.cellalignment import cellalignment # Import package
 
-
+cell_alignment_obj = cellalignment(zp_id_atlas, zp_template_atlas, ds_zp_transformed_moving_image, drop_path) # create the object
+cell_alignment_obj.update_coordinate_systems(new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim) # add the coordinate system data
+cell_alignment_obj() # Call object to run primary pipeline which will output a 4 dim numpy array. 
 """

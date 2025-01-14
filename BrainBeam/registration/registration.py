@@ -23,15 +23,14 @@ from scipy.ndimage import zoom, binary_dilation, binary_fill_holes
 import tqdm
 import SimpleITK as sitk
 from BrainBeam.registration.padding import zero_pad_arrays
-from BrainBeam.registration.bayessearch import find_affine_matrix, set_affine_rotation, find_best_axes_sampling, manual_find_axes_sampling, adjust_volume_shape, MMI
+from BrainBeam.registration.bayessearch import find_affine_matrix, set_affine_rotation, manual_find_axes_sampling, adjust_volume_shape, MMI
 from BrainBeam.registration.graphics import volume_graphics, slice_views
 from BrainBeam.registration.preprocess import replace_signal
+from BrainBeam.registration.cellalignment import cellalignment
 from datetime import datetime
-from functools import partial
 import argparse
 import time
 import pickle
-from itertools import permutations
 
 # Set max hyper threading
 max_threads = os.cpu_count()
@@ -183,6 +182,12 @@ class MovingImage:
         self.images = glob.glob(os.path.join(self.image_path,'*.tif*'))
         self.images = sorted(self.images, key=self.extract_number)
 
+    def grab_original_image_medidata(self):
+        ipdb.set_trace()
+        self.orig_z_dim = len(self.images)
+        img_oh = tiff.imread(self.images[0])
+        self.orig_x_dim, self.orig_y_dim = img_oh.shape()
+
     def determine_orientation(self):
         if self.force_flips is not None or self.force_orientations is not None:
             """ Use force orientations for inputs """
@@ -304,6 +309,7 @@ class MovingImage:
 
     def __call__(self):
         self.get_image_list()
+        self.grab_original_image_medidata()
         self.downsample(output_filename=os.path.join(self.drop_path,'downsampled_moving_image.tiff'))
         self.normalize_image_stack()
         self.downsampled_volume = self.adjust_brightness(stack_oh = self.downsampled_volume)
@@ -311,7 +317,7 @@ class MovingImage:
         self.downsampled_volume = self.clip_high_signal(stack_oh = self.downsampled_volume)
 
 class alignment:
-    def __init__(self, MovingImageObject,TargetImageObject,drop_path,graphobjoh=None):
+    def __init__(self, MovingImageObject,TargetImageObject,drop_path,graphobjoh=None, align_binary_mask=False):
         self.MovingImageObject = MovingImageObject
         self.TargetImageObject = TargetImageObject
         self.drop_path = drop_path
@@ -322,6 +328,7 @@ class alignment:
         self.target_array = self.TargetImageObject.template.astype(np.float64)
         self.annotation_array = self.TargetImageObject.annotation.astype(np.float64)
         self.graphobjoh = graphobjoh
+        self.align_binary_mask = align_binary_mask
 
     def multiresolution_align(self,  resolutions=None, iters=None):
         """ Multi-Resolution Alignment -- 
@@ -510,8 +517,10 @@ class alignment:
     def __call__(self):
         # Preprocess image volumes ... eliminate high signal
         print('Replace high signal values to prevent misalignments...')
+        slice_views(array1=self.moving_array_original, array2=self.target_array, output_filename=os.path.join(self.drop_path,"pre_highsignal_replace.jpg"))
         self.moving_array_original = replace_signal(volume=self.moving_array_original) 
         self.target_array = replace_signal(volume = self.target_array, normalize=True)
+        slice_views(array1=self.moving_array_original, array2=self.target_array, output_filename=os.path.join(self.drop_path,"post_highsignal_replace.jpg"))
 
         # Zero pad both arrays for consistent dimensions
         print('Zero padding data...')
@@ -519,78 +528,82 @@ class alignment:
         _, self.annotation_array_original = zero_pad_arrays(array1=self.moving_array_original, array2=self.annotation_array)
     
         # Binary mask alignment and stretching/squeezing
-        print('Performing alingment and stretching on binary masks of data...')
-        self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
-                                     volume2 = self.target_array, pull_binary_mask = True) # Get binary masks 
-        
-        best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
-        best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
-        #best_params_mask_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_bayesopt.pkl"
-        #best_params_mask_stretch_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_stretch_bayesopt.pkl"
-        if os.path.exists(best_params_mask_file):
-            """ If real, load in best rigid parameters """
-            print(f"Bayes Opt file previously calculated for mask, loading file ...")
-            with open(best_params_mask_file, "rb") as f:
-                self.best_params_mask_oh = pickle.load(f)
-
-            with open(best_params_mask_stretch_file, "rb") as f:
-                self.best_params_mask_stretch_oh = pickle.load(f)
-        else:
-            """ If no file exists, perform rigid transform via bayes search """
-            print('Performing Bayesian-based rigid transformation ... ') 
-            self.fixed_mask, self.moving_mask, self.best_params_mask_oh = find_affine_matrix(fixed_image=self.target_mask,
-                                                                                             moving_image=self.moving_mask,
-                                                                                             best_params=self.best_params_mask_oh, 
-                                                                                             drop_dir = self.drop_path,
-                                                                                             ntrials=10000)
+        if self.align_binary_mask:
+            print('Performing alingment and stretching on binary masks of data...')
+            self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
+                                        volume2 = self.target_array, pull_binary_mask = True) # Get binary masks
             
-            self.moving_mask, self.best_params_mask_stretch_oh = manual_find_axes_sampling(self.fixed_mask,
-                                                                                           self.moving_mask,
-                                                                                           drop_dir=self.drop_path,
-                                                                                           best_params=self.best_params_mask_stretch_oh)
+            slice_views(array1=self.moving_mask, array2=self.target_mask, output_filename=os.path.join(self.drop_path,"firstbinarymasks.jpg"))
 
-            with open(best_params_mask_file, "wb") as f:
-                pickle.dump(self.best_params_mask_oh, f)
-                print('Saved BayesOpt best parameters rigid mask ...')
+            best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
+            best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
+            if os.path.exists(best_params_mask_file):
+                """ If real, load in best rigid parameters """
+                print(f"Bayes Opt file previously calculated for mask, loading file ...")
+                with open(best_params_mask_file, "rb") as f:
+                    self.best_params_mask_oh = pickle.load(f)
 
-            with open(best_params_mask_stretch_file, "wb") as f:
-                pickle.dump(self.best_params_mask_stretch_oh, f)
-                print('Saved BayesOpt best parameters stretch mask ...')
+                with open(best_params_mask_stretch_file, "rb") as f:
+                    self.best_params_mask_stretch_oh = pickle.load(f)
+            else:
+                """ If no file exists, perform rigid transform via bayes search """
+                print('Performing Bayesian-based rigid transformation ... ') 
+                self.fixed_mask, self.moving_mask, self.best_params_mask_oh = find_affine_matrix(fixed_image=self.target_mask,
+                                                                                                moving_image=self.moving_mask,
+                                                                                                best_params=self.best_params_mask_oh, 
+                                                                                                drop_dir = self.drop_path,
+                                                                                                ntrials=10000)
+                
+                self.moving_mask, self.best_params_mask_stretch_oh = manual_find_axes_sampling(self.fixed_mask,
+                                                                                            self.moving_mask,
+                                                                                            drop_dir=self.drop_path,
+                                                                                            best_params=self.best_params_mask_stretch_oh)
 
-        # Apply alignment to data 
-        print('Applying binary mask transformations to original data ...')
-        assert self.best_params_mask_oh is not None
-        assert self.best_params_mask_stretch_oh is not None
+                with open(best_params_mask_file, "wb") as f:
+                    pickle.dump(self.best_params_mask_oh, f)
+                    print('Saved BayesOpt best parameters rigid mask ...')
 
-        # Filter background data
-        self.moving_mask = binary_fill_holes(self.moving_mask)
-        structure = np.ones((3, 3, 3))
-        self.dialed_moving_mask = binary_dilation(self.moving_mask, structure=structure)
-        self.moving_array_original = np.where(self.dialed_moving_mask == 0, 0, self.moving_array_original)
+                with open(best_params_mask_stretch_file, "wb") as f:
+                    pickle.dump(self.best_params_mask_stretch_oh, f)
+                    print('Saved BayesOpt best parameters stretch mask ...')
 
-        # Perform rigid alignment
-        best_affine_transform = sitk.AffineTransform(3)
-        best_affine_transform = set_affine_rotation(best_affine_transform, self.best_params_mask_oh['theta_x'], self.best_params_mask_oh['theta_y'], self.best_params_mask_oh['theta_z'])
-        best_affine_transform.SetTranslation([self.best_params_mask_oh['translation_x'], self.best_params_mask_oh['translation_y'], self.best_params_mask_oh['translation_z']])
-        best_affine_transform.Scale(self.best_params_mask_oh['scale'])
-        best_resampler = sitk.ResampleImageFilter()
-        best_resampler.SetSize(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSize())
-        best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSpacing())
-        best_resampler.SetTransform(best_affine_transform)
-        best_resampler.SetInterpolator(sitk.sitkLinear)
-        best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original.astype(np.float32)))
-        self.moving_image = sitk.GetArrayFromImage(best_aligned_image)
-        self.fixed_image = self.target_array
-        try:
-            self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh[0], self.best_params_mask_stretch_oh[1], self.best_params_mask_stretch_oh[2])) 
-        except:
-            raise(" Must change previous line if using bayes opt for stretching code")
-        self.moving_image = adjust_volume_shape(volume=self.moving_image,target_shape = self.fixed_image.shape)
+            # Apply alignment to data 
+            print('Applying binary mask transformations to original data ...')
+            assert self.best_params_mask_oh is not None
+            assert self.best_params_mask_stretch_oh is not None
 
-        slice_views(array1=self.moving_image,
-                    array2=self.fixed_image,
-                    output_filename=os.path.join(self.drop_path,'orig_moving_image_post.jpg'), 
-                    image_type='max')
+            # Filter background data
+            self.moving_mask = binary_fill_holes(self.moving_mask)
+            structure = np.ones((3, 3, 3))
+            self.dialed_moving_mask = binary_dilation(self.moving_mask, structure=structure)
+            self.moving_array_original = np.where(self.dialed_moving_mask == 0, 0, self.moving_array_original)
+
+            # Perform rigid alignment
+            best_affine_transform = sitk.AffineTransform(3)
+            best_affine_transform = set_affine_rotation(best_affine_transform, self.best_params_mask_oh['theta_x'], self.best_params_mask_oh['theta_y'], self.best_params_mask_oh['theta_z'])
+            best_affine_transform.SetTranslation([self.best_params_mask_oh['translation_x'], self.best_params_mask_oh['translation_y'], self.best_params_mask_oh['translation_z']])
+            best_affine_transform.Scale(self.best_params_mask_oh['scale'])
+            best_resampler = sitk.ResampleImageFilter()
+            best_resampler.SetSize(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSize())
+            best_resampler.SetOutputSpacing(sitk.GetImageFromArray(self.target_array.astype(np.float32)).GetSpacing())
+            best_resampler.SetTransform(best_affine_transform)
+            best_resampler.SetInterpolator(sitk.sitkLinear)
+            best_aligned_image = best_resampler.Execute(sitk.GetImageFromArray(self.moving_array_original.astype(np.float32)))
+            self.moving_image = sitk.GetArrayFromImage(best_aligned_image)
+            self.fixed_image = self.target_array
+            try:
+                self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh[0], self.best_params_mask_stretch_oh[1], self.best_params_mask_stretch_oh[2])) 
+            except:
+                raise(" Must change previous line if using bayes opt for stretching code")
+            self.moving_image = adjust_volume_shape(volume=self.moving_image,target_shape = self.fixed_image.shape)
+
+            slice_views(array1=self.moving_image,
+                        array2=self.fixed_image,
+                        output_filename=os.path.join(self.drop_path,'orig_moving_image_post.jpg'), 
+                        image_type='max')
+        else:
+            self.moving_image = self.moving_array_original
+            self.fixed_image = self.target_array
      
         # Perform Rigid Alignment on original data 
         self.moving_image = self.moving_image.astype(np.float32)
@@ -684,7 +697,7 @@ def main(args):
 
     # Perform alignment
     graphobj = volume_graphics()
-    alignment_object = alignment(MovingImageObject=Image_oh, TargetImageObject=target_oh, graphobjoh = graphobj, drop_path=args.output_path)
+    alignment_object = alignment(MovingImageObject=Image_oh, TargetImageObject=target_oh, graphobjoh = graphobj, drop_path=args.output_path, align_binary_mask=False)
     alignment_object() 
 
     # Save most important arrays
@@ -694,13 +707,30 @@ def main(args):
     np.save(os.path.join(args.output_path,'nonrigid_moving_image.npy'), alignment_object.nonrigid_moving_image) # The final array after alignment
     np.save(os.path.join(args.output_path,'target_array.npy'), alignment_object.target_array) # The target array with zero padding
 
-    # Append saved numpy file paths to args
-    args.downsampled_volume_path = os.path.join(args.output_path,'downsampled_volume.npy')
-    args.template_volume_path = os.path.join(args.output_path,'template_volume.npy')
-    args.moving_array_original_path = os.path.join(args.output_path,'moving_array_original.npy')
-    args.nonrigid_moving_image_path = os.path.join(args.output_path,'nonrigid_moving_image.npy')
-    args.target_array_path = os.path.join(args.output_path,'target_array.npy')
-    return args
+    # Determine if cell coordinates are real and run cell alignment code if true
+    cell_count_files = glob.glob(os.path.join(args.output_path,'*cell_counts*csv'))
+    if len(cell_count_files)>0:
+        # Zero pad the atlas
+        zp_id_atlas_oh = zero_pad_arrays(array1 = target_oh.annotation, array2 = alignment_object.target_array)
+        
+        # Create cell alignment object
+        cell_alignment_obj = cellalignment(zp_id_atlas = zp_id_atlas_oh, 
+                                        zp_template_atlas = alignment_object.target_array, 
+                                        ds_zp_transformed_moving_image = alignment_object.nonrigid_moving_image, 
+                                        drop_path = alignment_object.drop_path) # create the object
+        
+        # Update coordinate system data regarding dimensions
+        new_x_dim, new_y_dim, new_z_dim = alignment_object.nonrigid_moving_image.shape
+        original_x_dim, original_y_dim, original_z_dim = Image_oh.orig_x_dim, Image_oh.orig_y_dim, Image_oh.orig_z_dim
+        cell_alignment_obj.update_coordinate_systems(new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim) # add the coordinate system data
+        
+        # Run pipeline
+        cell_alignment_obj() 
+    
+    else:
+        print("No cell count files found, skipping cell count alignment")
+
+    return 
    
 if __name__=='__main__':
     args = cli_parser()
