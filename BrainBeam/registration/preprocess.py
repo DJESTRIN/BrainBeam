@@ -24,7 +24,7 @@ def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
         volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
 
     # plot original volume
-    slice_views(array=volume,output_filename='presignalextract.jpg', image_type='max')
+    slice_views(array1=volume,output_filename='presignalextract.jpg', image_type='max')
 
     # Threshold the data
     non_zero_array = volume[volume != 0]
@@ -72,7 +72,7 @@ def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
     if normalize:
         volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
 
-    slice_views(array=volume,output_filename='postsignalextract.jpg', image_type='max')
+    slice_views(array1=volume,output_filename='postsignalextract.jpg', image_type='max')
     return volume 
 
 def blur(volume, sigma=2):

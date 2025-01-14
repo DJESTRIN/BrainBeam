@@ -23,35 +23,38 @@ def adjust_image(image, contrast=1.0, brightness=0):
     image = np.clip(image, 0, 255)
     return image
 
-def slice_views(array,output_filename, contrast = None, brightness = None,image_type='max'):
+def slice_views(array1, output_filename, array2=None, contrast=None, brightness=None, image_type='max'):
     # contrast and brightness must both be numbers
     if contrast is not None and brightness is not None:
-        assert isinstance(contrast, (int, float)), "variable1 must be an int or float"
-        assert isinstance(brightness, (int, float)), "variable2 must be an int or float"
+        assert isinstance(contrast, (int, float)), "Contrast must be an int or float"
+        assert isinstance(brightness, (int, float)), "Brightness must be an int or float"
         adjust = True
     else:
         adjust = False
 
-    fig, axs = plt.subplots(3, 1, figsize=(30, 5))
+    num_arrays = 2 if array2 is not None else 1
+    fig, axs = plt.subplots(3, num_arrays, figsize=(15 * num_arrays, 5))
+
     for i in range(3):
-        if image_type == 'max':
-            maxes = array.max(axis=i)
-        elif image_type =='mean':
-            maxes = array.mean(axis=i)
-        elif image_type =='median':
-            maxes = np.median(array,axis=i)
-        elif image_type == 'std':
-            maxes = np.std(array,axis=i)
-        else:
-            raise("image type must be either 'max', 'mean', 'median' or 'std'")
+        for j, array in enumerate([array1, array2] if array2 is not None else [array1]):
+            if image_type == 'max':
+                projection = array.max(axis=i)
+            elif image_type == 'mean':
+                projection = array.mean(axis=i)
+            elif image_type == 'median':
+                projection = np.median(array, axis=i)
+            elif image_type == 'std':
+                projection = np.std(array, axis=i)
+            else:
+                raise ValueError("Image type must be either 'max', 'mean', 'median' or 'std'")
 
-        # Adjust brightness and contrast
-        if adjust:
-            maxes = adjust_image(maxes, contrast = contrast, brightness = brightness)
+            # Adjust brightness and contrast
+            if adjust:
+                projection = adjust_image(projection, contrast=contrast, brightness=brightness)
 
-        ax = axs[i]
-        ax.imshow(maxes,aspect='equal', cmap='gray', vmin = np.min(maxes), vmax = np.max(maxes))
-        ax.axis('off') 
+            ax = axs[i, j] if num_arrays == 2 else axs[i]
+            ax.imshow(projection, aspect='equal', cmap='gray', vmin=np.min(projection), vmax=np.max(projection))
+            ax.axis('off')
 
     plt.tight_layout()
     plt.savefig(output_filename)

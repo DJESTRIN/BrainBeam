@@ -337,7 +337,7 @@ class alignment:
             if iteration_oh % n == 0:
                 print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
-        def alignoh(resolution, nits, fixed, moving, current_transform=None, ntrials=1, transform_file="transform.pkl"):
+        def alignoh(resolution, nits, fixed, moving, current_transform=None, transform_file="transform.pkl"):
             """Runs alignment and collects MMI data for each trial."""
             print(f"Resolution: {resolution}, Iterations: {nits}")
             
@@ -353,33 +353,30 @@ class alignment:
             # Initialize list to store MMI data
             mmi_results = []
 
-            for trial in range(ntrials):
-                print(f"Trial {trial + 1}/{ntrials}")
-                
-                # Initialize or update the transform
-                if current_transform is None or trial == 0:
-                    init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
-                else:
-                    init_transform = current_transform
+            # Initialize or update the transform
+            if current_transform is None:
+                init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+            else:
+                init_transform = current_transform
 
-                # Set up the registration method
-                registration_method = sitk.ImageRegistrationMethod()
-                registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
-                registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
-                registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits, gradientConvergenceTolerance=1e-5, regularizationWeight=0.1)
-                registration_method.SetOptimizerScalesFromPhysicalShift()
-                registration_method.SetInitialTransform(init_transform, inPlace=False)
-                registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
+            # Set up the registration method
+            registration_method = sitk.ImageRegistrationMethod()
+            registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=60)
+            registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
+            registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits, gradientConvergenceTolerance=1e-5)
+            registration_method.SetOptimizerScalesFromPhysicalShift()
+            registration_method.SetInitialTransform(init_transform, inPlace=False)
+            registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
 
-                # Execute registration and capture the MMI value
-                current_time = time.localtime()  # or time.gmtime() for UTC
-                formatted_time = time.strftime("%I:%M %p", current_time)
-                print(f"Starting registration at {formatted_time}...")
-                current_transform = registration_method.Execute(fixed, moving)
+            # Execute registration and capture the MMI value
+            current_time = time.localtime()  # or time.gmtime() for UTC
+            formatted_time = time.strftime("%I:%M %p", current_time)
+            print(f"Starting registration at {formatted_time}...")
+            current_transform = registration_method.Execute(fixed, moving)
 
-                # Store the final MMI value for this trial
-                final_mmi_value = registration_method.GetMetricValue()
-                mmi_results.append(final_mmi_value)
+            # Store the final MMI value for this trial
+            final_mmi_value = registration_method.GetMetricValue()
+            mmi_results.append(final_mmi_value)
 
             # Save the final transform into a file
             print("Saving transform into a file!")
@@ -389,9 +386,35 @@ class alignment:
 
             return mmi_results, current_transform
 
-        def check_for_plateau():
-            learning=True
-            return learning
+        def check_for_plateau(criteria_data, percent_threshold=5.0):
+            flattened_data = np.array(criteria_data).flatten()
+            
+            if len(flattened_data) < 2:
+                return True  
+            
+            change = (flattened_data[-1] - flattened_data[-2]) / flattened_data[-2]
+            percent_change = np.abs((flattened_data[-1] - flattened_data[-2]) / flattened_data[-2]) * 100
+            print(f'change is {change}')
+            print(f'Percent change is {percent_change}')
+            
+            # Check if the percentage change is at least the threshold
+            if percent_change >= percent_threshold and change < 0:
+                return True 
+            else:
+                return False
+
+        def plateau_cumsum(criteria_data, window_size=5,tolerance=1e-2):
+            flattened_data = np.array(criteria_data).flatten()
+            if len(flattened_data) < window_size:
+                return False
+
+            cumsum_diff = np.cumsum(np.abs(np.diff(flattened_data)))
+            window_diff = np.diff(cumsum_diff)
+            
+            for i in range(len(window_diff) - window_size + 1):
+                if np.allclose(window_diff[i:i + window_size], 0, atol=tolerance):
+                    return True
+            return False
 
         # Convert arrays to SimpleITK images
         fixed = sitk.GetImageFromArray(self.fixed_image) if isinstance(self.fixed_image, np.ndarray) else self.fixed_image
@@ -401,11 +424,19 @@ class alignment:
         fixed = sitk.Cast(fixed, sitk.sitkFloat32)
         moving = sitk.Cast(moving, sitk.sitkFloat32)
 
+        # Blur images and plot
+        sfixed = sitk.SmoothingRecursiveGaussian(fixed, sigma=3.0)
+        smoving = sitk.SmoothingRecursiveGaussian(moving, sigma=3.0)
+        slice_views(array1=sitk.GetArrayFromImage(smoving), 
+                    array2 = sitk.GetArrayFromImage(sfixed), 
+                    output_filename=os.path.join(self.drop_path,f'blurred_images_{self.time_to_str()}.jpg'), 
+                    image_type='max')
+         
         if resolutions is None:
-            resolutions = [80.0, 40.0, 30.0] 
+            resolutions = [30.0, 20.0, 10.0] 
         
         if iters is None:
-            iters = [10, 10, 10] 
+            iters = [1, 1, 1] 
 
         criteria_results = []
         for resolution, nits in zip(resolutions,iters):
@@ -419,17 +450,29 @@ class alignment:
 
             else:
                 """ Repeadetly run alignment until a learning plateau is detected. When detected, the next resolution level is then run. """
+                learning=True
+                current_transform = None
                 while learning:
-                    mmi_results, moving_image = alignoh()
+                    mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, current_transform=current_transform, transform_file="transform.pkl")
                     criteria_results.append(mmi_results)
-                    learning = check_for_plateau(criteria_results)
+                    learning = plateau_cumsum(criteria_results)
                     
-                    # plot current results 
-                    slice_views(array=moving_np,output_filename=os.path.join(self.drop_path,f'MultiRes3d_movingnp_{self.time_to_str()}.jpg'), image_type='max')
-                    slice_views(array=sitk.GetArrayFromImage(fixed),output_filename=os.path.join(self.drop_path,f'MultiRes3d_fixednp_{self.time_to_str()}.jpg'), image_type='max')
-
-            moving = sitk.Resample(moving, fixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
-            moving_np = sitk.GetArrayFromImage(moving)
+                    # Plot current transformed image
+                    resampler = sitk.ResampleImageFilter()
+                    resampler.SetSize(moving.GetSize())
+                    resampler.SetOutputSpacing(moving.GetSpacing())
+                    resampler.SetOutputOrigin(moving.GetOrigin())
+                    resampler.SetSize(moving.GetSize())
+                    resampler.SetOutputDirection(moving.GetDirection())
+                    resampler.SetTransform(current_transform)  # Apply the current transform to the moving image
+                    transformed_image = resampler.Execute(moving)
+                    slice_views(array1=sitk.GetArrayFromImage(transformed_image),
+                                array2 = sitk.GetArrayFromImage(sfixed), 
+                                output_filename=os.path.join(self.drop_path,f'blurred_images_{self.time_to_str()}.jpg'), 
+                                image_type='max')
+                    
+            smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
+            smoving_np = sitk.GetArrayFromImage(smoving)
             
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
@@ -480,10 +523,10 @@ class alignment:
         self.moving_mask, self.target_mask = self.graphobjoh.plot_surface(volume1 = self.moving_array_original, 
                                      volume2 = self.target_array, pull_binary_mask = True) # Get binary masks 
         
-        #best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
-        #best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
-        best_params_mask_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_bayesopt.pkl"
-        best_params_mask_stretch_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_stretch_bayesopt.pkl"
+        best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
+        best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
+        #best_params_mask_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_bayesopt.pkl"
+        #best_params_mask_stretch_file = r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_mask_stretch_bayesopt.pkl"
         if os.path.exists(best_params_mask_file):
             """ If real, load in best rigid parameters """
             print(f"Bayes Opt file previously calculated for mask, loading file ...")
@@ -499,7 +542,7 @@ class alignment:
                                                                                              moving_image=self.moving_mask,
                                                                                              best_params=self.best_params_mask_oh, 
                                                                                              drop_dir = self.drop_path,
-                                                                                             ntrials=2000)
+                                                                                             ntrials=10000)
             
             self.moving_mask, self.best_params_mask_stretch_oh = manual_find_axes_sampling(self.fixed_mask,
                                                                                            self.moving_mask,
@@ -544,16 +587,18 @@ class alignment:
             raise(" Must change previous line if using bayes opt for stretching code")
         self.moving_image = adjust_volume_shape(volume=self.moving_image,target_shape = self.fixed_image.shape)
 
-        slice_views(array=self.moving_image,output_filename=os.path.join(self.drop_path,'orig_moving_image_post.jpg'), image_type='max')
-        slice_views(array=self.fixed_image,output_filename=os.path.join(self.drop_path,'orig_fixed_image_post.jpg'), image_type='max')
-
+        slice_views(array1=self.moving_image,
+                    array2=self.fixed_image,
+                    output_filename=os.path.join(self.drop_path,'orig_moving_image_post.jpg'), 
+                    image_type='max')
+     
         # Perform Rigid Alignment on original data 
         self.moving_image = self.moving_image.astype(np.float32)
         self.fixed_image = self.fixed_image.astype(np.float32)
 
         print('Non-rigid alignment of orignal data ...')
-        best_params_file =r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_bayesopt.pkl"
-        #best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
+        #best_params_file =r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_bayesopt.pkl"
+        best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
         if os.path.exists(best_params_file):
             """ If real, load in best rigid parameters """
             print(f"Bayes Opt file previously calculated, loading file ...")
@@ -581,7 +626,7 @@ class alignment:
                                                                     moving_image=self.moving_image,
                                                                     best_params=self.best_params_oh, 
                                                                     drop_dir = self.drop_path,
-                                                                    ntrials=5000)
+                                                                    ntrials=10000)
             
             with open(best_params_file, "wb") as f:
                 pickle.dump(self.best_params_oh, f)
