@@ -7,22 +7,15 @@ Author: David Estrin
 Date: 2024-008-15
 Version: 1.0
 """
+# Load dependencies 
 import os,glob
 import subprocess
 import argparse
 import pickle
 import shutil
+from BrainBeam.registration.monitorprocess import monitor
 
-""" 
---- Run slurm ---
-(11) call sbatch with given information to run registration
-
---- maintenance slurm ---
-(12) Run script that continously monitors output directory
-    (a) Copies images over to common directory and renames them, making sure they have cage and subject ID in name ...
-
-"""
-
+# Build custom class for gather all path data and submitting jobs via slurm
 class managepaths():
     def __init__(self, base_stitched_image_path, base_cell_count_path, base_registration_output_path = None):
         # Set up attributes
@@ -194,6 +187,18 @@ class managepaths():
         self.communal_slurm_error_directory = os.path.join(self.base_registration_output_path,"/slurm_errors")
         if not os.path.exists(self.communal_slurm_error_directory):
             os.mkdir(self.communal_slurm_error_directory)
+        
+    def __call__(self):
+        # General pipeline for class
+        self.find_image_paths()
+        self.find_cell_count_files()
+        self.align_files_to_folders()
+        self.set_registration_outputs()
+        self.copy_cell_counts()
+        self.load_force_flips()
+        self.load_force_orientations()
+        self.load_align_binary_mask_file()
+        self.set_slurm_output_folders()
 
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
                 memory_per_job = 128, tasks_per_job = 8, cpus_per_task = 4):
@@ -219,21 +224,42 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 --force_flips {force_flips_file}'"
 
         subprocess.run([my_command],shell=True)
+    return result, message
 
 def cli_parser():
     parser = argparse.ArgumentParser(description="Get all main directories")
-    parser.add_argument('--input_directories', nargs='+', help='A list of directories to run data merging on')
+    parser.add_argument('--parent_image_path', type=str, required=True, help='Image path containing all subject to be run')
+    parser.add_argument('--parent_segmentation_path', type=str, required=True, help='Segmentation path containing all subjects cell count files to be run')
+    parser.add_argument('--parent_registration_output_path', type=str, default=None, help='Parent output folder')
+    parser.add_argument('--conda_environment_name', type=str, required=True, help='Conda environment needed for registration')
+    parser.add_argument('--partition', type=str, default='scu-cpu', help='slurm partition to use')
+    parser.add_argument('--user_email', type=str, default='dje4001@med.cornell.edu', help='Email to use for slurm' )
+    parser.add_argument('--memory', type=str, default='128', help='Memory in Gb to be used for each node')
+    parser.add_argument('--tasks', type=str, default='8', help='Number of tasks per node')
+    parser.add_argument('--cpus_per_task', type=str, default='4', help='Number of cpus per task')
     args = parser.parse_args()
-
- base_stitched_image_path, base_cell_count_path, base_registration_output_path = None
-    , conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
-                memory_per_job = 128, tasks_per_job = 8, cpus_per_task = 4
-
     return args
 
 if __name__=='__main__':
     # Parse command line inputs
     args = cli_parser()
+    
+    # Gather all data via managepath object 
+    pathobj = managepaths()
+    pathobj()
+
+    # Send all data to sbatch
+    result, message = submit_jobs(managepathobj = pathobj, 
+                conda_environment_name = args.conda_environment_name, 
+                partition_oh = args.partition, 
+                email = args.user_email, 
+                memory_per_job = args.memory, 
+                tasks_per_job = args.tasks, 
+                cpus_per_task = args.cpu_per_task)
+    
+    # Monitor jobs if succesful. 
+    if result:
+        a=1
 
     """
     Note regarding usage:
