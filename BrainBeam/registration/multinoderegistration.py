@@ -10,23 +10,10 @@ Version: 1.0
 import os,glob
 import subprocess
 import argparse
+import pickle
+import shutil
 
 """ 
---- Find info ---
-(1) Find stitched image path for each subject
-(2) Find cell count files for each subject
-(3) Create registration output path for each subject 
-    (a) Registration output
-    (b) atlas drop path
-(4) Create common registration folder where all image results will be dropped 
-    (a) save a file containing all output folders to monitor?
-(5) Rename cell count files to contain channel information and copy/paste this file into registration output directory
-(6) Search for force_flips file
-(7) Search for force orientation file
-(8) Search for align binary mask file 
-(9) Make sure log path is set up
-(10) Make sure error path is set up
- 
 --- Run slurm ---
 (11) call sbatch with given information to run registration
 
@@ -36,74 +23,225 @@ import argparse
 
 """
 
-def paths_to_list(search_paths):
-    final_list=[]
-    for path in search_paths:
-        #Search for subjects in segmented data folder
-        subjects=glob.glob(path+'segmented/*/Ex_647_Em_680/cell_counts.csv')
+class managepaths():
+    def __init__(self, base_stitched_image_path, base_cell_count_path, base_registration_output_path = None):
+        # Set up attributes
+        self.base_stitched_image_path = base_stitched_image_path
+        self.base_cell_count_path = base_cell_count_path
 
-        # Loop over subjects to find corresponding folders
-        for subject in subjects:
-            _,subject_id=subject.split('segmented')
-            subject_id,_=subject_id.split('Ex_647_Em_680')
+        # Make sure a real path was given
+        assert os.path.exists(self.base_stitched_image_path)
+        assert os.path.exists(self.base_cell_count_path)
 
-            atlas_path=path+'registered'+subject_id+'tiffsequence/' #atlas path
-            image_path=path+'stitched'+subject_id+'/' #image path
-            output_path=path+'tallformat'+subject_id #output path
-            cell_counts_path=subject # cell counts path
-
-            final_list.append([atlas_path,image_path,output_path,cell_counts_path])
-    return final_list
-
-def submit_datamerge_jobs(dir_list):
-    for (atlas_path,image_path,output_path,cell_counts_path) in dir_list:
-        # Check if paths are real
-        if os.path.exists(atlas_path) and os.path.exists(image_path) and os.path.isfile(atlas_path+'1.tiff'):
-            my_command=f"sbatch --job-name=merge_data_to_tallformat \
-                --mem=300G \
-                --partition=scu-cpu \
-                --mail-type=BEGIN,END,FAIL \
-                --mail-user=dje4001@med.cornell.edu \
-                --wrap='python ./DataMerger.py \
-                --image_path {image_path} \
-                --atlas_path {atlas_path} \
-                --cell_counts_path {cell_counts_path} \
-                --output_path {output_path}'"
-                
-            if not os.path.exists(output_path):
-                os.mkdir(output_path)
-                
-            subprocess.run([my_command],shell=True)
-
+        # Generate output folder if not created
+        if base_registration_output_path is None:
+            parent_folder = os.path.dirname(os.path.abspath(self.base_stitched_image_path))
+            self.base_registration_output_path = os.path.join(parent_folder,"/registration")
         else:
-            if not os.path.exists(atlas_path):
-                print(f"Problem with {atlas_path}")
-            
-            if not os.path.exists(image_path):
-                print(f"Problem with {image_path}")
+            self.base_registration_output_path = base_registration_output_path
 
-            if not os.path.isfile(atlas_path+'1.tiff'):
-                print(f"Problem with {atlas_path} first tiff image")
+        if not os.path.exists(self.base_registration_output_path):
+            os.mkdir(self.base_registration_output_path)
 
-def update_directory_naming(input_dir):
-    """ Make sure the final word in directory path is actually lightsheet """
-    normalized_path = os.path.normpath(input_dir)
-    last_folder = os.path.basename(normalized_path)
-    if last_folder != 'lightsheet':
-        return os.path.join(normalized_path, 'lightsheet')
-    return normalized_path
+    def find_image_paths(self):
+        """ Given a base image path, find all subfolders """
+        self.image_folders = set()
+        # Loop over all images found and add parent dirs to the set
+        for file in glob.iglob(f"{self.base_stitched_image_path}/**/*.tif*", recursive=True):
+            subfolder = os.path.dirname(file)
+            self.image_folders.add(subfolder)
 
-if __name__=='__main__':
-    print('Starting to Build final dataset!')
+    def find_cell_count_files(self):
+        """ Given a base cell count path, find all cell count files """
+        self.cell_count_files = set()
+        # Loop over all images found and add csv files to the set
+        for file in glob.iglob(f"{self.base_cell_count_path}/**/*cell_count*.csv*", recursive=True):
+            self.cell_count_files.add(file)
+
+    def extract_path_info(self, path_oh):
+        # Get the subfolder
+        parts = path_oh.strip('/').split('/')
+        for part in parts:
+            if "cage" in part.lower() and "subject" in part.lower():
+                important_part = part
+                break
+
+        # Find the cage and subject information
+        parts = important_part.strip('_').split('_')
+        cage = None
+        subject = None
+        for part in parts:
+            if "cage" in part.lower():
+                cage = part.lower()
+            if "subject" in part.lower():
+                subject = part.lower()
+
+        return cage, subject
+
+    def align_files_to_folders(self):
+
+        # Loop over all image folders and csv files to find matches
+        # Place all matches in a dictrionary
+        self.matching_paths_dictionary = {}
+        for folders_oh in self.image_folders:
+            folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
+            matches = []
+
+            for file_oh in self.cell_count_files:
+                file_oh_cage, file_oh_subject = self.extract_path_info(file_oh)
+                
+                if folder_oh_cage == file_oh_cage and folder_oh_subject == file_oh_subject:
+                    matches.append(file_oh)
+
+            if matches:
+                self.matching_paths_dictionary[folders_oh] = matches
+
+        # Convert set's to lists for future use
+        self.image_folders = list(self.image_folders)
+        self.cell_count_files = list(self.cell_count_files)
+
+    def set_registration_outputs(self):
+        """ Set up output folders for registration """
+        self.atlas_drop_paths = []
+        self.registration_drop_paths = []
+        for folders_oh in self.image_folders:
+            folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
+            output_folder_base = os.path.join(self.base_registration_output_path,f"/{folder_oh_cage}_{folder_oh_subject}_registration")
+
+            # Make the base folder for current subject
+            if not os.path.exists(output_folder_base):
+                os.mkdir(output_folder_base)
+
+            # Make atlas drop path
+            output_folder_base_atlas = os.path.join(output_folder_base,"/atlas")
+            if not os.path.exists(output_folder_base_atlas):
+                os.mkdir(output_folder_base_atlas)
+            self.atlas_drop_paths.append(output_folder_base_atlas)
+
+            # Make registration drop path 
+            output_folder_base_dropoh = os.path.join(output_folder_base,"/registration_drop")
+            if not os.path.exists(output_folder_base_dropoh):
+                os.mkdir(output_folder_base_dropoh)
+
+        # Create common folder where figures are copied to for quick viewing
+        self.communal_drop_folder = os.path.join(self.base_registration_output_path,"/communal_figures")
+        if not os.path.exists(self.communal_drop_folder):
+            os.mkdir(self.communal_drop_folder)
+
+        # Save a list of output folders to be monitored by other code
+        with open(os.path.join(self.communal_drop_folder,"/running_directories.pkl"),"wb") as f:
+            pickle.dump(self.registration_drop_paths, f)
+            print(f"Registration drop paths saved to pickle file in communal drop folder.")
+
+    def determine_channel(self,path):
+        channel = None
+        if '488' in path:
+            channel = 488
+        if '647' in path:
+            channel = 647
+        if '647' in path:
+            channel = 647
+        if '647' in path:
+            channel = 647
+        return str(channel)
+
+    def copy_cell_counts(self):
+        """ Copy cell count files to corresponding registration drop paths. 
+            Append channel information in the process.  """
+        for drop_path in self.registration_drop_paths:
+            for _, cell_count_files in self.matches.items():
+                for file_oh in cell_count_files:
+                    file_oh_cage, file_oh_subject = self.extract_path_info(file_oh)
+                    drop_oh_cage, drop_oh_subject = self.extract_path_info(drop_path)
+
+                    if file_oh_cage==drop_oh_cage and file_oh_subject==drop_oh_subject:
+                        channel_oh = self.determine_channel(file_oh)
+                        assert channel_oh is not None
+
+                        # Copy file to output location
+                        shutil.copy2(file_oh, os.path.join(drop_path,f"/{file_oh_cage}_{file_oh_subject}_channel{channel_oh}_cell_counts.csv"))
     
-    # Parse command line inputs
+    def load_force_flips(self):
+        for drop_path in self.registration_drop_paths:
+            if os.path.exists(os.path.join(drop_path,"force_flips.txt")):
+                with open(os.path.join(drop_path,"force_flips.txt"), 'r') as file:
+                    self.force_flips = [int(line.strip()) for line in file]
+            else:
+                self.force_flips = None
+    
+    def load_force_orientations(self):
+        for drop_path in self.registration_drop_paths:
+            if os.path.exists(os.path.join(drop_path,"force_orientations.txt")):
+                with open(os.path.join(drop_path,"force_orientations.txt"), 'r') as file:
+                    self.force_orientations = [int(line.strip()) for line in file]
+            else:
+                self.force_orientations = None
+    
+    def load_align_binary_mask_file(self):
+        for drop_path in self.registration_drop_paths:
+            if os.path.exists(os.path.join(drop_path,"align_binary_mask.txt")):
+                with open(os.path.join(drop_path,"align_binary_mask.txt"), 'r') as file:
+                    self.align_binary_mask = [int(line.strip()) for line in file]
+            else:
+                self.align_binary_mask = None
+
+    def set_slurm_output_folders(self):
+        """ Create output folders where slurm log and error data will be stored for ease of use """
+        self.communal_slurm_log_directory = os.path.join(self.base_registration_output_path,"/slurm_logs")
+        if not os.path.exists(self.communal_slurm_log_directory):
+            os.mkdir(self.communal_slurm_log_directory)
+
+        self.communal_slurm_error_directory = os.path.join(self.base_registration_output_path,"/slurm_errors")
+        if not os.path.exists(self.communal_slurm_error_directory):
+            os.mkdir(self.communal_slurm_error_directory)
+
+def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
+                memory_per_job = 128, tasks_per_job = 8, cpus_per_task = 4):
+    """ Build sbatch command and submit for running """
+    for subject_oh_data in managepathobj.matching_paths_dictionary:
+        image_path_oh, count_files_oh, output_atlas_path_oh, output_registration_path_oh, binary_mask_file, force_orientation_file, force_flips_file = subject_oh_data
+        my_command = f"sbatch --job-name=merge_data_to_tallformat \
+                --mem={memory_per_job}G \
+                --ntasks={tasks_per_job} \
+                --cpus-per-task={cpus_per_task} \
+                --partition={partition_oh} \
+                --mail-type=BEGIN,END,FAIL \
+                --mail-user={email} \
+                --output={managepathobj.communal_slurm_log_directory}/%x-%j.out \
+                --error={managepathobj.communal_slurm_error_directory}/%x-%j.err \
+                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
+                --image_path {image_path_oh} \
+                --atlas_path {output_atlas_path_oh} \
+                --output_path {output_registration_path_oh} \
+                --full_output_path \
+                --align_binary_mask {binary_mask_file} \
+                --force_orientation {force_orientation_file} \
+                --force_flips {force_flips_file}'"
+
+        subprocess.run([my_command],shell=True)
+
+def cli_parser():
     parser = argparse.ArgumentParser(description="Get all main directories")
     parser.add_argument('--input_directories', nargs='+', help='A list of directories to run data merging on')
     args = parser.parse_args()
 
-    # Collect list of all directories and submit sbatch jobs
-    for input_dir in args.input_directories:
-        input_dir=update_directory_naming(input_dir)
-        subject_list=paths_to_list(input_dir)
-        submit_datamerge_jobs(subject_list)
+ base_stitched_image_path, base_cell_count_path, base_registration_output_path = None
+    , conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
+                memory_per_job = 128, tasks_per_job = 8, cpus_per_task = 4
 
+    return args
+
+if __name__=='__main__':
+    # Parse command line inputs
+    args = cli_parser()
+
+    """
+    Note regarding usage:
+
+    To write a force flips file, force orientation file or align_binary_mask file,
+    Use the following bash code in the drop path of interest:
+
+    echo -e "12\n34\n56" > force_flips.txt
+
+    Remember files must be spelled correctly to be used
+    """
