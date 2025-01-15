@@ -9,3 +9,13 @@ Slurm implemetation  .... How can we run the above code so that it can use best 
 
 Update statistics and graphics for final graphs...  
 
+
+
+
+
+Extra random
+
+
+update registration slurm code to run locally on computer while using optimal recourses for the computer?
+
+
