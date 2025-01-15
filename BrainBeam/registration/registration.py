@@ -183,10 +183,9 @@ class MovingImage:
         self.images = sorted(self.images, key=self.extract_number)
 
     def grab_original_image_medidata(self):
-        ipdb.set_trace()
         self.orig_z_dim = len(self.images)
         img_oh = tiff.imread(self.images[0])
-        self.orig_x_dim, self.orig_y_dim = img_oh.shape()
+        self.orig_x_dim, self.orig_y_dim = img_oh.shape
 
     def determine_orientation(self):
         if self.force_flips is not None or self.force_orientations is not None:
@@ -344,10 +343,14 @@ class alignment:
             if iteration_oh % n == 0:
                 print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
-        def alignoh(resolution, nits, fixed, moving, current_transform=None, transform_file="transform.pkl"):
+        def alignoh(resolution, nits, fixed, moving, iteration_number, current_transform=None, transform_file="transform.pkl"):
             """Runs alignment and collects MMI data for each trial."""
             print(f"Resolution: {resolution}, Iterations: {nits}")
             
+            # update transform file
+            name, fileend = transform_file.split('.')
+            transform_file = f"nonrigid_{name}_{int(resolution)}_step{iteration_number}.{fileend}"
+
             # Set grid physical spacing and compute mesh size
             grid_physical_spacing = [resolution] * 3
             image_physical_size = [size * spacing for size, spacing in zip(fixed.GetSize(), fixed.GetSpacing())]
@@ -440,14 +443,14 @@ class alignment:
                     image_type='max')
          
         if resolutions is None:
-            resolutions = [30.0, 20.0, 10.0] 
+            resolutions = [40.0, 30.0, 20.0] 
         
         if iters is None:
             iters = [1, 1, 1] 
 
         criteria_results = []
-        for resolution, nits in zip(resolutions,iters):
-            transform_file = os.path.join(self.drop_path, f"transform_res{resolution}_iters{nits}.pkl")
+        for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
+            transform_file = os.path.join(self.drop_path,f"nonrigid_transform_{int(resolution)}_step{k}.pkl")
 
             # Check if transform already exists
             if os.path.exists(transform_file):
@@ -460,7 +463,7 @@ class alignment:
                 learning=True
                 current_transform = None
                 while learning:
-                    mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, current_transform=current_transform, transform_file="transform.pkl")
+                    mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, iteration_number = k, current_transform=current_transform, transform_file="transform.pkl")
                     criteria_results.append(mmi_results)
                     learning = plateau_cumsum(criteria_results)
                     
@@ -535,8 +538,8 @@ class alignment:
             
             slice_views(array1=self.moving_mask, array2=self.target_mask, output_filename=os.path.join(self.drop_path,"firstbinarymasks.jpg"))
 
-            best_params_mask_file = os.path.join(self.drop_path, f"best_params_mask_bayesopt.pkl")
-            best_params_mask_stretch_file = os.path.join(self.drop_path, f"best_params_mask_stretch_bayesopt.pkl")
+            best_params_mask_file = os.path.join(self.drop_path, f"rigid_transform_step1.pkl")
+            best_params_mask_stretch_file = os.path.join(self.drop_path, f"rigid_stretch_transform_step2.pkl")
             if os.path.exists(best_params_mask_file):
                 """ If real, load in best rigid parameters """
                 print(f"Bayes Opt file previously calculated for mask, loading file ...")
@@ -610,8 +613,7 @@ class alignment:
         self.fixed_image = self.fixed_image.astype(np.float32)
 
         print('Non-rigid alignment of orignal data ...')
-        #best_params_file =r"C:\Users\listo\example_registration_data\sub3_output\current_run_2025_01_13_13_41_53\best_params_bayesopt.pkl"
-        best_params_file = os.path.join(self.drop_path, f"best_params_bayesopt.pkl")
+        best_params_file = os.path.join(self.drop_path, f"rigid_transform_step3.pkl")
         if os.path.exists(best_params_file):
             """ If real, load in best rigid parameters """
             print(f"Bayes Opt file previously calculated, loading file ...")
@@ -661,6 +663,8 @@ def cli_parser():
     parser.add_argument('--atlas_path',type=str,help="Full path to folder containing atlas. If folder is empty, atlas is downloaded")
     parser.add_argument('--output_path',type=str,help='Full path containin results. Path will be appended with subfolder containing current date and time. \
                         These subfolders are where data will be saved.')
+    parser.add_argument('--full_output_path', action='store_true', help = 'a full path to output_path')
+    parser.add_argument('--align_binary_mask', action='store_true')
     parser.add_argument('--force_orientation',type=int,nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
     parser.add_argument('--force_flips',type=int,nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
     args = parser.parse_args()
@@ -668,10 +672,14 @@ def cli_parser():
     # Get current time as string and generate output folder
     now = datetime.now()
     init_date_time= now.strftime("%Y_%m_%d_%H_%M_%S")
-    new_folder = f'current_run_{init_date_time}'
-    output_path = os.path.join(args.output_path,new_folder)
-    if not os.path.exists(output_path): 
-        os.makedirs(output_path)
+    if args.full_output_path:
+        output_path = args.output_path
+
+    else:
+        new_folder = f'current_run_{init_date_time}'
+        output_path = os.path.join(args.output_path,new_folder)
+        if not os.path.exists(output_path): 
+            os.makedirs(output_path)
 
     # Append a few new arguments
     args.output_path = output_path
@@ -679,8 +687,6 @@ def cli_parser():
     return args
 
 def main(args):
-    # Parse command line inputs
-
     # Update classes to have matching methods
     MovingImage.generate_gif = target.generate_gif 
     alignment.generate_gif = target.generate_gif 
@@ -697,7 +703,7 @@ def main(args):
 
     # Perform alignment
     graphobj = volume_graphics()
-    alignment_object = alignment(MovingImageObject=Image_oh, TargetImageObject=target_oh, graphobjoh = graphobj, drop_path=args.output_path, align_binary_mask=False)
+    alignment_object = alignment(MovingImageObject=Image_oh, TargetImageObject=target_oh, graphobjoh = graphobj, drop_path=args.output_path, align_binary_mask=args.align_binary_mask)
     alignment_object() 
 
     # Save most important arrays
@@ -735,8 +741,3 @@ def main(args):
 if __name__=='__main__':
     args = cli_parser()
     main(args)
-
-    # Example cli usage
-    # python ./registration.py --image_path c:\Users\listo\example_registration_data\sub3 --atlas_path c:\Users\listo\example_registration_data\atlas --output_path c:\Users\listo\example_registration_data\sub3_output --force_orientation 1 0 2 --force_flips 1 -1 1 
-    
-    
