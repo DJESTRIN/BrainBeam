@@ -11,8 +11,12 @@ import pickle
 import os
 import shutil 
 from pathlib import Path
+from BrainBeam.registration.multinoderegistration import managepaths # Note: be mindful if this will cause a circular import
 
 def monitor(common_drop_directory, directory_file = "running_directories.pkl", currently_running=True,file_extensions=['jpg','gif']):
+    """ The primary purpose of this function is to montior for file changes in given output directories. 
+        Ex. search for new jpg images, copy them to communal directory and update their name so that they can easily downloaded via rsync  """
+    
     if currently_running:
         if os.path.isfile(os.path.join(common_drop_directory, directory_file)):
             # Find directory file and open it
@@ -22,6 +26,7 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
 
             # Double check path is real and exists
             Path(common_drop_directory).mkdir(parents=True, exist_ok=True)
+            pathobj = managepaths()
             
             # Loop over drop direcectories from file
             for drop_directory in directories_list:
@@ -33,18 +38,14 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                     for file in Path(drop_directory).glob(f'*.{filetype}'): 
                         
                         # Build output filename
-                        output_file_oh = Path(common_drop_directory) / file.name
+                        cage, subject = pathobj.extract_path_info(file)
+                        new_file_name = f"{cage}_{subject}_{file.name}"
+                        output_file_oh = Path(common_drop_directory) / new_file_name
 
+                        # Determin if file is new or if the time has changed
                         if not output_file_oh.exists() or (file.stat().st_mtime > output_file_oh.stat().st_mtime):
                             shutil.copy2(file, output_file_oh)
-                            print(f"Copied: {file} to {dest_file}")
+                            print(f"Copied: {file} to {output_file_oh}")
 
         else:
             print('Directory file was not foundin given path')
-
-
-    # Move data from drop folders to commmon directory
-        
-
-# (12) Run script that continously monitors output directory
-#     (a) Copies images over to common directory and renames them, making sure they have cage and subject ID in name ...
