@@ -228,6 +228,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
         idoh = result.stdout.strip()
+        print(f'Submitted job number: {idoh}')
         jids.append(idoh)
     return jids
 
