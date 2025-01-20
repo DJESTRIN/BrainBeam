@@ -308,7 +308,7 @@ if __name__=='__main__':
                 email = args.user_email, 
                 memory_per_job = args.memory, 
                 tasks_per_job = args.tasks, 
-                cpus_per_task = args.cpu_per_task)
+                cpus_per_task = args.cpus_per_task)
     
     # Monitor jobs if succesful. 
     # monitor_jobs(pathobj.common_drop_directory, joblist, directory_file_oh  = "running_directories.pkl", 
