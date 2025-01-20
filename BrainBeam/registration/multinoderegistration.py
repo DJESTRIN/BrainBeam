@@ -15,6 +15,7 @@ import argparse
 import pickle
 import shutil
 import time
+import ipdb
 #from BrainBeam.registration.monitorprocess import monitor
 
 # Build custom class for gather all path data and submitting jobs via slurm
@@ -96,6 +97,7 @@ class managepaths():
             if matches:
                 self.matching_paths_dictionary[folders_oh] = matches
 
+        ipdb.set_trace()
         # Convert set's to lists for future use
         self.image_folders = list(self.image_folders)
         self.cell_count_files = list(self.cell_count_files)
