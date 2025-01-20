@@ -49,21 +49,34 @@ additional_packages = [
 
 requirements.extend(additional_packages)
 
-ipdb.set_trace()
+# setup(
+#     name='BrainBeam',
+#     version='0.1',
+#     packages=find_packages(),  # Automatically find subfolder1 and subfolder2 as packages.
+#     install_requires=requirements,
+#     author='David Estrin',
+#     author_email='',
+#     description='Brain Beam is used for light sheet analysis',
+#     url='https://github.com/DJESTRIN/BrainBeam',  # Replace with your repository URL.
+#     classifiers=[
+#         'Programming Language :: Python :: 3',
+#         'License :: OSI Approved :: MIT License',
+#         'Operating System :: OS Independent',
+#     ],
+#     python_requires='>=3.7',
+# )
+if __name__=='__main__':
+    requirements = read_requirements()
 
-setup(
-    name='BrainBeam',
-    version='0.1',
-    packages=find_packages(),  # Automatically find subfolder1 and subfolder2 as packages.
-    install_requires=requirements,
-    author='David Estrin',
-    author_email='',
-    description='Brain Beam is used for light sheet analysis',
-    url='https://github.com/DJESTRIN/BrainBeam',  # Replace with your repository URL.
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-    ],
-    python_requires='>=3.7',
-)
+    additional_packages = [
+        'numpy',
+        'matplotlib',
+        'pandas',
+        'ipdb',
+        'seaborn',
+        'scikit-learn',
+        'tqdm']
+
+    requirements.extend(additional_packages)
+
+    ipdb.set_trace()    
