@@ -21,6 +21,7 @@ def read_requirements():
     try:
         # Try decoding the content as UTF-8
         requirements = content.decode('utf-8').splitlines()
+        
     except UnicodeDecodeError:
         # If decoding as UTF-8 fails, decode as UTF-16LE and re-encode to UTF-8
         requirements = content.decode('utf-16le').splitlines()
@@ -28,6 +29,9 @@ def read_requirements():
         # Re-save the file with UTF-8 encoding
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write("\n".join(requirements))
+    
+    # Filter out empty lines and comments
+    requirements = [line for line in requirements if line.strip() and not line.startswith('#')]
     
     return requirements
 
