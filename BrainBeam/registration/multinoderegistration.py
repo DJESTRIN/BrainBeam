@@ -97,7 +97,6 @@ class managepaths():
             if matches:
                 self.matching_paths_dictionary[folders_oh] = matches
 
-        ipdb.set_trace()
         # Convert set's to lists for future use
         self.image_folders = list(self.image_folders)
         self.cell_count_files = list(self.cell_count_files)
@@ -140,18 +139,18 @@ class managepaths():
         if '488' in path:
             channel = 488
         if '561' in path:
-            channel = 647
+            channel = 561
         if '647' in path:
             channel = 647
         if '785' in path:
-            channel = 647
+            channel = 785
         return str(channel)
 
     def copy_cell_counts(self):
         """ Copy cell count files to corresponding registration drop paths. 
             Append channel information in the process.  """
         for drop_path in self.registration_drop_paths:
-            for _, cell_count_files in self.matches.items():
+            for _, cell_count_files in self.matching_paths_dictionary.items():
                 for file_oh in cell_count_files:
                     file_oh_cage, file_oh_subject = self.extract_path_info(file_oh)
                     drop_oh_cage, drop_oh_subject = self.extract_path_info(drop_path)
@@ -226,7 +225,8 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 memory_per_job = 128, tasks_per_job = 8, cpus_per_task = 4):
     """ Build sbatch command and submit for running """
     jids = []
-    for subject_oh_data in managepathobj.matching_paths_dictionary:
+    for subject_oh_data in managepathobj.matching_paths_dictionary.items():
+        ipdb.set_trace()
         image_path_oh, count_files_oh, output_atlas_path_oh, output_registration_path_oh, binary_mask_file, force_orientation_file, force_flips_file = subject_oh_data
         my_command = f"sbatch --job-name=merge_data_to_tallformat \
                 --mem={memory_per_job}G \
