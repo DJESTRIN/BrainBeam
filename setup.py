@@ -34,6 +34,12 @@ def read_requirements():
         with open(file_path, 'rb') as f:
             content = f.read()
         requirements = content.decode('utf-8').splitlines()
+
+        if requirements and requirements[0].startswith('\ufeff'):
+            requirements[0] = requirements[0][1:]
+    
+        # Filter out empty lines and comments
+        requirements = [line for line in requirements if line.strip() and not line.startswith('#')]
     return requirements
 
 requirements = read_requirements()
