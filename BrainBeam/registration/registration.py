@@ -482,6 +482,10 @@ class alignment:
                                 output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution}.jpg'), 
                                 image_type='max')
                     
+                    print(f"Writing current transform to pickle file")
+                    with open(transform_file, "wb") as f:
+                        current_transform = pickle.dump(current_transform, f)
+
             smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
             smoving_np = sitk.GetArrayFromImage(smoving)
             
