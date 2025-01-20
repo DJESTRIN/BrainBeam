@@ -11,7 +11,7 @@ Date: 11-14-2024
 from setuptools import setup, find_packages
 
 # Open requirements file and save to lsit
-with open('requirements.txt') as f:
+with open('requirements.txt','r', encoding='utf-8') as f:
     requirements = f.read().splitlines()
 
 additional_packages = [
