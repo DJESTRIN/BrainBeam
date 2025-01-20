@@ -44,7 +44,10 @@ class managepaths():
         # Loop over all images found and add parent dirs to the set
         for file in glob.iglob(f"{self.base_stitched_image_path}/**/*.tif*", recursive=True):
             subfolder = os.path.dirname(file)
-            self.image_folders.add(subfolder)
+
+            if subfolder not in self.image_folders:
+                self.image_folders.add(subfolder)
+                print(f"New folder added: {subfolder}")
 
     def find_cell_count_files(self):
         """ Given a base cell count path, find all cell count files """
