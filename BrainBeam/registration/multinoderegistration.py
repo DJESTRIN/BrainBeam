@@ -192,14 +192,27 @@ class managepaths():
         
     def __call__(self):
         # General pipeline for class
+        print('Finding image paths')
         self.find_image_paths()
+
+        print('Finding cell count paths')
         self.find_cell_count_files()
+
+        print('Aligning paths')
         self.align_files_to_folders()
+
+        print('Setting outputs')
         self.set_registration_outputs()
+
+        print('Copying files')
         self.copy_cell_counts()
+
+        print('Loading manual settings')
         self.load_force_flips()
         self.load_force_orientations()
         self.load_align_binary_mask_file()
+
+        print('Set slurm output')
         self.set_slurm_output_folders()
 
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
