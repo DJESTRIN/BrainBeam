@@ -63,8 +63,8 @@ class managepaths():
         # Get the subfolder
         parts = path_oh.strip('/').split('/')
         for part in parts:
+            ipdb.set_trace()
             if "cage" in part.lower() and "subject" in part.lower():
-                ipdb.set_trace()
                 important_part = part
                 break
 
