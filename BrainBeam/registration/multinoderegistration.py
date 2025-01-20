@@ -64,6 +64,7 @@ class managepaths():
         parts = path_oh.strip('/').split('/')
         for part in parts:
             if "cage" in part.lower() and "subject" in part.lower():
+                ipdb.set_trace()
                 important_part = part
                 break
 
