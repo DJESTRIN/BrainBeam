@@ -55,6 +55,9 @@ class cellalignment():
         self.drop_path = drop_path # Path containing pkl transformation files
         self.cell_count_files = cell_count_files
 
+        if self.cell_count_files:
+            self.skip_flag = False
+
         # Set default as None, updated via method
         self.new_x_dim = None
         self.new_y_dim = None
@@ -107,7 +110,7 @@ class cellalignment():
         self.cell_coordinates=[]
         if len(self.cell_count_files)==1:
             # Read in data
-            counts_oh = pd.read_csv(self.cell_count_files).to_numpy()
+            counts_oh = pd.read_csv(self.cell_count_files[0]).to_numpy()
 
             # Eliminate double counts
             counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
@@ -128,6 +131,7 @@ class cellalignment():
 
         else:
             self.skip_flag = True
+            ipdb.set_trace()
             print('No cell coordinate files provided, so all cell alignment code will be skipped')
 
     def determine_coexpression(self):
@@ -189,7 +193,7 @@ class cellalignment():
 
             # Aggregate total number of cells per voxel in 3d mask
             for cell in cell_list:
-                x, y, z = cell
+                x, y, z = (cell - 1)   ##### This -1 should be deleted?
                 self.coordinate_mask_oh[x, y, z] += 1
             
             # Append numpy array to list
@@ -198,12 +202,13 @@ class cellalignment():
     def gather_transformations(self):
         """ Through self.drop_dir, code will find all transform files, open them and save as attributes for nonrigid and rigid seperately.
             Files must end with an integer or will not be included. Integer is strictly for determining order of application to image volumes."""
+        
         def transform_sort(full_file_path):
             nameoh = full_file_path.split('_')[-1]
             return int(nameoh.split('.')[0])
 
         # get rigid transformations including stretching
-        rigid_transform_files = glob.glob(os.path.join(self.drop_path,"*rigid_only*.pkl"), key=transform_sort)
+        rigid_transform_files = sorted(glob.glob(os.path.join(self.drop_path,"*rigid_only*.pkl")), key=transform_sort)
         self.rigid_transforms = []
         self.rigid_transform_types = []
         for file in rigid_transform_files:
@@ -221,7 +226,7 @@ class cellalignment():
                 self.rigid_transform_types.append(0)
             
         # get non-rigid transformations
-        nonrigid_transform_files = glob.glob(os.path.join(self.drop_path,"*nonrigid*.pkl"), key=transform_sort)
+        nonrigid_transform_files =  sorted(glob.glob(os.path.join(self.drop_path,"*nonrigid*.pkl")), key=transform_sort)
         self.nonrigid_transforms = []
         for file in nonrigid_transform_files:
             # Open file
@@ -276,7 +281,8 @@ class cellalignment():
         # Put all relevant arrays into a single array
         mapped_array = np.stack([self.zp_id_atlas, self.zp_template_atlas, self.ds_zp_transformed_moving_image], axis=3)
         for cell_list in self.transformed_volumes:
-            mapped_array = np.stack([mapped_array,np.array(cell_list)],axis=3)
+            volumeoh = np.array(cell_list)
+            mapped_array =  np.concatenate((mapped_array, volumeoh[...,np.newaxis]), axis=3)
 
         # Save data into numpy file 
         self.mapped_array = mapped_array
@@ -319,14 +325,13 @@ if __name__=='__main__':
                             drop_path = drop_path,
                             cell_count_files = cell_count_files)
     
-    ipdb.set_trace()
     cellobj.update_coordinate_systems(new_x_dim = ds_zp_transformed_moving_image.shape[0], 
                                       new_y_dim = ds_zp_transformed_moving_image.shape[1], 
                                       new_z_dim = ds_zp_transformed_moving_image.shape[2], 
                                       original_x_dim = 10000, # random number
                                       original_y_dim = 9000,  # random number
                                       original_z_dim = 4000) # random number
-    ipdb.set_trace()
+    
     cellobj()
 
 # --zp_id_atlas_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_01_14_14_22_16\target_array.npy
