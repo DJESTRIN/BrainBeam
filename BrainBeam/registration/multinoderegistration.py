@@ -132,11 +132,11 @@ class managepaths():
         channel = None
         if '488' in path:
             channel = 488
-        if '647' in path:
+        if '561' in path:
             channel = 647
         if '647' in path:
             channel = 647
-        if '647' in path:
+        if '785' in path:
             channel = 647
         return str(channel)
 
