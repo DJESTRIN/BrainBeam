@@ -2,53 +2,46 @@
 # -*- coding: utf-8 -*-
 """
 Module Name: cellalignment.py
-Description: The point of this algorithm is to:
-    (1) Downsample stitched data to atlas size
-    (2) Downsample cell coordinates to atlas size
-    (3) Map cell coordinates to 3D mask where cells within same voxel are aggregated. 
-        Ex, a voxel containing 2 cells equals 2.
-    (4) Run registration for raw data as well as cellcountmask to atlas space
-    (5) The final output will be a saved 3d numpy array for the registered brain and the cell counts. 
+Description: 
 Author: David Estrin
 Date: 2024-12-11
 Version: 1.0
 """
+
+# Load dependencies
 import pandas as pd
 import numpy as np
 import ipdb
 import os, glob
 import pickle
+from scipy.spatial.distance import cdist
+import itertools
+import argparse
 from BrainBeam.registration.padding import zero_pad_arrays
 from BrainBeam.registration.transforms import *
 
-"""
-Load cell count files
-    if 1, do thing
-    if multiple, do thing multiple times
-    if none
+# Custom classes and functions
+def determine_doublecount_points(array1, array2, threshold=5):
+    combined_array = np.vstack((array1, array2))
+    distances = cdist(combined_array, combined_array, metric='euclidean')
+    within_threshold = (distances < threshold) & ~np.eye(combined_array.shape[0], dtype=bool)
+    
+    to_remove = set()
+    for i in range(within_threshold.shape[0]):
+        if i not in to_remove:
+            close_points = np.where(within_threshold[i])[0]
+            to_remove.update(close_points)
+    
+    to_remove = sorted(to_remove)
+    final_array = np.delete(combined_array, to_remove, axis=0)
+    return final_array
 
-Convert cell counts to binary mask aggregate image [0 to inf)
-    Down sample coordinate space from original image size to ds size
-    Create binary aggregate mask from DS data
-
-Apply all transformations (in correct order) to the mask image
-    Do not forget any zero padding 
-
-Final path should contain:
-    (1) all transformation files
-    (2) the orginal moving image
-    (3) transformed moving image
-    (4) original cell mask
-    (5) transformed cell mask
-    (6) the target image
-    (7) the atlas associated with target image
-    (8) a way to get atlas hierarchy dict ...
-
-Data is now ready for merger code which will put all data into dataframes ...
-"""
-
-def coexpression(array1,array2,mode='coexpression'):
-    a=1
+def determine_coexpressing_points(array1, array2, threshold=5):
+    distances = cdist(array1, array2, metric='euclidean')
+    within_threshold = np.where(distances < threshold)
+    overlapping_points = np.concatenate((array1[within_threshold[0]], array2[within_threshold[1]]), axis=0)
+    unique_overlapping_points = np.unique(overlapping_points, axis=0)
+    return unique_overlapping_points
 
 class cellalignment():
     def __init__(self, zp_id_atlas, 
@@ -86,8 +79,11 @@ class cellalignment():
         self.original_z_dim = original_z_dim
 
     def __call__(self):
-        # Load in cell coordinates for all files
+        # Load in cell coordinates for all files and eliminate double counts
         self.read_cell_count_file()
+
+        # Determine coexpression cell locations
+        self.determine_coexpression()
 
         # Down sample cell coordinate system
         if self.skip_flag: # Skip if no files given
@@ -103,19 +99,50 @@ class cellalignment():
 
         # Apply transform(s) to aggregate mask
         self.transform_cell_mask()
+
+        # Generate the 4-D array
+        self.generate_4D_array()
         
     def read_cell_count_file(self):
         self.cell_coordinates=[]
         if len(self.cell_count_files)==1:
-            self.cell_coordinates.append(pd.read_csv(self.cell_count_file).to_numpy())
+            # Read in data
+            counts_oh = pd.read_csv(self.cell_count_files).to_numpy()
+
+            # Eliminate double counts
+            counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
+
+            # Save to list
+            self.cell_coordinates.append(counts_oh)
 
         elif len(self.cell_count_files)>1:
             for i in range(len(self.cell_count_files)):
-              self.cell_coordinates.append(pd.read_csv(self.cell_count_file).to_numpy())
+              # Read in data
+              counts_oh = pd.read_csv(self.cell_count_files[i]).to_numpy()
+
+              # Eliminate double counts
+              counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
+
+              # Save to list
+              self.cell_coordinates.append(counts_oh)
 
         else:
             self.skip_flag = True
             print('No cell coordinate files provided, so all cell alignment code will be skipped')
+
+    def determine_coexpression(self):
+        cell_coordinates_final = self.cell_coordinates
+        if len(self.cell_coordinates)>1:
+            for cell_list1, cell_list2 in itertools.combinations(self.cell_coordinates, 2):
+                coexpressing = determine_coexpressing_points(array1=cell_list1,array2=cell_list2)
+                
+                # Append the overlapping list as a new array
+                if coexpressing.size != 0:
+                    cell_coordinates_final.append(coexpressing)
+        else:
+            print('Only one cell coordinate list provided, nothing to check for coexpression')
+
+        self.cell_coordinates = cell_coordinates_final
 
     def downsample_cell_coordinate_system(self):
         # Check and make sure parameters were defined
@@ -255,18 +282,65 @@ class cellalignment():
         self.mapped_array = mapped_array
         np.save(os.path.join(self.drop_path,'mapped_array.npy'), self.mapped_array) 
 
-def main():
-    print(' No code in cell alignment main function yet. This is a place holder')
+def cli_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--zp_id_atlas_file', type=str)
+    parser.add_argument('--zp_template_atlas_file', type=str)
+    parser.add_argument('--ds_zp_transformed_moving_image_file', type=str)
+    parser.add_argument('--drop_path', type=str)
+    parser.add_argument('--cell_count_files', nargs='*', type=str, default=None)
+    args = parser.parse_args()
+
+    if args.cell_count_files:
+        cell_count_files = []
+        for file in args.cell_count_files:
+            cell_count_files.append(file)
+
+    if args.zp_id_atlas_file:
+        zp_id_atlas = np.load(args.zp_id_atlas_file)
+
+    if args.zp_template_atlas_file:
+        zp_template_atlas = np.load(args.zp_template_atlas_file)
+
+    if args.ds_zp_transformed_moving_image_file:
+        ds_zp_transformed_moving_image = np.load(args.ds_zp_transformed_moving_image_file)
+
+    if args.drop_path:
+        drop_path = args.drop_path
+
+    return drop_path, cell_count_files, zp_id_atlas, zp_template_atlas, ds_zp_transformed_moving_image
 
 if __name__=='__main__':
-    main()
+    drop_path, cell_count_files, zp_id_atlas, zp_template_atlas, ds_zp_transformed_moving_image = cli_parser()
 
-"""
-Here is an example of how this class is meant to be run in the registration script ... 
+    cellobj = cellalignment(zp_id_atlas = zp_id_atlas,
+                            zp_template_atlas = zp_template_atlas,
+                            ds_zp_transformed_moving_image = ds_zp_transformed_moving_image,
+                            drop_path = drop_path,
+                            cell_count_files = cell_count_files)
+    
+    ipdb.set_trace()
+    cellobj.update_coordinate_systems(new_x_dim = ds_zp_transformed_moving_image.shape[0], 
+                                      new_y_dim = ds_zp_transformed_moving_image.shape[1], 
+                                      new_z_dim = ds_zp_transformed_moving_image.shape[2], 
+                                      original_x_dim = 10000, # random number
+                                      original_y_dim = 9000,  # random number
+                                      original_z_dim = 4000) # random number
+    ipdb.set_trace()
+    cellobj()
 
-from BrainBeam.registration.cellalignment import cellalignment # Import package
+# --zp_id_atlas_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_01_14_14_22_16\target_array.npy
+# --zp_template_atlas_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_01_14_14_22_16\target_array.npy
+# --ds_zp_transformed_moving_image_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_01_14_14_22_16\nonrigid_moving_image.npy
+# --drop_path C:\Users\listo\example_registration_data\sub2_output\current_run_2025_01_14_14_22_16
+# --cell_count_files C:\Users\listo\example_registration_data\cellcount\cell_counts.csv
 
-cell_alignment_obj = cellalignment(zp_id_atlas, zp_template_atlas, ds_zp_transformed_moving_image, drop_path) # create the object
-cell_alignment_obj.update_coordinate_systems(new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim) # add the coordinate system data
-cell_alignment_obj() # Call object to run primary pipeline which will output a 4 dim numpy array. 
-"""
+   
+
+# Here is an example of how this class is meant to be run in the registration script ... 
+ 
+# from BrainBeam.registration.cellalignment import cellalignment # Import package
+
+# cell_alignment_obj = cellalignment(zp_id_atlas, zp_template_atlas, ds_zp_transformed_moving_image, drop_path) # create the object
+# cell_alignment_obj.update_coordinate_systems(new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim) # add the coordinate system data
+# cell_alignment_obj() # Call object to run primary pipeline which will output a 4 dim numpy array. 
