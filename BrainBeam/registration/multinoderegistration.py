@@ -275,7 +275,9 @@ if __name__=='__main__':
     args = cli_parser()
     
     # Gather all data via managepath object 
-    pathobj = managepaths()
+    pathobj = managepaths(base_cell_count_path = args.parent_segmentation_path, 
+                          base_stitched_image_path = args.parent_image_path,
+                          base_registration_output_path = args.parent_registration_output_path)
     pathobj()
 
     # Send all data to sbatch
