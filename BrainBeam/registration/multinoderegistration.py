@@ -32,7 +32,7 @@ class managepaths():
         # Generate output folder if not created
         if base_registration_output_path is None:
             parent_folder = os.path.dirname(os.path.abspath(self.base_stitched_image_path))
-            self.base_registration_output_path = os.path.join(parent_folder,"/registration")
+            self.base_registration_output_path = os.path.join(parent_folder,"registration")
         else:
             self.base_registration_output_path = base_registration_output_path
 
@@ -160,7 +160,7 @@ class managepaths():
                         assert channel_oh is not None
 
                         # Copy file to output location
-                        shutil.copy2(file_oh, os.path.join(drop_path,f"/{file_oh_cage}_{file_oh_subject}_channel{channel_oh}_cell_counts.csv"))
+                        shutil.copy2(file_oh, os.path.join(drop_path,f"{file_oh_cage}_{file_oh_subject}_channel{channel_oh}_cell_counts.csv"))
     
     def load_force_flips(self):
         for drop_path in self.registration_drop_paths:
@@ -188,11 +188,11 @@ class managepaths():
 
     def set_slurm_output_folders(self):
         """ Create output folders where slurm log and error data will be stored for ease of use """
-        self.communal_slurm_log_directory = os.path.join(self.base_registration_output_path,"/slurm_logs")
+        self.communal_slurm_log_directory = os.path.join(self.base_registration_output_path,"slurm_logs")
         if not os.path.exists(self.communal_slurm_log_directory):
             os.mkdir(self.communal_slurm_log_directory)
 
-        self.communal_slurm_error_directory = os.path.join(self.base_registration_output_path,"/slurm_errors")
+        self.communal_slurm_error_directory = os.path.join(self.base_registration_output_path,"slurm_errors")
         if not os.path.exists(self.communal_slurm_error_directory):
             os.mkdir(self.communal_slurm_error_directory)
         
