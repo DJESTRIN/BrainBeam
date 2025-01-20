@@ -107,6 +107,7 @@ class managepaths():
         self.registration_drop_paths = []
         for folders_oh in self.image_folders:
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
+            ipdb.set_trace()
             output_folder_base = os.path.join(self.base_registration_output_path,f"/{folder_oh_cage}_{folder_oh_subject}_registration")
 
             # Make the base folder for current subject
