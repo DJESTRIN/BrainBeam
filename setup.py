@@ -29,10 +29,10 @@ def read_requirements():
         # Re-save the file with UTF-8 encoding
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write("\n".join(requirements))
-    
-    # Filter out empty lines and comments
-    requirements = [line for line in requirements if line.strip() and not line.startswith('#')]
-    
+
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        requirements = content.decode('utf-8').splitlines()
     return requirements
 
 requirements = read_requirements()
