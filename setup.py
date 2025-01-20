@@ -84,5 +84,6 @@ if __name__=='__main__':
         'tqdm']
 
     requirements.extend(additional_packages)
+    requirements=requirements[1:]
 
     ipdb.set_trace()    
