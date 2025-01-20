@@ -54,7 +54,9 @@ class managepaths():
         self.cell_count_files = set()
         # Loop over all images found and add csv files to the set
         for file in glob.iglob(f"{self.base_cell_count_path}/**/*cell_count*.csv*", recursive=True):
-            self.cell_count_files.add(file)
+            if file not in self.cell_count_files:
+                self.cell_count_files.add(file)
+                print(f"New file added: {file}")
 
     def extract_path_info(self, path_oh):
         # Get the subfolder
