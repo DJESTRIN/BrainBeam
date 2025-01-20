@@ -10,6 +10,7 @@ Date: 11-14-2024
 
 from setuptools import setup, find_packages
 import os
+import ipdb
 
 # Function to read and convert UTF-16LE requirements.txt to UTF-8
 def read_requirements():
@@ -47,6 +48,8 @@ additional_packages = [
     'tqdm']
 
 requirements.extend(additional_packages)
+
+ipdb.set_trace()
 
 setup(
     name='BrainBeam',
