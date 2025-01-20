@@ -107,31 +107,30 @@ class managepaths():
         self.registration_drop_paths = []
         for folders_oh in self.image_folders:
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
-            ipdb.set_trace()
-            output_folder_base = os.path.join(self.base_registration_output_path,f"/{folder_oh_cage}_{folder_oh_subject}_registration")
+            output_folder_base = os.path.join(self.base_registration_output_path,f"{folder_oh_cage}_{folder_oh_subject}_registration")
 
             # Make the base folder for current subject
             if not os.path.exists(output_folder_base):
                 os.mkdir(output_folder_base)
 
             # Make atlas drop path
-            output_folder_base_atlas = os.path.join(output_folder_base,"/atlas")
+            output_folder_base_atlas = os.path.join(output_folder_base,"atlas")
             if not os.path.exists(output_folder_base_atlas):
                 os.mkdir(output_folder_base_atlas)
             self.atlas_drop_paths.append(output_folder_base_atlas)
 
             # Make registration drop path 
-            output_folder_base_dropoh = os.path.join(output_folder_base,"/registration_drop")
+            output_folder_base_dropoh = os.path.join(output_folder_base,"registration_drop")
             if not os.path.exists(output_folder_base_dropoh):
                 os.mkdir(output_folder_base_dropoh)
 
         # Create common folder where figures are copied to for quick viewing
-        self.communal_drop_folder = os.path.join(self.base_registration_output_path,"/communal_figures")
+        self.communal_drop_folder = os.path.join(self.base_registration_output_path,"communal_figures")
         if not os.path.exists(self.communal_drop_folder):
             os.mkdir(self.communal_drop_folder)
 
         # Save a list of output folders to be monitored by other code
-        with open(os.path.join(self.communal_drop_folder,"/running_directories.pkl"),"wb") as f:
+        with open(os.path.join(self.communal_drop_folder,"running_directories.pkl"),"wb") as f:
             pickle.dump(self.registration_drop_paths, f)
             print(f"Registration drop paths saved to pickle file in communal drop folder.")
 
