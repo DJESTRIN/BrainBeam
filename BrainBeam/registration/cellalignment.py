@@ -27,7 +27,7 @@ Load cell count files
     if multiple, do thing multiple times
     if none
 
-Convert cell counts to binary mask aggregate image [0 to inf]
+Convert cell counts to binary mask aggregate image [0 to inf)
     Down sample coordinate space from original image size to ds size
     Create binary aggregate mask from DS data
 
@@ -46,6 +46,9 @@ Final path should contain:
 
 Data is now ready for merger code which will put all data into dataframes ...
 """
+
+def coexpression(array1,array2,mode='coexpression'):
+    a=1
 
 class cellalignment():
     def __init__(self, zp_id_atlas, 

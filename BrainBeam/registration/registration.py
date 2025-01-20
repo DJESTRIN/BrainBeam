@@ -413,7 +413,7 @@ class alignment:
             else:
                 return False
 
-        def plateau_cumsum(criteria_data, window_size=5,tolerance=1e-2):
+        def plateau_cumsum(criteria_data, window_size=10,tolerance=1e-2):
             flattened_data = np.array(criteria_data).flatten()
             if len(flattened_data) < window_size:
                 return False
@@ -476,9 +476,10 @@ class alignment:
                     resampler.SetOutputDirection(moving.GetDirection())
                     resampler.SetTransform(current_transform)  # Apply the current transform to the moving image
                     transformed_image = resampler.Execute(moving)
+
                     slice_views(array1=sitk.GetArrayFromImage(transformed_image),
                                 array2 = sitk.GetArrayFromImage(sfixed), 
-                                output_filename=os.path.join(self.drop_path,f'blurred_images_{self.time_to_str()}.jpg'), 
+                                output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution}.jpg'), 
                                 image_type='max')
                     
             smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())

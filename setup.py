@@ -10,20 +10,29 @@ Date: 11-14-2024
 
 from setuptools import setup, find_packages
 
+# Open requirements file and save to lsit
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
+additional_packages = [
+    'numpy',
+    'matplotlib',
+    'pandas',
+    'ipdb',
+    'seaborn',
+    'scikit-learn',
+    'tqdm']
+
+requirements.extend(additional_packages)
+
 setup(
     name='BrainBeam',
     version='0.1',
     packages=find_packages(),  # Automatically find subfolder1 and subfolder2 as packages.
-    install_requires=['numpy',
-                      'matplotlib',
-                      'pandas',
-                      'ipdb',
-                      'seaborn',
-                      'scikit-learn',
-                      'tqdm'],
+    install_requires=requirements,
     author='David Estrin',
     author_email='',
-    description='A short description of your project',
+    description='Brain Beam is used for light sheet analysis',
     url='https://github.com/DJESTRIN/BrainBeam',  # Replace with your repository URL.
     classifiers=[
         'Programming Language :: Python :: 3',
