@@ -96,8 +96,9 @@ def set_affine_rotation(affine_transform, theta_x, theta_y, theta_z):
 
 def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_params=None,graph_trial=500):
     # Convert from numpy to sitk image
-    slice_views(array1=moving_image, array2=fixed_image, output_filename=os.path.join(drop_dir,'image_mask_preaffine.jpg'))
-    fixed_image = sitk.GetImageFromArray(fixed_image)_
+    image_file_name = os.path.join(drop_dir,'image_mask_preaffine.jpg')
+    slice_views(array1=moving_image, array2=fixed_image, output_filename=image_file_name)
+    fixed_image = sitk.GetImageFromArray(fixed_image)
     moving_image = sitk.GetImageFromArray(moving_image)
 
     if best_params is None:
