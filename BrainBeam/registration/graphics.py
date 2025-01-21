@@ -1,22 +1,29 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Module Name: graphics.py
+Description: 
+Author: David Estrin
+Date: 2024-008-15
+Version: 1.0
+"""
+
+# Load dependencies
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
-from skimage import measure, morphology
+from skimage import measure
 from scipy import ndimage
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import os
 from scipy.ndimage import zoom
 from skimage.filters import threshold_otsu
 from PIL import Image
 from io import BytesIO
 import tqdm
-from scipy.ndimage import binary_fill_holes
 import trimesh
-import ipdb
 
+# Custom functions and classes
 def adjust_image(image, contrast=1.0, brightness=0):
     image = image * contrast
     image = image + brightness

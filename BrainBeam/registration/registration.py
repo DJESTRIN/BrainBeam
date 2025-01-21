@@ -336,6 +336,7 @@ class alignment:
         print('Setting up multiresolution alignment, generating global variables and call back command ... ')
 
         def command_iteration(method, n=5):
+            """ Prints current value to command line """
             iteration_oh = method.GetOptimizerIteration()
             metric_oh = method.GetMetricValue()
  
@@ -343,13 +344,13 @@ class alignment:
             if iteration_oh % n == 0:
                 print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
-        def alignoh(resolution, nits, fixed, moving, iteration_number, current_transform=None, transform_file="transform.pkl"):
+        def alignoh(resolution, nits, fixed, moving, iteration_number, attempt=0, current_transform=None, transform_file="transform.pkl"):
             """Runs alignment and collects MMI data for each trial."""
             print(f"Resolution: {resolution}, Iterations: {nits}")
             
-            # update transform file
+            # Update transform file
             name, fileend = transform_file.split('.')
-            transform_file = f"nonrigid_{name}_{int(resolution)}_step{iteration_number}.{fileend}"
+            transform_file = os.path.join(self.drop_path, f"nonrigid_{name}_{int(resolution)}_attempt{attempt}_step{iteration_number}.{fileend}")
 
             # Set grid physical spacing and compute mesh size
             grid_physical_spacing = [resolution] * 3
@@ -366,6 +367,7 @@ class alignment:
             # Initialize or update the transform
             if current_transform is None:
                 init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+
             else:
                 init_transform = current_transform
 
@@ -396,35 +398,20 @@ class alignment:
 
             return mmi_results, current_transform
 
-        def check_for_plateau(criteria_data, percent_threshold=5.0):
-            flattened_data = np.array(criteria_data).flatten()
-            
-            if len(flattened_data) < 2:
-                return True  
-            
-            change = (flattened_data[-1] - flattened_data[-2]) / flattened_data[-2]
-            percent_change = np.abs((flattened_data[-1] - flattened_data[-2]) / flattened_data[-2]) * 100
-            print(f'change is {change}')
-            print(f'Percent change is {percent_change}')
-            
-            # Check if the percentage change is at least the threshold
-            if percent_change >= percent_threshold and change < 0:
-                return True 
-            else:
-                return False
-
-        def plateau_cumsum(criteria_data, window_size=10,tolerance=1e-2):
+        def plateau_cumsum(criteria_data, window_size=5,tolerance=1e-2):
+            """ Calculates the cumulative sum to determine if metric data (MMI) has plateaud for given level """
             flattened_data = np.array(criteria_data).flatten()
             if len(flattened_data) < window_size:
-                return False
+                return True
 
             cumsum_diff = np.cumsum(np.abs(np.diff(flattened_data)))
             window_diff = np.diff(cumsum_diff)
             
             for i in range(len(window_diff) - window_size + 1):
                 if np.allclose(window_diff[i:i + window_size], 0, atol=tolerance):
-                    return True
-            return False
+                    return False
+                
+            return True
 
         # Convert arrays to SimpleITK images
         fixed = sitk.GetImageFromArray(self.fixed_image) if isinstance(self.fixed_image, np.ndarray) else self.fixed_image
@@ -448,24 +435,45 @@ class alignment:
         if iters is None:
             iters = [1, 1, 1] 
 
-        criteria_results = []
-        for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
-            transform_file = os.path.join(self.drop_path,f"nonrigid_transform_{int(resolution)}_step{k}.pkl")
+        tolerances_oh = [0.1, 0.01, 0.001]
 
-            # Check if transform already exists
-            if os.path.exists(transform_file):
-                print(f"Transform for resolution {resolution} already exists. Loading transform...")
-                with open(transform_file, "rb") as f:
-                    current_transform = pickle.load(f)
+        criteria_results = []
+        no_found_file_flag = True
+        for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
+            search_string = os.path.join(self.drop_path, f"nonrigid_transform_{int(resolution)}_attempt*_step{k}.pkl")
+            found_files = glob.glob(search_string)
+
+            if not found_files:
+                no_found_file_flag = True
 
             else:
+                # Get the last file (max number) and load it as current_transform
+                no_found_file_flag = False
+
+                values = []
+                for file in found_files:
+                    _, numberdata = file.split('attempt')
+                    numberoh, _ = numberdata.split('_step')
+                    values.append(int(numberoh))
+
+                values = np.array(values)
+                last_file = found_files[np.argmax(values)]
+
+                print(f"Transform for resolution {resolution} already exists. Loading transform...")
+                with open(last_file, "rb") as f:
+                    current_transform = pickle.load(f)
+
+            if no_found_file_flag:
                 """ Repeadetly run alignment until a learning plateau is detected. When detected, the next resolution level is then run. """
+                print(f"No transform files found for resolution: {resolution}. Running alignment for this resolution")
                 learning=True
                 current_transform = None
+                attempt_oh = 0
                 while learning:
-                    mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, iteration_number = k, current_transform=current_transform, transform_file="transform.pkl")
+                    print(f'Alignment resolution {resolution} for attempt {attempt_oh}')
+                    mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, iteration_number = k, attempt = attempt_oh, current_transform=current_transform, transform_file="transform.pkl")
                     criteria_results.append(mmi_results)
-                    learning = plateau_cumsum(criteria_results)
+                    learning = plateau_cumsum(criteria_results,tolerance=tolerances_oh[k])
                     
                     # Plot current transformed image
                     resampler = sitk.ResampleImageFilter()
@@ -477,17 +485,18 @@ class alignment:
                     resampler.SetTransform(current_transform)  # Apply the current transform to the moving image
                     transformed_image = resampler.Execute(moving)
 
+                    # Plot image of current attempt
                     slice_views(array1=sitk.GetArrayFromImage(transformed_image),
                                 array2 = sitk.GetArrayFromImage(sfixed), 
-                                output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution}.jpg'), 
+                                output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution}_step{k}_attempt{attempt_oh}.jpg'), 
                                 image_type='max')
                     
-                    print(f"Writing current transform to pickle file")
-                    with open(transform_file, "wb") as f:
-                        current_transform = pickle.dump(current_transform, f)
+                    attempt_oh+=1
+            
+            if current_transform is None:
+                raise ValueError("current_transform is None.")
 
             smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
-            smoving_np = sitk.GetArrayFromImage(smoving)
             
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
@@ -500,24 +509,6 @@ class alignment:
         self.final_transform = current_transform
         return aligned_array
 
-    def inverse_multiresolution_align(self):
-        """ Takes results from multiresolution alignment and generates the inverse alignment.
-        This allows one to map the fixed image onto the moving image. For example, this is usual for aligning the 
-        atlas back onto the raw data. 
-        """
-        # Convert from numpy back to 
-        fixed = sitk.GetImageFromArray(self.fixed_image) if isinstance(self.fixed_image, np.ndarray) else self.fixed_image
-        moving = sitk.GetImageFromArray(self.moving_image) if isinstance(self.moving_image, np.ndarray) else self.moving_image
-        annotation = sitk.GetImageFromArray(self.annotation_array_original) if isinstance(self.annotation_array_original, np.ndarray) else self.annotation_array_original
-
-        # Get the inverse of final transform for target image
-        inverse_transform = self.final_transform.GetInverse()
-
-        # Perform inverse transform on atlas/fixed image to moving orginal data image
-        fixed_to_moving = sitk.Resample(fixed, moving, inverse_transform, sitk.sitkLinear, 0.0, fixed.GetPixelID())
-        annotation_to_moving = sitk.Resample(annotation, moving, inverse_transform, sitk.sitkLinear, 0.0, fixed.GetPixelID())
-        return sitk.GetArrayFromImage(fixed_to_moving), sitk.GetArrayFromImage(annotation_to_moving)
-    
     def time_to_str(self):
         now = datetime.now()
         return now.strftime("%Y_%m_%d_%H_%M_%S")

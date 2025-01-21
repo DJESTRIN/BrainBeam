@@ -11,7 +11,27 @@ import pickle
 import os
 import shutil 
 from pathlib import Path
-from BrainBeam.registration.multinoderegistration import managepaths # Note: be mindful if this will cause a circular import
+
+def extract_path_info(path_oh):
+    """ Copied from mulinoderegistration managepaths class
+    Needed to copy due to circular import """
+    # Get the subfolder
+    parts = path_oh.strip('/').split('/')
+    for part in parts:
+        if "cage" in part.lower() and "animal" in part.lower():
+            important_part = part
+            break
+
+    # Find the cage and subject information
+    parts = important_part.strip('_').split('_')
+    cage = None
+    subject = None
+    for part in parts:
+        if "cage" in part.lower():
+            cage = part.lower()
+        if "animal" in part.lower():
+            subject = part.lower()
+    return cage, subject
 
 def monitor(common_drop_directory, directory_file = "running_directories.pkl", currently_running=True,file_extensions=['jpg','gif']):
     """ The primary purpose of this function is to montior for file changes in given output directories. 
@@ -26,8 +46,7 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
 
             # Double check path is real and exists
             Path(common_drop_directory).mkdir(parents=True, exist_ok=True)
-            pathobj = managepaths()
-            
+
             # Loop over drop direcectories from file
             for drop_directory in directories_list:
 
@@ -38,7 +57,7 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                     for file in Path(drop_directory).glob(f'*.{filetype}'): 
                         
                         # Build output filename
-                        cage, subject = pathobj.extract_path_info(file)
+                        cage, subject = extract_path_info(file)
                         new_file_name = f"{cage}_{subject}_{file.name}"
                         output_file_oh = Path(common_drop_directory) / new_file_name
 

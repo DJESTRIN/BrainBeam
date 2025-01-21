@@ -16,7 +16,8 @@ import pickle
 import shutil
 import time
 import ipdb
-#from BrainBeam.registration.monitorprocess import monitor
+from BrainBeam.registration.monitorprocess import monitor
+from BrainBeam.registration.monitorprocess import extract_path_info as epi
 
 # Build custom class for gather all path data and submitting jobs via slurm
 class managepaths():
@@ -60,24 +61,7 @@ class managepaths():
                 print(f"New file added: {file}")
 
     def extract_path_info(self, path_oh):
-        # Get the subfolder
-        parts = path_oh.strip('/').split('/')
-        for part in parts:
-            if "cage" in part.lower() and "animal" in part.lower():
-                important_part = part
-                break
-
-        # Find the cage and subject information
-        parts = important_part.strip('_').split('_')
-        cage = None
-        subject = None
-        for part in parts:
-            if "cage" in part.lower():
-                cage = part.lower()
-            if "animal" in part.lower():
-                subject = part.lower()
-
-        return cage, subject
+        return epi(path_oh)
 
     def align_files_to_folders(self):
 
@@ -266,30 +250,30 @@ def cli_parser():
     args = parser.parse_args()
     return args
 
-# def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "running_directories.pkl", 
-#                  file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60):
-#     """ Find and monitor my jobs in the slurm queue  """
+def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "running_directories.pkl", 
+                 file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60):
+    """ Find and monitor my jobs in the slurm queue  """
 
-#     def find_my_jobs(original_job_ids,username='dje4001'):
-#         squeue_result_oh = subprocess.run(f"squeue --noheader -u {username} --format=%A", shell=True, capture_output=True, text=True)
-#         current_ids = squeue_result_oh.stdout.split()
-#         running_jobs = [job for job in original_job_ids if job in current_ids]
-#         if len(running_jobs)>0:
-#             result = True
-#         else:
-#             result = False
-#         return result, running_jobs
+    def find_my_jobs(original_job_ids,username='dje4001'):
+        squeue_result_oh = subprocess.run(f"squeue --noheader -u {username} --format=%A", shell=True, capture_output=True, text=True)
+        current_ids = squeue_result_oh.stdout.split()
+        running_jobs = [job for job in original_job_ids if job in current_ids]
+        if len(running_jobs)>0:
+            result = True
+        else:
+            result = False
+        return result, running_jobs
     
-#     # Continously monitor jobs if running
-#     running_jobs = original_job_ids
-#     result, running_jobs = find_my_jobs(running_jobs)
-#     while result:
-#         # Wait for some down time to check again
-#         time.sleep(sleep) 
+    # Continously monitor jobs if running
+    running_jobs = original_job_ids
+    result, running_jobs = find_my_jobs(running_jobs)
+    while result:
+        # Wait for some down time to check again
+        time.sleep(sleep) 
         
-#         # Gather data for common directory (such as images)
-#         monitor(common_drop_directory, directory_file = directory_file_oh, currently_running=result, file_extensions=file_extensions_oh)
-#         result, running_jobs = find_my_jobs(running_jobs)
+        # Gather data for common directory (such as images)
+        monitor(common_drop_directory, directory_file = directory_file_oh, currently_running=result, file_extensions=file_extensions_oh)
+        result, running_jobs = find_my_jobs(running_jobs)
 
 if __name__=='__main__':
     # Parse command line inputs

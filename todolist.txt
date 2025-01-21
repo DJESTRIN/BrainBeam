@@ -5,17 +5,24 @@ cellregistration
 
 Update code for pulling together and merging data into a dataframe
 
-Slurm implemetation  .... How can we run the above code so that it can use best recourse managment for many brains?
-
 Update statistics and graphics for final graphs...  
 
+dataframes
+    complete this code
 
+Multinoderegistration
+    need to update the dictionary
+    need to make sure jobs are submitted correctly
 
+registration    
+    Need to make sure command line arguments include cell stuff
+    Make sure command line arguments match with job submission
+    Remove random files and images being made in BrainBeam git repo... why are they dropping here?
 
+bayessearch/registration
+    Refine whether to use the binary mask or not... add that as options
 
 Extra random
-
-
 update registration slurm code to run locally on computer while using optimal recourses for the computer?
 
 

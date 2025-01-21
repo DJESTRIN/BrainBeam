@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Module Name: padding.py
-Description: pads 3d arrays to match in size
+Description: pads 3d arrays to match in size. Contains a few multi purpose padding functions
 Author: David Estrin
 Date: 2024-12-20
 Version: 1.0

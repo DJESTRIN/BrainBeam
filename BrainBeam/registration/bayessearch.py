@@ -28,15 +28,10 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import ipdb
-import plotly.graph_objects as go
-from datetime import datetime
 import os
 from BrainBeam.registration.graphics import volume_graphics, slice_views
-from BrainBeam.registration.padding import zoom_padding
 from optuna.samplers import CmaEsSampler
 from scipy.ndimage import zoom
-from skimage.filters import threshold_otsu, threshold_li, threshold_yen
 
 def quick_slice_plot(best_aligned_image,fixed_image,droppath,label):
     # Plot the results
@@ -101,8 +96,8 @@ def set_affine_rotation(affine_transform, theta_x, theta_y, theta_z):
 
 def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_params=None,graph_trial=500):
     # Convert from numpy to sitk image
-    slice_views(array1=moving_image, array2=fixed_image, output_filename='imagemask.jpg')
-    fixed_image = sitk.GetImageFromArray(fixed_image)
+    slice_views(array1=moving_image, array2=fixed_image, output_filename=os.path.join(drop_dir,'image_mask_preaffine.jpg'))
+    fixed_image = sitk.GetImageFromArray(fixed_image)_
     moving_image = sitk.GetImageFromArray(moving_image)
 
     if best_params is None:

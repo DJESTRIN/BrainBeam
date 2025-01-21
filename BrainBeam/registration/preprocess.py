@@ -13,18 +13,12 @@ from BrainBeam.registration.graphics import slice_views
 from BrainBeam.registration.padding import zero_pad_arrays
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from pathlib import Path
-import ipdb
 
 def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
-    """
-    
-    """
+    """ Find high signal points and replace it using a 3D convolutional like filter """
     # normalize data if set
     if normalize:
         volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
-
-    # plot original volume
-    slice_views(array1=volume,output_filename='presignalextract.jpg', image_type='max')
 
     # Threshold the data
     non_zero_array = volume[volume != 0]
@@ -72,7 +66,6 @@ def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
     if normalize:
         volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
 
-    slice_views(array1=volume,output_filename='postsignalextract.jpg', image_type='max')
     return volume 
 
 def blur(volume, sigma=2):
