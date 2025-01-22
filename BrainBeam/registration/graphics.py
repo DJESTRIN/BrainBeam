@@ -30,7 +30,7 @@ def adjust_image(image, contrast=1.0, brightness=0):
     image = np.clip(image, 0, 255)
     return image
 
-def slice_views(array1, output_filename, array2=None, contrast=None, brightness=None, image_type='max'):
+def slice_views(array1, output_filename, array2=None, contrast=None, brightness=None, image_type='max', overlay=False):
     # contrast and brightness must both be numbers
     if contrast is not None and brightness is not None:
         assert isinstance(contrast, (int, float)), "Contrast must be an int or float"
@@ -40,7 +40,9 @@ def slice_views(array1, output_filename, array2=None, contrast=None, brightness=
         adjust = False
 
     num_arrays = 2 if array2 is not None else 1
-    fig, axs = plt.subplots(3, num_arrays, figsize=(15 * num_arrays, 5))
+    num_columns = num_arrays + (1 if overlay and array2 is not None else 0)
+
+    fig, axs = plt.subplots(3, num_columns, figsize=(5 * num_columns, 15))
 
     for i in range(3):
         for j, array in enumerate([array1, array2] if array2 is not None else [array1]):
@@ -59,8 +61,37 @@ def slice_views(array1, output_filename, array2=None, contrast=None, brightness=
             if adjust:
                 projection = adjust_image(projection, contrast=contrast, brightness=brightness)
 
-            ax = axs[i, j] if num_arrays == 2 else axs[i]
+            ax = axs[i, j] if num_columns > 1 else axs[i]
             ax.imshow(projection, aspect='equal', cmap='gray', vmin=np.min(projection), vmax=np.max(projection))
+            ax.axis('off')
+
+        # Overlay column
+        if overlay and array2 is not None:
+            if image_type == 'max':
+                projection1 = array1.max(axis=i)
+                projection2 = array2.max(axis=i)
+            elif image_type == 'mean':
+                projection1 = array1.mean(axis=i)
+                projection2 = array2.mean(axis=i)
+            elif image_type == 'median':
+                projection1 = np.median(array1, axis=i)
+                projection2 = np.median(array2, axis=i)
+            elif image_type == 'std':
+                projection1 = np.std(array1, axis=i)
+                projection2 = np.std(array2, axis=i)
+
+            # Adjust brightness and contrast for overlays
+            if adjust:
+                projection1 = adjust_image(projection1, contrast=contrast, brightness=brightness)
+                projection2 = adjust_image(projection2, contrast=contrast, brightness=brightness)
+
+            # Create RGB overlay
+            overlay_image = np.zeros((*projection1.shape, 3), dtype=np.float32)
+            overlay_image[..., 0] = projection1 / np.max(projection1) if np.max(projection1) > 0 else 0  # Red channel
+            overlay_image[..., 1] = projection2 / np.max(projection2) if np.max(projection2) > 0 else 0  # Green channel
+
+            ax = axs[i, -1]
+            ax.imshow(overlay_image, aspect='equal')
             ax.axis('off')
 
     plt.tight_layout()

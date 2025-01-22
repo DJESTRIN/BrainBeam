@@ -132,10 +132,6 @@ def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_par
 
         def current_param_graph(study, trial, moving_image, fixed_image, droppath, n=graph_trial):
             if trial.number % n == 0:
-
-                if trial.number ==0:
-                    return 
-                
                 # Generate graphics object 
                 bayesoptgraphs = volume_graphics(shots=45) 
 

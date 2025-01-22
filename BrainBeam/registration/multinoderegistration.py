@@ -40,6 +40,22 @@ class managepaths():
         if not os.path.exists(self.base_registration_output_path):
             os.mkdir(self.base_registration_output_path)
 
+
+        """ Create manage_paths. Here are details regarding this dictionary
+            (1) image_folder
+            (2) cell_counts_files
+            (3) atlas_drop_path
+            (4) registration_drop_path
+            (5) communal_drop_path
+            (6) base_registration_output_path
+            (7) force_flips
+            (8) force_orientations
+            (9) align_binary_mask
+            (10) communal_slurm_log_directory
+            (11) communal_slurm_error_directory """
+        self.manage_paths = {}
+
+
     def find_image_paths(self):
         """ Given a base image path, find all subfolders """
         self.image_folders = set()
@@ -64,10 +80,8 @@ class managepaths():
         return epi(path_oh)
 
     def align_files_to_folders(self):
-
         # Loop over all image folders and csv files to find matches
         # Place all matches in a dictrionary
-        self.matching_paths_dictionary = {}
         for folders_oh in self.image_folders:
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
             matches = []
@@ -79,16 +93,12 @@ class managepaths():
                     matches.append(file_oh)
 
             if matches:
-                self.matching_paths_dictionary[folders_oh] = matches
-
-        # Convert set's to lists for future use
-        self.image_folders = list(self.image_folders)
-        self.cell_count_files = list(self.cell_count_files)
+                key = f'{folder_oh_cage} {folder_oh_subject}'
+                self.manage_paths[key] = {'image_folder': folders_oh,
+                                                        'cell_count_files': matches}
 
     def set_registration_outputs(self):
         """ Set up output folders for registration """
-        self.atlas_drop_paths = []
-        self.registration_drop_paths = []
         for folders_oh in self.image_folders:
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
             output_folder_base = os.path.join(self.base_registration_output_path,f"{folder_oh_cage}_{folder_oh_subject}_registration")
@@ -101,22 +111,37 @@ class managepaths():
             output_folder_base_atlas = os.path.join(output_folder_base,"atlas")
             if not os.path.exists(output_folder_base_atlas):
                 os.mkdir(output_folder_base_atlas)
-            self.atlas_drop_paths.append(output_folder_base_atlas)
 
             # Make registration drop path 
             output_folder_base_dropoh = os.path.join(output_folder_base,"registration_drop")
             if not os.path.exists(output_folder_base_dropoh):
                 os.mkdir(output_folder_base_dropoh)
 
-        # Create common folder where figures are copied to for quick viewing
-        self.communal_drop_folder = os.path.join(self.base_registration_output_path,"communal_figures")
-        if not os.path.exists(self.communal_drop_folder):
-            os.mkdir(self.communal_drop_folder)
+            # Create common folder where figures are copied to for quick viewing
+            communal_drop_folder = os.path.join(self.base_registration_output_path,"communal_figures")
+            if not os.path.exists(communal_drop_folder):
+                os.mkdir(communal_drop_folder)
 
-        # Save a list of output folders to be monitored by other code
-        with open(os.path.join(self.communal_drop_folder,"running_directories.pkl"),"wb") as f:
-            pickle.dump(self.registration_drop_paths, f)
-            print(f"Registration drop paths saved to pickle file in communal drop folder.")
+            # Add drop paths to dictionary
+            folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
+            key = f'{folder_oh_cage} {folder_oh_subject}'
+            self.manage_paths[key] = {'atlas_drop_path': output_folder_base_atlas,
+                                                    'registration_drop_path': output_folder_base_dropoh,
+                                                    'communal_drop_folder': communal_drop_folder,
+                                                    'base_registration_output_path':self.base_registration_output_path}
+
+            # Save a list of output folders to be monitored by other code
+            runningdirsfile = os.path.join(communal_drop_folder, "running_directories.pkl")
+            if os.path.exists(runningdirsfile):
+                with open(runningdirsfile, "rb") as f:
+                    registration_drop_paths = pickle.load(f)
+            else:
+                registration_drop_paths = []
+
+            registration_drop_paths.append(self.manage_paths[key]['registration_drop_path'])
+
+            with open(runningdirsfile, "wb") as f:
+                pickle.dump(registration_drop_paths, f)
 
     def determine_channel(self,path):
         channel = None
@@ -133,53 +158,71 @@ class managepaths():
     def copy_cell_counts(self):
         """ Copy cell count files to corresponding registration drop paths. 
             Append channel information in the process.  """
-        for drop_path in self.registration_drop_paths:
-            for _, cell_count_files in self.matching_paths_dictionary.items():
-                for file_oh in cell_count_files:
-                    file_oh_cage, file_oh_subject = self.extract_path_info(file_oh)
-                    drop_oh_cage, drop_oh_subject = self.extract_path_info(drop_path)
+        for subject, variables in self.manage_paths.items():
+            cell_count_files = variables.get('cell_count_files', [])
+            registration_drop_path = variables.get('registration_drop_path', '')
 
-                    if file_oh_cage==drop_oh_cage and file_oh_subject==drop_oh_subject:
-                        channel_oh = self.determine_channel(file_oh)
-                        assert channel_oh is not None
+            for file in cell_count_files:
+                channel_oh = self.determine_channel(file)
+                assert channel_oh is not None
+                shutil.copy2(file, os.path.join(registration_drop_path,f"{subject}_channel{channel_oh}_cell_counts.csv"))
 
-                        # Copy file to output location
-                        shutil.copy2(file_oh, os.path.join(drop_path,f"{file_oh_cage}_{file_oh_subject}_channel{channel_oh}_cell_counts.csv"))
-    
+
     def load_force_flips(self):
-        for drop_path in self.registration_drop_paths:
-            if os.path.exists(os.path.join(drop_path,"force_flips.txt")):
-                with open(os.path.join(drop_path,"force_flips.txt"), 'r') as file:
-                    self.force_flips = [int(line.strip()) for line in file]
+        """ find force flips file and load if present """
+        for subject, variables in self.manage_paths.items():
+            registration_drop_path = variables.get('registration_drop_path', '')
+            if os.path.exists(os.path.join(registration_drop_path,"force_flips.txt")):
+                with open(os.path.join(registration_drop_path,"force_flips.txt"), 'r') as file:
+                    force_flips = ' '.join(str(int(line.strip())) for line in file)
+                self.manage_paths[subject]['force_flips'] = force_flips
+            
             else:
-                self.force_flips = None
-    
+                self.manage_paths[subject]['force_flips'] = None
+
+           
     def load_force_orientations(self):
-        for drop_path in self.registration_drop_paths:
-            if os.path.exists(os.path.join(drop_path,"force_orientations.txt")):
-                with open(os.path.join(drop_path,"force_orientations.txt"), 'r') as file:
-                    self.force_orientations = [int(line.strip()) for line in file]
+        """ find force flips file and load if present """
+        for subject, variables in self.manage_paths.items():
+            registration_drop_path = variables.get('registration_drop_path', '')
+            if os.path.exists(os.path.join(registration_drop_path,"force_orientations.txt")):
+                with open(os.path.join(registration_drop_path,"force_orientations.txt"), 'r') as file:
+                    force_orientations = ' '.join(str(int(line.strip())) for line in file)
+                self.manage_paths[subject]['force_orientations'] = force_orientations
+            
             else:
-                self.force_orientations = None
+                self.manage_paths[subject]['force_orientations'] = None
     
     def load_align_binary_mask_file(self):
-        for drop_path in self.registration_drop_paths:
-            if os.path.exists(os.path.join(drop_path,"align_binary_mask.txt")):
-                with open(os.path.join(drop_path,"align_binary_mask.txt"), 'r') as file:
-                    self.align_binary_mask = [int(line.strip()) for line in file]
+        """ find force flips file and load if present """
+        for subject, variables in self.manage_paths.items():
+            registration_drop_path = variables.get('registration_drop_path', '')
+            if os.path.exists(os.path.join(registration_drop_path,"align_binary_mask.txt")):
+                with open(os.path.join(registration_drop_path,"align_binary_mask.txt"), 'r') as file:
+                    binary_mask_align = ' '.join(str(int(line.strip())) for line in file)
+                self.manage_paths[subject]['align_binary_mask'] = binary_mask_align
+            
             else:
-                self.align_binary_mask = None
+                self.manage_paths[subject]['align_binary_mask'] = None
+
 
     def set_slurm_output_folders(self):
         """ Create output folders where slurm log and error data will be stored for ease of use """
-        self.communal_slurm_log_directory = os.path.join(self.base_registration_output_path,"slurm_logs")
-        if not os.path.exists(self.communal_slurm_log_directory):
-            os.mkdir(self.communal_slurm_log_directory)
+        for subject, variables in self.manage_paths.items():
+            base_output_path = variables.get('base_registration_output_path', '')
 
-        self.communal_slurm_error_directory = os.path.join(self.base_registration_output_path,"slurm_errors")
-        if not os.path.exists(self.communal_slurm_error_directory):
-            os.mkdir(self.communal_slurm_error_directory)
-        
+            # Create folders if they do not exist
+            communal_slurm_log_directory = os.path.join(base_output_path,"slurm_logs")
+            communal_slurm_error_directory = os.path.join(base_output_path,"slurm_errors")
+            if not os.path.exists(communal_slurm_log_directory):
+                os.mkdir(communal_slurm_log_directory)
+            if not os.path.exists(communal_slurm_error_directory):
+                os.mkdir(communal_slurm_error_directory)
+
+            # Add to dictionary
+            self.manage_paths[subject]['communal_slurm_log_directory'] = communal_slurm_log_directory
+            self.manage_paths[subject]['communal_slurm_error_directory'] = communal_slurm_error_directory
+
     def __call__(self):
         # General pipeline for class
         print('Finding image paths')
@@ -208,10 +251,20 @@ class managepaths():
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
                 memory_per_job = 128, tasks_per_job = 8, cpus_per_task = 4):
     """ Build sbatch command and submit for running """
+
     jids = []
-    for subject_oh_data in managepathobj.matching_paths_dictionary.items():
-        ipdb.set_trace()
-        image_path_oh, count_files_oh, output_atlas_path_oh, output_registration_path_oh, binary_mask_file, force_orientation_file, force_flips_file = subject_oh_data
+    for subject, variables in managepathobj.manage_paths.items():
+        # Pull data from dictionary via get
+        communal_slurm_log_directory = variables.get(subject, {}).get('communal_slurm_log_directory', '')
+        communal_slurm_error_directory = variables.get(subject, {}).get('communal_slurm_error_directory', '')
+        image_folder = variables.get(subject, {}).get('image_folder', '')
+        atlas_drop_path = variables.get(subject, {}).get('atlas_drop_path', '')
+        registration_drop_path = variables.get(subject, {}).get('registration_drop_path', '')
+        align_binary_mask = variables.get(subject, {}).get('align_binary_mask', '')
+        force_orientations = variables.get(subject, {}).get('force_orientations', '')
+        force_flips = variables.get(subject, {}).get('force_flips', '')
+        
+        # Build command line interface command
         my_command = f"sbatch --job-name=merge_data_to_tallformat \
                 --mem={memory_per_job}G \
                 --ntasks={tasks_per_job} \
@@ -219,18 +272,21 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 --partition={partition_oh} \
                 --mail-type=BEGIN,END,FAIL \
                 --mail-user={email} \
-                --output={managepathobj.communal_slurm_log_directory}/%x-%j.out \
-                --error={managepathobj.communal_slurm_error_directory}/%x-%j.err \
+                --output={communal_slurm_log_directory}/%x-%j.out \
+                --error={communal_slurm_error_directory}/%x-%j.err \
                 --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
-                --image_path {image_path_oh} \
-                --atlas_path {output_atlas_path_oh} \
-                --output_path {output_registration_path_oh} \
+                --image_path {image_folder} \
+                --atlas_path {atlas_drop_path} \
+                --output_path {registration_drop_path} \
                 --full_output_path \
-                --align_binary_mask {binary_mask_file} \
-                --force_orientation {force_orientation_file} \
-                --force_flips {force_flips_file}'"
-
+                --align_binary_mask {align_binary_mask} \
+                --force_orientation {force_orientations} \
+                --force_flips {force_flips}'"
+        ipdb.set_trace()
+        # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
+        
+        # Append job id to list for monitoring
         idoh = result.stdout.strip()
         print(f'Submitted job number: {idoh}')
         jids.append(idoh)
