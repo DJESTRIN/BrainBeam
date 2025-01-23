@@ -325,12 +325,14 @@ def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "
     # Continously monitor jobs if running
     running_jobs = original_job_ids
     result, running_jobs = find_my_jobs(running_jobs)
+    ipdb.set_trace()
     while result:
         # Wait for some down time to check again
         time.sleep(sleep) 
         
         # Gather data for common directory (such as images)
         monitor(common_drop_directory, directory_file = directory_file_oh, currently_running=result, file_extensions=file_extensions_oh)
+        ipdb.set_trace()
         result, running_jobs = find_my_jobs(running_jobs)
 
 if __name__=='__main__':

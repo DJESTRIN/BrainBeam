@@ -67,4 +67,4 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                             print(f"Copied: {file} to {output_file_oh}")
 
         else:
-            print('Directory file was not foundin given path')
+            print('Directory file was not found in given path')
