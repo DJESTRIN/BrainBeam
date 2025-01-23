@@ -21,10 +21,11 @@ from BrainBeam.registration.monitorprocess import extract_path_info as epi
 
 # Build custom class for gather all path data and submitting jobs via slurm
 class managepaths():
-    def __init__(self, base_stitched_image_path, base_cell_count_path, base_registration_output_path = None):
+    def __init__(self, base_stitched_image_path, base_cell_count_path, base_registration_output_path = None, create_new_running_dir_file=True):
         # Set up attributes
         self.base_stitched_image_path = base_stitched_image_path
         self.base_cell_count_path = base_cell_count_path
+        self.create_new_running_dir_file = create_new_running_dir_file
 
         # Make sure a real path was given
         assert os.path.exists(self.base_stitched_image_path)
@@ -135,8 +136,11 @@ class managepaths():
             # Save a list of output folders to be monitored by other code
             runningdirsfile = os.path.join(communal_drop_folder, "running_directories.pkl")
             if os.path.exists(runningdirsfile):
-                with open(runningdirsfile, "rb") as f:
-                    registration_drop_paths = pickle.load(f)
+                if self.create_new_running_dir_file:
+                    registration_drop_paths = []
+                else:
+                    with open(runningdirsfile, "rb") as f:
+                        registration_drop_paths = pickle.load(f)
             else:
                 registration_drop_paths = []
 
