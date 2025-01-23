@@ -60,7 +60,6 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                     for file in Path(drop_directory).glob(f'*.{filetype}'): 
                         
                         # Build output filename
-                        ipdb.set_trace()
                         file = str(file)
                         cage, subject = extract_path_info(file)
                         new_file_name = f"{cage}_{subject}_{file.name}"
