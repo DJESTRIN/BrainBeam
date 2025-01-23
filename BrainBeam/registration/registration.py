@@ -707,8 +707,8 @@ def cli_parser():
                         These subfolders are where data will be saved.')
     parser.add_argument('--full_output_path', action='store_true', help = 'a full path to output_path')
     parser.add_argument('--align_binary_mask', default=None, action='store_true')
-    parser.add_argument('--force_orientation', nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
-    parser.add_argument('--force_flips', nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
+    parser.add_argument('--force_orientation', nargs='*', default=None, required=False, help='3 Integers which force orientation of moving image')
+    parser.add_argument('--force_flips', nargs='*', default=None, required=False, help='3 Integers which force orientation of moving image')
     args = parser.parse_args()
 
     if args.force_orientation=='':
