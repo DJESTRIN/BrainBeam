@@ -174,6 +174,7 @@ class MovingImage:
 
     def extract_number(self,file_path):
         # Extract digits using regex
+        print(f'This is the filepath" {file_path}')
         _,number = file_path.split('_0')
         number, _ = number.split('.')
         return int(number)
