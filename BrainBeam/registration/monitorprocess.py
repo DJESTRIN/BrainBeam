@@ -61,9 +61,11 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                         
                         # Build output filename
                         ipdb.set_trace()
+                        file = str(file)
                         cage, subject = extract_path_info(file)
                         new_file_name = f"{cage}_{subject}_{file.name}"
                         output_file_oh = Path(common_drop_directory) / new_file_name
+                        output_file_oh = str(output_file_oh)
 
                         # Determin if file is new or if the time has changed
                         if not output_file_oh.exists() or (file.stat().st_mtime > output_file_oh.stat().st_mtime):
