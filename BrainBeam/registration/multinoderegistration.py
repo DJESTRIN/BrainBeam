@@ -21,7 +21,7 @@ from BrainBeam.registration.monitorprocess import extract_path_info as epi
 
 # Build custom class for gather all path data and submitting jobs via slurm
 class managepaths():
-    def __init__(self, base_stitched_image_path, base_cell_count_path, base_registration_output_path = None, create_new_running_dir_file=True):
+    def __init__(self, base_stitched_image_path, base_cell_count_path, base_registration_output_path = None, create_new_running_dir_file=False):
         # Set up attributes
         self.base_stitched_image_path = base_stitched_image_path
         self.base_cell_count_path = base_cell_count_path
