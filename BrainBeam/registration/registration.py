@@ -327,7 +327,10 @@ class alignment:
         self.target_array = self.TargetImageObject.template.astype(np.float64)
         self.annotation_array = self.TargetImageObject.annotation.astype(np.float64)
         self.graphobjoh = graphobjoh
+        if align_binary_mask is None:
+            align_binary_mask = False
         self.align_binary_mask = align_binary_mask
+        
 
     def multiresolution_align(self,  resolutions=None, iters=None):
         """ Multi-Resolution Alignment -- 
