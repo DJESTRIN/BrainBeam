@@ -11,6 +11,7 @@ import pickle
 import os
 import shutil 
 from pathlib import Path
+import ipdb
 
 def extract_path_info(path_oh):
     """ Copied from mulinoderegistration managepaths class
@@ -59,6 +60,7 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                     for file in Path(drop_directory).glob(f'*.{filetype}'): 
                         
                         # Build output filename
+                        ipdb.set_trace()
                         cage, subject = extract_path_info(file)
                         new_file_name = f"{cage}_{subject}_{file.name}"
                         output_file_oh = Path(common_drop_directory) / new_file_name
