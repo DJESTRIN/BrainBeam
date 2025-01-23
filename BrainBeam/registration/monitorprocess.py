@@ -60,16 +60,17 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                     for file in Path(drop_directory).glob(f'*.{filetype}'): 
                         
                         # Build output filename
-                        file = str(file)
-                        cage, subject = extract_path_info(file)
+                        filestr = str(file)
+                        cage, subject = extract_path_info(filestr)
                         new_file_name = f"{cage}_{subject}_{file.name}"
                         output_file_oh = Path(common_drop_directory) / new_file_name
-                        output_file_oh = str(output_file_oh)
+                        output_file_ohstr = str(output_file_oh)
 
                         # Determin if file is new or if the time has changed
+                        ipdb.set_trace()
                         if not output_file_oh.exists() or (file.stat().st_mtime > output_file_oh.stat().st_mtime):
-                            shutil.copy2(file, output_file_oh)
-                            print(f"Copied: {file} to {output_file_oh}")
+                            shutil.copy2(filestr, output_file_ohstr)
+                            print(f"Copied: {filestr} to {output_file_ohstr}")
 
         else:
             print('Directory file was not found in given path')
