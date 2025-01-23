@@ -358,7 +358,6 @@ if __name__=='__main__':
     communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
 
     # Monitor jobs if succesful. 
-    ipdb.set_trace()
     monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
                   file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
 
