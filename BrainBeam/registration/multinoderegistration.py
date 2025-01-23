@@ -309,6 +309,8 @@ def cli_parser():
     parser.add_argument('--memory', type=str, default='128', help='Memory in Gb to be used for each node')
     parser.add_argument('--tasks', type=str, default='8', help='Number of tasks per node')
     parser.add_argument('--cpus_per_task', type=str, default='4', help='Number of cpus per task')
+
+    parser.add_argument('--monitor_only', action='store_true', help='Number of cpus per task')
     args = parser.parse_args()
     return args
 
@@ -349,21 +351,34 @@ if __name__=='__main__':
                           base_registration_output_path = args.parent_registration_output_path)
     pathobj()
 
-    # Send all data to sbatch
-    joblist = submit_jobs(managepathobj = pathobj, 
-                conda_environment_name = args.conda_environment_name, 
-                partition_oh = args.partition, 
-                email = args.user_email, 
-                memory_per_job = args.memory, 
-                tasks_per_job = args.tasks, 
-                cpus_per_task = args.cpus_per_task)
-    
-    # Get communal drop folder from first item in key
-    communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
+    if args.monitor_only:
+        squeue_result_oh = subprocess.run(f"squeue --noheader -u dje4001 --format=%A", shell=True, capture_output=True, text=True)
+        current_ids = squeue_result_oh.stdout.split()
+        joblist = [job for job in current_ids]
 
-    # Monitor jobs if succesful. 
-    monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
-                  file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+        # Get communal drop folder from first item in key
+        communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
+
+        # Monitor jobs if succesful. 
+        monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
+                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+
+    else:
+        # Send all data to sbatch
+        joblist = submit_jobs(managepathobj = pathobj, 
+                    conda_environment_name = args.conda_environment_name, 
+                    partition_oh = args.partition, 
+                    email = args.user_email, 
+                    memory_per_job = args.memory, 
+                    tasks_per_job = args.tasks, 
+                    cpus_per_task = args.cpus_per_task)
+        
+        # Get communal drop folder from first item in key
+        communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
+
+        # Monitor jobs if succesful. 
+        monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
+                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
 
     """
     Note regarding usage:
