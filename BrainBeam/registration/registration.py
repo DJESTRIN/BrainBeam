@@ -737,7 +737,7 @@ def cli_parser():
     args.init_date_time = init_date_time
     return args
 
-def main(args, force_orientation, force_flips):
+def main(args):
     # Update classes to have matching methods
     MovingImage.generate_gif = target.generate_gif 
     alignment.generate_gif = target.generate_gif 
@@ -791,4 +791,4 @@ def main(args, force_orientation, force_flips):
    
 if __name__=='__main__':
     args = cli_parser()
-    main(args, force_orientation, force_flips)
+    main(args)
