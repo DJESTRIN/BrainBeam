@@ -254,6 +254,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
 
     jids = []
     for subject, variables in managepathobj.manage_paths.items():
+        ipdb.set_trace()
         # Pull data from dictionary via get
         communal_slurm_log_directory = variables.get(subject, {}).get('communal_slurm_log_directory', '')
         communal_slurm_error_directory = variables.get(subject, {}).get('communal_slurm_error_directory', '')
