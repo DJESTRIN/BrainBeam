@@ -331,6 +331,7 @@ def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "
     result, running_jobs = find_my_jobs(running_jobs)
   
     while result:
+        print(f'jobs {running_jobs} still running')
         # Wait for some down time to check again
         time.sleep(sleep) 
         

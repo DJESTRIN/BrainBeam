@@ -67,7 +67,6 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
                         output_file_ohstr = str(output_file_oh)
 
                         # Determin if file is new or if the time has changed
-                        ipdb.set_trace()
                         if not output_file_oh.exists() or (file.stat().st_mtime > output_file_oh.stat().st_mtime):
                             shutil.copy2(filestr, output_file_ohstr)
                             print(f"Copied: {filestr} to {output_file_ohstr}")
