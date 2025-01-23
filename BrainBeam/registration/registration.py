@@ -790,5 +790,5 @@ def main(args, force_orientation, force_flips):
     return 
    
 if __name__=='__main__':
-    args, force_orientation, force_flips = cli_parser()
+    args = cli_parser()
     main(args, force_orientation, force_flips)
