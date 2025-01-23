@@ -287,7 +287,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
 
         # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
-        ipdb.set_trace()
         
         # Append job id to list for monitoring
         idoh = result.stdout.strip().split(" ")[-1]
@@ -353,9 +352,13 @@ if __name__=='__main__':
                 tasks_per_job = args.tasks, 
                 cpus_per_task = args.cpus_per_task)
     
+    # Get communal drop folder from first item in key
+    communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
+
     # Monitor jobs if succesful. 
-    # monitor_jobs(pathobj.common_drop_directory, joblist, directory_file_oh  = "running_directories.pkl", 
-    #              file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+    ipdb.set_trace()
+    monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
+                  file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
 
     """
     Note regarding usage:
