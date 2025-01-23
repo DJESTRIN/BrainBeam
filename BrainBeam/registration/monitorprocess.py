@@ -51,8 +51,6 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
             # Loop over drop direcectories from file
             for drop_directory in directories_list:
 
-                ipdb.set_trace()
-
                 print(f"Searching through {drop_directory}")
                 
                 # Loop over provided file types that we want to monitor. 
