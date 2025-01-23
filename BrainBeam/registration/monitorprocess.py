@@ -40,9 +40,9 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
     if currently_running:
         if os.path.isfile(os.path.join(common_drop_directory, directory_file)):
             # Find directory file and open it
-            with open(os.path.join(common_drop_directory,"running_directories.pkl"),"wb") as f:
+            print("Opening up the running output directories")
+            with open(os.path.join(common_drop_directory,"running_directories.pkl"),"rb") as f:
                 directories_list = pickle.load(f)
-
 
             # Double check path is real and exists
             Path(common_drop_directory).mkdir(parents=True, exist_ok=True)
@@ -50,6 +50,8 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
             # Loop over drop direcectories from file
             for drop_directory in directories_list:
 
+                print(f"Searching through {drop_directory}")
+                
                 # Loop over provided file types that we want to monitor. 
                 for filetype in file_extensions:
 
