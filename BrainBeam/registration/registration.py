@@ -712,13 +712,13 @@ def cli_parser():
     args = parser.parse_args()
 
     if args.force_orientation=='':
-        force_orientation = None
+        args.force_orientation = None
 
     if args.force_flips=='':
-        force_flips = None
+        args.force_flips = None
 
     if args.align_binary_mask=='':
-        force_flips = None
+        args.force_flips = None
 
     # Get current time as string and generate output folder
     now = datetime.now()
@@ -735,7 +735,7 @@ def cli_parser():
     # Append a few new arguments
     args.output_path = output_path
     args.init_date_time = init_date_time
-    return args, force_orientation, force_flips
+    return args
 
 def main(args, force_orientation, force_flips):
     # Update classes to have matching methods
@@ -746,7 +746,7 @@ def main(args, force_orientation, force_flips):
     target_oh = target(target_path=args.atlas_path)
     target_oh()
 
-    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=force_orientation, force_flips=force_flips)
+    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=args.force_orientation, force_flips=args.force_flips)
     Image_oh()
 
     Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(args.output_path,f'init_moving_array_{args.init_date_time}.gif'))
