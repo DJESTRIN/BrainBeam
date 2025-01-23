@@ -255,7 +255,7 @@ class managepaths():
         self.set_slurm_output_folders()
 
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
-                memory_per_job = 256, tasks_per_job = 1, cpus_per_task = 4):
+                memory_per_job = 256, tasks_per_job = 1, cpus_per_task = 8):
     """ Build sbatch command and submit for running """
 
     jids = []
