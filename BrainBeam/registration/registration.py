@@ -706,14 +706,18 @@ def cli_parser():
     parser.add_argument('--output_path',type=str,help='Full path containin results. Path will be appended with subfolder containing current date and time. \
                         These subfolders are where data will be saved.')
     parser.add_argument('--full_output_path', action='store_true', help = 'a full path to output_path')
-    parser.add_argument('--align_binary_mask', action='store_true')
+    parser.add_argument('--align_binary_mask', default=None, action='store_true')
     parser.add_argument('--force_orientation', nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
     parser.add_argument('--force_flips', nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
     args = parser.parse_args()
 
-    if args.force_orientation=='None':
+    if args.force_orientation=='':
         force_orientation = None
-    if args.force_flips=='None':
+
+    if args.force_flips=='':
+        force_flips = None
+
+    if args.align_binary_mask=='':
         force_flips = None
 
     # Get current time as string and generate output folder

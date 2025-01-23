@@ -180,7 +180,7 @@ class managepaths():
                 self.manage_paths[subject]['force_flips'] = force_flips
             
             else:
-                self.manage_paths[subject]['force_flips'] = 'None'
+                self.manage_paths[subject]['force_flips'] = ''
 
            
     def load_force_orientations(self):
@@ -193,7 +193,7 @@ class managepaths():
                 self.manage_paths[subject]['force_orientations'] = force_orientations
             
             else:
-                self.manage_paths[subject]['force_orientations'] = 'None'
+                self.manage_paths[subject]['force_orientations'] = ''
     
     def load_align_binary_mask_file(self):
         """ find force flips file and load if present """
@@ -205,7 +205,7 @@ class managepaths():
                 self.manage_paths[subject]['align_binary_mask'] = binary_mask_align
             
             else:
-                self.manage_paths[subject]['align_binary_mask'] = 'None'
+                self.manage_paths[subject]['align_binary_mask'] = ''
 
 
     def set_slurm_output_folders(self):
