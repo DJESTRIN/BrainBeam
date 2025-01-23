@@ -178,7 +178,7 @@ def find_affine_matrix(fixed_image,moving_image, drop_dir,ntrials=10000,best_par
         # Create an Optuna study to optimize the objective function
         sampler = CmaEsSampler()
         study = optuna.create_study(sampler=sampler, direction="minimize",pruner=MedianPruner())  # We want to minimize the metric
-        study.optimize(lambda trial: objective(trial, fixed_image, moving_image), n_trials=ntrials, n_jobs=-1,  show_progress_bar=True, callbacks=[lambda s, t: current_param_graph(s, t, moving_image, fixed_image, drop_dir)])  # Run optimization for 100 trials
+        study.optimize(lambda trial: objective(trial, fixed_image, moving_image), n_trials=ntrials, n_jobs=4,  show_progress_bar=True, callbacks=[lambda s, t: current_param_graph(s, t, moving_image, fixed_image, drop_dir)])  # Run optimization for 100 trials
 
         # Get the best parameters from the optimization
         best_trial = study.best_trial
@@ -254,7 +254,7 @@ def find_best_axes_sampling(fixed_image,moving_image,drop_dir,ntrials=5000,best_
         # Create an Optuna study to optimize the objective function
         sampler = CmaEsSampler()
         study = optuna.create_study(sampler=sampler, direction="minimize", pruner=MedianPruner())  # We want to minimize the metric
-        study.optimize(lambda trial: objective(trial, fixed_image, moving_image), n_trials=ntrials, n_jobs=-1,  show_progress_bar=True, callbacks=[lambda s, t: current_param_graph(s, t, moving_image, fixed_image, drop_dir)])  # Run optimization for 100 trials
+        study.optimize(lambda trial: objective(trial, fixed_image, moving_image), n_trials=ntrials, n_jobs=4,  show_progress_bar=True, callbacks=[lambda s, t: current_param_graph(s, t, moving_image, fixed_image, drop_dir)])  # Run optimization for 100 trials
 
         # Get the best parameters from the optimization
         best_trial = study.best_trial
