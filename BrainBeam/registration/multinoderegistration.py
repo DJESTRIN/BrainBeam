@@ -96,8 +96,7 @@ class managepaths():
             ipdb.set_trace()
             if matches:
                 key = f'{folder_oh_cage} {folder_oh_subject}'
-                self.manage_paths[key] = {'image_folder': folders_oh,
-                                                        'cell_count_files': matches}
+                self.manage_paths[key] = {'image_folder': folders_oh, 'cell_count_files': matches}
             else:
                 key = f'{folder_oh_cage} {folder_oh_subject}'
                 self.manage_paths[key] = {'image_folder': folders_oh}
@@ -130,10 +129,10 @@ class managepaths():
             # Add drop paths to dictionary
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
             key = f'{folder_oh_cage} {folder_oh_subject}'
-            self.manage_paths[key] = {'atlas_drop_path': output_folder_base_atlas,
-                                                    'registration_drop_path': output_folder_base_dropoh,
-                                                    'communal_drop_folder': communal_drop_folder,
-                                                    'base_registration_output_path':self.base_registration_output_path}
+            self.manage_paths[key]['atlas_drop_path'] = output_folder_base_atlas
+            self.manage_paths[key]['registration_drop_path'] = output_folder_base_dropoh
+            self.manage_paths[key]['communal_drop_folder'] = communal_drop_folder
+            self.manage_paths[key]['base_registration_output_path'] = self.base_registration_output_path
 
             # Save a list of output folders to be monitored by other code
             runningdirsfile = os.path.join(communal_drop_folder, "running_directories.pkl")
