@@ -267,7 +267,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         force_flips = variables.get('force_flips', '')
         
         # Build command line interface command
-        my_command = f"sbatch --job-name=merge_data_to_tallformat \
+        my_command = f"sbatch --job-name=custom_registration \
                 --mem={memory_per_job}G \
                 --ntasks={tasks_per_job} \
                 --cpus-per-task={cpus_per_task} \
@@ -284,9 +284,10 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 --align_binary_mask {align_binary_mask} \
                 --force_orientation {force_orientations} \
                 --force_flips {force_flips}'"
-        ipdb.set_trace()
+
         # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
+        ipdb.set_trace()
         
         # Append job id to list for monitoring
         idoh = result.stdout.strip()
