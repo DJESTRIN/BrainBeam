@@ -256,15 +256,16 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
     for subject, variables in managepathobj.manage_paths.items():
         ipdb.set_trace()
         # Pull data from dictionary via get
-        communal_slurm_log_directory = variables.get(subject, {}).get('communal_slurm_log_directory', '')
-        communal_slurm_error_directory = variables.get(subject, {}).get('communal_slurm_error_directory', '')
-        image_folder = variables.get(subject, {}).get('image_folder', '')
-        atlas_drop_path = variables.get(subject, {}).get('atlas_drop_path', '')
-        registration_drop_path = variables.get(subject, {}).get('registration_drop_path', '')
-        align_binary_mask = variables.get(subject, {}).get('align_binary_mask', '')
-        force_orientations = variables.get(subject, {}).get('force_orientations', '')
-        force_flips = variables.get(subject, {}).get('force_flips', '')
+        communal_slurm_log_directory = variables.get('communal_slurm_log_directory', '')
+        communal_slurm_error_directory = variables.get('communal_slurm_error_directory', '')
+        image_folder = variables.get('image_folder', '')
+        atlas_drop_path = variables.get('atlas_drop_path', '')
+        registration_drop_path = variables.get('registration_drop_path', '')
+        align_binary_mask = variables.get('align_binary_mask', '')
+        force_orientations = variables.get('force_orientations', '')
+        force_flips = variables.get('force_flips', '')
         
+        ipdb.set_trace()
         # Build command line interface command
         my_command = f"sbatch --job-name=merge_data_to_tallformat \
                 --mem={memory_per_job}G \
