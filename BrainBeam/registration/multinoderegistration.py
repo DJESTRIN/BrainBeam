@@ -83,6 +83,7 @@ class managepaths():
         # Loop over all image folders and csv files to find matches
         # Place all matches in a dictrionary
         for folders_oh in self.image_folders:
+            ipdb.set_trace()
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
             matches = []
 
@@ -92,6 +93,7 @@ class managepaths():
                 if folder_oh_cage == file_oh_cage and folder_oh_subject == file_oh_subject:
                     matches.append(file_oh)
 
+            ipdb.set_trace()
             if matches:
                 key = f'{folder_oh_cage} {folder_oh_subject}'
                 self.manage_paths[key] = {'image_folder': folders_oh,
