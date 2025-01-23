@@ -137,17 +137,18 @@ class managepaths():
             runningdirsfile = os.path.join(communal_drop_folder, "running_directories.pkl")
             if os.path.exists(runningdirsfile):
                 if self.create_new_running_dir_file:
-                    registration_drop_paths = []
+                    registration_drop_paths = set()
                 else:
                     with open(runningdirsfile, "rb") as f:
-                        registration_drop_paths = pickle.load(f)
+                        registration_drop_paths = set(pickle.load(f))
             else:
-                registration_drop_paths = []
+                registration_drop_paths = set()
 
-            registration_drop_paths.append(self.manage_paths[key]['registration_drop_path'])
+            registration_drop_paths.add(self.manage_paths[key]['registration_drop_path'])
+
 
             with open(runningdirsfile, "wb") as f:
-                pickle.dump(registration_drop_paths, f)
+                pickle.dump(list(registration_drop_paths), f)
 
     def determine_channel(self,path):
         channel = None
