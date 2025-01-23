@@ -711,6 +711,11 @@ def cli_parser():
     parser.add_argument('--force_flips', nargs='+', default=None, required=False, help='3 Integers which force orientation of moving image')
     args = parser.parse_args()
 
+    if args.force_orientation=='None':
+        force_orientation = None
+    if args.force_flips=='None':
+        force_flips = None
+
     # Get current time as string and generate output folder
     now = datetime.now()
     init_date_time= now.strftime("%Y_%m_%d_%H_%M_%S")
@@ -726,9 +731,9 @@ def cli_parser():
     # Append a few new arguments
     args.output_path = output_path
     args.init_date_time = init_date_time
-    return args
+    return args, force_orientation, force_flips
 
-def main(args):
+def main(args, force_orientation, force_flips):
     # Update classes to have matching methods
     MovingImage.generate_gif = target.generate_gif 
     alignment.generate_gif = target.generate_gif 
@@ -737,7 +742,7 @@ def main(args):
     target_oh = target(target_path=args.atlas_path)
     target_oh()
 
-    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=args.force_orientation, force_flips=args.force_flips)
+    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=force_orientation, force_flips=force_flips)
     Image_oh()
 
     Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(args.output_path,f'init_moving_array_{args.init_date_time}.gif'))
@@ -781,5 +786,5 @@ def main(args):
     return 
    
 if __name__=='__main__':
-    args = cli_parser()
-    main(args)
+    args, force_orientation, force_flips = cli_parser()
+    main(args, force_orientation, force_flips)

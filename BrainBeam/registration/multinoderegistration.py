@@ -180,7 +180,7 @@ class managepaths():
                 self.manage_paths[subject]['force_flips'] = force_flips
             
             else:
-                self.manage_paths[subject]['force_flips'] = None
+                self.manage_paths[subject]['force_flips'] = 'None'
 
            
     def load_force_orientations(self):
@@ -193,7 +193,7 @@ class managepaths():
                 self.manage_paths[subject]['force_orientations'] = force_orientations
             
             else:
-                self.manage_paths[subject]['force_orientations'] = None
+                self.manage_paths[subject]['force_orientations'] = 'None'
     
     def load_align_binary_mask_file(self):
         """ find force flips file and load if present """
@@ -205,7 +205,7 @@ class managepaths():
                 self.manage_paths[subject]['align_binary_mask'] = binary_mask_align
             
             else:
-                self.manage_paths[subject]['align_binary_mask'] = None
+                self.manage_paths[subject]['align_binary_mask'] = 'None'
 
 
     def set_slurm_output_folders(self):
@@ -290,7 +290,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         ipdb.set_trace()
         
         # Append job id to list for monitoring
-        idoh = result.stdout.strip()
+        idoh = result.stdout.strip().split(" ")[-1]
         print(f'Submitted job number: {idoh}')
         jids.append(idoh)
     return jids
