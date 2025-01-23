@@ -83,7 +83,6 @@ class managepaths():
         # Loop over all image folders and csv files to find matches
         # Place all matches in a dictrionary
         for folders_oh in self.image_folders:
-            ipdb.set_trace()
             folder_oh_cage, folder_oh_subject = self.extract_path_info(folders_oh)
             matches = []
 
@@ -93,7 +92,6 @@ class managepaths():
                 if folder_oh_cage == file_oh_cage and folder_oh_subject == file_oh_subject:
                     matches.append(file_oh)
 
-            ipdb.set_trace()
             if matches:
                 key = f'{folder_oh_cage} {folder_oh_subject}'
                 self.manage_paths[key] = {'image_folder': folders_oh, 'cell_count_files': matches}
@@ -258,7 +256,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
 
     jids = []
     for subject, variables in managepathobj.manage_paths.items():
-        ipdb.set_trace()
         # Pull data from dictionary via get
         communal_slurm_log_directory = variables.get('communal_slurm_log_directory', '')
         communal_slurm_error_directory = variables.get('communal_slurm_error_directory', '')
@@ -269,7 +266,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         force_orientations = variables.get('force_orientations', '')
         force_flips = variables.get('force_flips', '')
         
-        ipdb.set_trace()
         # Build command line interface command
         my_command = f"sbatch --job-name=merge_data_to_tallformat \
                 --mem={memory_per_job}G \
