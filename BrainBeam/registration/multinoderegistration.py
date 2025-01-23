@@ -96,6 +96,9 @@ class managepaths():
                 key = f'{folder_oh_cage} {folder_oh_subject}'
                 self.manage_paths[key] = {'image_folder': folders_oh,
                                                         'cell_count_files': matches}
+            else:
+                key = f'{folder_oh_cage} {folder_oh_subject}'
+                self.manage_paths[key] = {'image_folder': folders_oh}
 
     def set_registration_outputs(self):
         """ Set up output folders for registration """
