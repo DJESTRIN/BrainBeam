@@ -255,8 +255,23 @@ class managepaths():
         print('Set slurm output')
         self.set_slurm_output_folders()
 
+def delete_contents_path(path_oh):
+    # Check if the path exists
+    if os.path.exists(path_oh):
+        # Iterate through all items in the directory
+        for item in os.listdir(path_oh):
+            item_path = os.path.join(path_oh, item)
+            # Check if it's a file or folder
+            if os.path.isfile(item_path) or os.path.islink(item_path):
+                print(f'File being deleted {item_path}')
+                os.remove(item_path)  # Remove file or symbolic link
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)  # Remove folder and its contents
+    else:
+        print(f"Path '{path_oh}' does not exist.")
+
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
-                memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8):
+                memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False):
     """ Build sbatch command and submit for running """
 
     jids = []
@@ -270,6 +285,9 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         align_binary_mask = variables.get('align_binary_mask', '')
         force_orientations = variables.get('force_orientations', '')
         force_flips = variables.get('force_flips', '')
+
+        if delete_contents_of_output_folders:
+            delete_contents_path(path_oh = registration_drop_path)
         
         # Build command line interface command
         my_command = f"sbatch --job-name=custom_registration \
@@ -312,6 +330,7 @@ def cli_parser():
     parser.add_argument('--cpus_per_task', type=str, default='4', help='Number of cpus per task')
 
     parser.add_argument('--monitor_only', action='store_true', help='Number of cpus per task')
+    parser.add_argument('--force_delete_output', action='store_true', help='Number of cpus per task')
     args = parser.parse_args()
     return args
 
@@ -372,7 +391,8 @@ if __name__=='__main__':
                     email = args.user_email, 
                     memory_per_job = args.memory, 
                     tasks_per_job = args.tasks, 
-                    cpus_per_task = args.cpus_per_task)
+                    cpus_per_task = args.cpus_per_task,
+                    delete_contents_of_output_folders=args.force_delete_output)
         
         # Get communal drop folder from first item in key
         communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
