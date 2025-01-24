@@ -714,14 +714,23 @@ def cli_parser():
     parser.add_argument('--force_flips', nargs='*', default=None, required=False, help='3 Integers which force orientation of moving image')
     args = parser.parse_args()
 
-    if not isinstance(args.force_orientation, (int)):
+    if not isinstance(args.force_orientation, (int,str)):
         args.force_orientation = None
 
-    if not isinstance(args.force_flips, (int)):
+    if not isinstance(args.force_flips, (int, str)):
         args.force_flips = None
 
-    if not isinstance(args.align_binary_mask, (int)):
+    if not isinstance(args.align_binary_mask, (int,str )):
         args.align_binary_mask = None
+    
+    if args.force_orientation is not None:
+        args.force_orientation = [int(x) for x in args.force_orientation]
+
+    if args.force_flips is not None:
+        args.force_flips = [int(x) for x in args.force_flips]
+
+    if args.align_binary_mask is not None:
+        args.align_binary_mask = [int(x) for x in args.align_binary_mask]
 
     # Get current time as string and generate output folder
     now = datetime.now()
