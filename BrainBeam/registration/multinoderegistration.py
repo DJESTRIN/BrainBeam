@@ -182,7 +182,6 @@ class managepaths():
             if os.path.exists(os.path.join(registration_drop_path,"force_flips.txt")):
                 with open(os.path.join(registration_drop_path,"force_flips.txt"), 'r') as file:
                     force_flips = ' '.join(str(int(line.strip())) for line in file)
-                ipdb.set_trace()
                 self.manage_paths[subject]['force_flips'] = force_flips
             
             else:
