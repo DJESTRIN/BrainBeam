@@ -179,7 +179,6 @@ class managepaths():
         """ find force flips file and load if present """
         for subject, variables in self.manage_paths.items():
             registration_drop_path = variables.get('registration_drop_path', '')
-            ipdb.set_trace()
             if os.path.exists(os.path.join(registration_drop_path,"force_flips.txt")):
                 with open(os.path.join(registration_drop_path,"force_flips.txt"), 'r') as file:
                     force_flips = ' '.join(str(int(line.strip())) for line in file)
