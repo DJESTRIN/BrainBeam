@@ -288,8 +288,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         force_orientations = variables.get('force_orientations', '')
         force_flips = variables.get('force_flips', '')
 
-        ipdb.set_trace()
-
         if delete_contents_of_output_folders:
             delete_contents_path(path_oh = registration_drop_path)
         
