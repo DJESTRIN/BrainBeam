@@ -179,9 +179,11 @@ class managepaths():
         """ find force flips file and load if present """
         for subject, variables in self.manage_paths.items():
             registration_drop_path = variables.get('registration_drop_path', '')
+            ipdb.set_trace()
             if os.path.exists(os.path.join(registration_drop_path,"force_flips.txt")):
                 with open(os.path.join(registration_drop_path,"force_flips.txt"), 'r') as file:
                     force_flips = ' '.join(str(int(line.strip())) for line in file)
+                ipdb.set_trace()
                 self.manage_paths[subject]['force_flips'] = force_flips
             
             else:
@@ -285,6 +287,8 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         align_binary_mask = variables.get('align_binary_mask', '')
         force_orientations = variables.get('force_orientations', '')
         force_flips = variables.get('force_flips', '')
+
+        ipdb.set_trace()
 
         if delete_contents_of_output_folders:
             delete_contents_path(path_oh = registration_drop_path)
