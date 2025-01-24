@@ -257,7 +257,7 @@ class managepaths():
         print('Set slurm output')
         self.set_slurm_output_folders()
 
-def delete_contents_path(path_oh):
+def delete_contents_path(path_oh,extensions=['.jpg','.gif']):
     # Check if the path exists
     if os.path.exists(path_oh):
         # Iterate through all items in the directory
@@ -266,7 +266,9 @@ def delete_contents_path(path_oh):
             # Check if it's a file or folder
             if os.path.isfile(item_path) or os.path.islink(item_path):
                 print(f'File being deleted {item_path}')
-                os.remove(item_path)  # Remove file or symbolic link
+                for filetype in extensions:
+                    if filetype in item_path:
+                        os.remove(item_path) 
             elif os.path.isdir(item_path):
                 shutil.rmtree(item_path)  # Remove folder and its contents
     else:
