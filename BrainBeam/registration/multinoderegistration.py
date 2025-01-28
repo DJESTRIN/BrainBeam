@@ -328,8 +328,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                     --force_orientation {force_orientations} \
                     --force_flips {force_flips}'"
 
-        ipdb.set_trace()
-
         # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
         
