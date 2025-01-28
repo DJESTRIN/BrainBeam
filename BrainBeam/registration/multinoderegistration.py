@@ -292,23 +292,44 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
             delete_contents_path(path_oh = registration_drop_path)
         
         # Build command line interface command
-        my_command = f"sbatch --job-name=custom_registration \
-                --mem={memory_per_job}G \
-                --ntasks={tasks_per_job} \
-                --cpus-per-task={cpus_per_task} \
-                --partition={partition_oh} \
-                --mail-type=BEGIN,END,FAIL \
-                --mail-user={email} \
-                --output={communal_slurm_log_directory}/%x-%j.out \
-                --error={communal_slurm_error_directory}/%x-%j.err \
-                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
-                --image_path {image_folder} \
-                --atlas_path {atlas_drop_path} \
-                --output_path {registration_drop_path} \
-                --full_output_path \
-                --align_binary_mask {align_binary_mask} \
-                --force_orientation {force_orientations} \
-                --force_flips {force_flips}'"
+        ipdb.set_trace()
+        if align_binary_mask:
+            my_command = f"sbatch --job-name=custom_registration \
+                    --mem={memory_per_job}G \
+                    --ntasks={tasks_per_job} \
+                    --cpus-per-task={cpus_per_task} \
+                    --partition={partition_oh} \
+                    --mail-type=BEGIN,END,FAIL \
+                    --mail-user={email} \
+                    --output={communal_slurm_log_directory}/%x-%j.out \
+                    --error={communal_slurm_error_directory}/%x-%j.err \
+                    --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
+                    --image_path {image_folder} \
+                    --atlas_path {atlas_drop_path} \
+                    --output_path {registration_drop_path} \
+                    --full_output_path \
+                    --align_binary_mask \
+                    --force_orientation {force_orientations} \
+                    --force_flips {force_flips}'"
+        else:
+            my_command = f"sbatch --job-name=custom_registration \
+                    --mem={memory_per_job}G \
+                    --ntasks={tasks_per_job} \
+                    --cpus-per-task={cpus_per_task} \
+                    --partition={partition_oh} \
+                    --mail-type=BEGIN,END,FAIL \
+                    --mail-user={email} \
+                    --output={communal_slurm_log_directory}/%x-%j.out \
+                    --error={communal_slurm_error_directory}/%x-%j.err \
+                    --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
+                    --image_path {image_folder} \
+                    --atlas_path {atlas_drop_path} \
+                    --output_path {registration_drop_path} \
+                    --full_output_path \
+                    --force_orientation {force_orientations} \
+                    --force_flips {force_flips}'"
+
+        ipdb.set_trace()
 
         # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
