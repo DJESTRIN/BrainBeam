@@ -729,9 +729,9 @@ def cli_parser():
     if args.force_flips is not None:
         args.force_flips = [int(x) for x in args.force_flips]
 
-    print(args.force_flips)
-    print(args.force_orientation)
-    print(args.align_binary_mask)
+    print(f"Force flips is set to {args.force_flips}")
+    print(f"Force orientation is set to {args.force_orientation}")
+    print(f"Align binary mask is set to {args.align_binary_mask}")
 
     # Get current time as string and generate output folder
     now = datetime.now()
