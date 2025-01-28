@@ -262,7 +262,7 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif']):
         for item in os.listdir(path_oh):
             item_path = os.path.join(path_oh, item)
             # Check if it's a file or folder
-            if os.path.isfile(item_path) or os.path.islink(item_path):
+            if os.path.isfile(item_path):
                 for filetype in extensions:
                     if filetype in item_path:
                         try:
@@ -270,8 +270,7 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif']):
                             os.remove(item_path) 
                         except:
                             print(f'Not found {item_path}')
-            elif os.path.isdir(item_path):
-                shutil.rmtree(item_path)  # Remove folder and its contents
+                            
     else:
         print(f"Path '{path_oh}' does not exist.")
 
