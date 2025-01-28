@@ -292,7 +292,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
             delete_contents_path(path_oh = registration_drop_path)
         
         # Build command line interface command
-        ipdb.set_trace()
         if align_binary_mask:
             my_command = f"sbatch --job-name=custom_registration \
                     --mem={memory_per_job}G \
@@ -328,8 +327,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                     --full_output_path \
                     --force_orientation {force_orientations} \
                     --force_flips {force_flips}'"
-
-        ipdb.set_trace()
 
         # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
