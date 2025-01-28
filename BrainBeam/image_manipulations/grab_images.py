@@ -12,7 +12,6 @@ import random
 import argparse
 warnings.filterwarnings("ignore")
 
-
 class generate_train_data(object):
     def __init__(self, input_path, output_path,*args):
         #input path contains all channels for a single sample

@@ -729,6 +729,7 @@ def cli_parser():
     if args.force_flips is not None:
         args.force_flips = [int(x) for x in args.force_flips]
 
+    print(args.align_binary_mask)
     if args.align_binary_mask is not None:
         args.align_binary_mask = [int(x) for x in args.align_binary_mask]
 
