@@ -710,24 +710,26 @@ def cli_parser():
                         These subfolders are where data will be saved.')
     parser.add_argument('--full_output_path', action='store_true', help = 'a full path to output_path')
     parser.add_argument('--align_binary_mask', default=None, action='store_true')
-    parser.add_argument('--force_orientation', nargs='*', default=None, required=False, help='3 Integers which force orientation of moving image')
-    parser.add_argument('--force_flips', nargs='*', default=None, required=False, help='3 Integers which force orientation of moving image')
+    
+    parser.add_argument("--force_orientation", nargs='*', type=int, default=None,
+                        help="Optional: 3 integers defining forced orientation (or omitted)")
+    parser.add_argument("--force_flips", nargs='*', type=int, default=None,
+                        help="Optional: 3 integers defining forced flips (or omitted)")
+
     args = parser.parse_args()
 
-    if not isinstance(args.force_orientation, (int,str)):
+    # Convert empty lists to None (when the flag is present but no numbers are given)
+    if args.force_orientation == []:
         args.force_orientation = None
 
-    if not isinstance(args.force_flips, (int, str)):
+    if args.force_flips == []:
         args.force_flips = None
 
-    if not isinstance(args.align_binary_mask, (int,str )):
-        args.align_binary_mask = None
-    
-    if args.force_orientation is not None:
-        args.force_orientation = [int(x) for x in args.force_orientation]
-
-    if args.force_flips is not None:
-        args.force_flips = [int(x) for x in args.force_flips]
+    # Ensure valid input for exactly 3 values
+    if args.force_orientation is not None and len(args.force_orientation) != 3:
+        parser.error("--force_orientation must have exactly 3 values or be omitted.")
+    if args.force_flips is not None and len(args.force_flips) != 3:
+        parser.error("--force_flips must have exactly 3 values or be omitted.")
 
     print(f"Force flips is set to {args.force_flips}")
     print(f"Force orientation is set to {args.force_orientation}")
