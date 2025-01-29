@@ -199,11 +199,11 @@ class MovingImage:
             print(f'This is what force flips is set to inside moving image: {self.force_flips}')
             if self.force_flips is not None:
                 if self.force_flips[0]==-1:
-                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[::-1, :, :]) # Flip the first axis (A)
+                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[::-1, :, :]) # Flip the first axis (Dosral-Ventral)
                 if self.force_flips[1] == -1:
-                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (M)
+                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (Right-Left)
                 if self.force_flips[2] == -1:
-                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, :, ::-1])  # Flip the third axis (R)
+                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, :, ::-1])  # Flip the third axis (Anterior-Posterior)
 
         else:
             """ Automatically determine the orientation of brain """
