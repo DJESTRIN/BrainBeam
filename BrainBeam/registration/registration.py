@@ -731,6 +731,7 @@ def cli_parser():
     if args.force_flips is not None and len(args.force_flips) != 3:
         parser.error("--force_flips must have exactly 3 values or be omitted.")
 
+    print(args.output_path)
     print(f"Force flips is set to {args.force_flips}")
     print(f"Force orientation is set to {args.force_orientation}")
     print(f"Align binary mask is set to {args.align_binary_mask}")
