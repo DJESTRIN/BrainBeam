@@ -197,16 +197,11 @@ class MovingImage:
                                                                    int(self.force_orientations[2]))) 
 
             print(f'This is what force flips is set to inside moving image: {self.force_flips}')
-            print(f'This is what force flips is set to for index 1: {self.force_flips[1]}')
             if self.force_flips is not None:
+                if self.force_flips[0]==-1:
+                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[::-1, :, :]) # Flip the first axis (A)
                 if self.force_flips[1] == -1:
-                    print("Before flip:", self.downsampled_volume_transposed[:, :5, :])
-                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (A)
-                    slice_views(array1=self.downsampled_volume_transposed,output_filename=os.path.join(self.drop_path,"immediatlyaftertransposed.jpg"))
-                    print("After flip:", self.downsampled_volume_transposed[:, :5, :])
-                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (A)
-                    slice_views(array1=self.downsampled_volume_transposed,output_filename=os.path.join(self.drop_path,"flippedagain.jpg"))
-                    print("Flipped again:", self.downsampled_volume_transposed[:, :5, :])
+                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (M)
                 if self.force_flips[2] == -1:
                     self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, :, ::-1])  # Flip the third axis (R)
 
