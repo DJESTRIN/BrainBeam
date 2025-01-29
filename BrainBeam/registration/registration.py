@@ -204,6 +204,9 @@ class MovingImage:
                     self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (A)
                     slice_views(array1=self.downsampled_volume_transposed,output_filename=os.path.join(self.drop_path,"immediatlyaftertransposed.jpg"))
                     print("After flip:", self.downsampled_volume_transposed[:, :5, :])
+                    self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (A)
+                    slice_views(array1=self.downsampled_volume_transposed,output_filename=os.path.join(self.drop_path,"flippedagain.jpg"))
+                    print("Flipped again:", self.downsampled_volume_transposed[:, :5, :])
                 if self.force_flips[2] == -1:
                     self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, :, ::-1])  # Flip the third axis (R)
 
@@ -273,7 +276,7 @@ class MovingImage:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
             print('If force flips or force orientation is on, this should not be printing right now...')
 
-        self.downsampled_volume = self.downsampled_volume_transposed
+        return self.downsampled_volume_transposed
 
     def downsample(self,output_filename):
         if not os.path.isfile(output_filename):
@@ -318,7 +321,7 @@ class MovingImage:
         self.downsample(output_filename=os.path.join(self.drop_path,'downsampled_moving_image.tiff'))
         self.normalize_image_stack()
         self.downsampled_volume = self.adjust_brightness(stack_oh = self.downsampled_volume)
-        self.determine_orientation()
+        self.downsampled_volume = self.determine_orientation()
         self.downsampled_volume = self.clip_high_signal(stack_oh = self.downsampled_volume)
 
 class alignment:
