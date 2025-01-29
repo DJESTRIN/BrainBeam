@@ -269,6 +269,7 @@ class MovingImage:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
             if AP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
+            print('If force flips or force orientation is on, this should not be printing right now...')
 
         self.downsampled_volume = self.downsampled_volume_transposed
 

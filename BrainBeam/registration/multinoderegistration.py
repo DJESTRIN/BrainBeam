@@ -274,6 +274,8 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif','.tiff']):
     else:
         print(f"Path '{path_oh}' does not exist.")
 
+
+
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
                 memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False):
     """ Build sbatch command and submit for running """
@@ -292,6 +294,8 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
 
         if delete_contents_of_output_folders:
             delete_contents_path(path_oh = registration_drop_path)
+            delete_contents_path(path_oh = communal_slurm_log_directory, extensions=['.out'])
+            delete_contents_path(path_oh = communal_slurm_error_directory, extensions=['.err'])
         
         # Build command line interface command
         if align_binary_mask:
@@ -370,6 +374,9 @@ def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "
             result = False
         return result, running_jobs
     
+    # Clear results from previous run in communal directory
+    delete_contents_path(path_oh = common_drop_directory)
+
     # Continously monitor jobs if running
     running_jobs = original_job_ids
     result, running_jobs = find_my_jobs(running_jobs)
