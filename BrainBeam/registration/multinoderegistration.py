@@ -280,6 +280,12 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False):
     """ Build sbatch command and submit for running """
 
+    # Cancel all previous jobs I am running
+    if delete_contents_of_output_folders:
+        my_first_command = f"scancel -n custom_registration"
+        first_command_result = subprocess.run([my_first_command], shell=True, capture_output=True, text=True)
+
+
     jids = []
     for subject, variables in managepathobj.manage_paths.items():
         # Pull data from dictionary via get
@@ -296,10 +302,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
             delete_contents_path(path_oh = registration_drop_path)
             delete_contents_path(path_oh = communal_slurm_log_directory, extensions=['.out'])
             delete_contents_path(path_oh = communal_slurm_error_directory, extensions=['.err'])
-
-            # Cancel all previous jobs I am running
-            my_first_command = f"scancel -n custom_registration"
-            first_command_result = subprocess.run([my_first_command], shell=True, capture_output=True, text=True)
         
         # Build command line interface command
         if align_binary_mask:
