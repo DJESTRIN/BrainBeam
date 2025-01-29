@@ -255,7 +255,7 @@ class managepaths():
         print('Set slurm output')
         self.set_slurm_output_folders()
 
-def delete_contents_path(path_oh,extensions=['.jpg','.gif']):
+def delete_contents_path(path_oh,extensions=['.jpg','.gif','.tiff']):
     # Check if the path exists
     if os.path.exists(path_oh):
         # Iterate through all items in the directory
@@ -270,7 +270,7 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif']):
                             os.remove(item_path) 
                         except:
                             print(f'Not found {item_path}')
-                            
+
     else:
         print(f"Path '{path_oh}' does not exist.")
 

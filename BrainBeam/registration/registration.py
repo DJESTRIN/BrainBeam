@@ -200,6 +200,7 @@ class MovingImage:
             print(f'This is what force flips is set to for index 1: {self.force_flips[1]}')
             if self.force_flips is not None:
                 if self.force_flips[1] == -1:
+                    print('Should be flipped now')
                     self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
                 if self.force_flips[2] == -1:
                     self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
