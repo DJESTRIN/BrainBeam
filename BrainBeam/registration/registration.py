@@ -12,6 +12,7 @@ import numpy as np
 import os
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from pathlib import Path
+from scipy.ndimage import distance_transform_edt
 import ipdb
 import matplotlib
 import matplotlib.pyplot as plt
@@ -164,13 +165,15 @@ class target:
             self.generate_gif(volume=self.annotation,full_filename=os.path.join(self.target_path,'annotation.gif'))
 
 class MovingImage:
-    def __init__(self, image_path, drop_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, force_orientations=None, force_flips=None):
+    def __init__(self, image_path, drop_path, voxel_size=np.array([2,2.3,2.3]), ds_voxelsize=50, 
+                 force_orientations=None, force_flips=None, crop_border_noise_bool=False):
         self.image_path = image_path
         self.target_size = ds_voxelsize
         self.voxel_size = voxel_size
         self.drop_path = drop_path 
         self.force_orientations = force_orientations
         self.force_flips = force_flips
+        self.crop_border_noise_bool = crop_border_noise_bool
 
     def extract_number(self,file_path):
         # Extract digits using regex
@@ -309,6 +312,22 @@ class MovingImage:
         stack_oh = (stack_oh - stack_oh.min())/(stack_oh.max() - stack_oh.min())
         stack_oh = stack_oh * 255
         return stack_oh
+    
+    def crop_border_noise(self, stack_oh, distance_threshold=10,artificial_padding=5):
+        """ Try to eliminate noise at the border of tissue """
+        if self.crop_border_noise_bool:
+            print('We are cropping noise on border!')
+            padded_stack_oh = np.pad(stack_oh, artificial_padding, mode='constant', constant_values=-1)
+            distances_oh = distance_transform_edt(padded_stack_oh != -1)
+            cleaned_padded_stack_oh = np.where(distances_oh > distance_threshold, padded_stack_oh, 0)
+            cropped_volume = cleaned_padded_stack_oh[artificial_padding:-artificial_padding, 
+                                            artificial_padding:-artificial_padding, 
+                                            artificial_padding:-artificial_padding]
+            slice_views(array1=cropped_volume,output_filename=os.path.join(self.drop_path,"cropped_borderoutput.jpg"))
+            return cropped_volume
+        
+        else:
+            return stack_oh
 
     def __call__(self):
         self.get_image_list()
@@ -317,6 +336,7 @@ class MovingImage:
         self.normalize_image_stack()
         self.downsampled_volume = self.adjust_brightness(stack_oh = self.downsampled_volume)
         self.downsampled_volume = self.determine_orientation()
+        self.downsampled_volume = self.crop_border_noise(stack_oh = self.downsampled_volume, distance_threshold=10, artificial_padding=5)
         self.downsampled_volume = self.clip_high_signal(stack_oh = self.downsampled_volume)
 
 class alignment:
@@ -714,7 +734,8 @@ def cli_parser():
                         These subfolders are where data will be saved.')
     parser.add_argument('--full_output_path', action='store_true', help = 'a full path to output_path')
     parser.add_argument('--align_binary_mask', default=None, action='store_true')
-    
+    parser.add_argument('--crop_border_noise_bool', default=None, action='store_true')
+
     parser.add_argument("--force_orientation", nargs='*', type=int, default=None,
                         help="Optional: 3 integers defining forced orientation (or omitted)")
     parser.add_argument("--force_flips", nargs='*', type=int, default=None,
@@ -739,6 +760,7 @@ def cli_parser():
     print(f"Force flips is set to {args.force_flips}")
     print(f"Force orientation is set to {args.force_orientation}")
     print(f"Align binary mask is set to {args.align_binary_mask}")
+    print(f"Crop border noise is set to {args.crop_border_noise_bool}")
 
     # Get current time as string and generate output folder
     now = datetime.now()
@@ -766,7 +788,7 @@ def main(args):
     target_oh = target(target_path=args.atlas_path)
     target_oh()
 
-    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=args.force_orientation, force_flips=args.force_flips)
+    Image_oh = MovingImage(image_path = args.image_path, drop_path=args.output_path, force_orientations=args.force_orientation, force_flips=args.force_flips, crop_border_noise_bool = args.crop_border_noise_bool)
     Image_oh()
 
     Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(args.output_path,f'init_moving_array_{args.init_date_time}.gif'))

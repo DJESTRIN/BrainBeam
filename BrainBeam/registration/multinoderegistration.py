@@ -212,6 +212,17 @@ class managepaths():
             else:
                 self.manage_paths[subject]['align_binary_mask'] = ''
 
+    def load_crop_border_file(self):
+        """ find force flips file and load if present """
+        for subject, variables in self.manage_paths.items():
+            registration_drop_path = variables.get('registration_drop_path', '')
+            if os.path.exists(os.path.join(registration_drop_path,"crop_border_noise_bool.txt")):
+                with open(os.path.join(registration_drop_path,"crop_border_noise_bool.txt"), 'r') as file:
+                    crop_border_noise_bool = ' '.join(str(int(line.strip())) for line in file)
+                self.manage_paths[subject]['crop_border_noise_bool'] = crop_border_noise_bool
+            
+            else:
+                self.manage_paths[subject]['crop_border_noise_bool'] = ''
 
     def set_slurm_output_folders(self):
         """ Create output folders where slurm log and error data will be stored for ease of use """
@@ -251,6 +262,7 @@ class managepaths():
         self.load_force_flips()
         self.load_force_orientations()
         self.load_align_binary_mask_file()
+        self.load_crop_border_file()
 
         print('Set slurm output')
         self.set_slurm_output_folders()
@@ -295,6 +307,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         atlas_drop_path = variables.get('atlas_drop_path', '')
         registration_drop_path = variables.get('registration_drop_path', '')
         align_binary_mask = variables.get('align_binary_mask', '')
+        crop_border_noise_bool = variables.get('crop_border_noise_bool', '')
         force_orientations = variables.get('force_orientations', '')
         force_flips = variables.get('force_flips', '')
 
@@ -307,41 +320,27 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
             delete_contents_path(path_oh = registration_drop_path,extensions=['.pkl'])
         
         # Build command line interface command
-        if align_binary_mask:
-            my_command = f"sbatch --job-name=custom_registration \
-                    --mem={memory_per_job}G \
-                    --ntasks={tasks_per_job} \
-                    --cpus-per-task={cpus_per_task} \
-                    --partition={partition_oh} \
-                    --mail-type=BEGIN,END,FAIL \
-                    --mail-user={email} \
-                    --output={communal_slurm_log_directory}/%x-%j.out \
-                    --error={communal_slurm_error_directory}/%x-%j.err \
-                    --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
-                    --image_path {image_folder} \
-                    --atlas_path {atlas_drop_path} \
-                    --output_path {registration_drop_path} \
-                    --full_output_path \
-                    --align_binary_mask \
-                    --force_orientation {force_orientations} \
-                    --force_flips {force_flips}'"
-        else:
-            my_command = f"sbatch --job-name=custom_registration \
-                    --mem={memory_per_job}G \
-                    --ntasks={tasks_per_job} \
-                    --cpus-per-task={cpus_per_task} \
-                    --partition={partition_oh} \
-                    --mail-type=BEGIN,END,FAIL \
-                    --mail-user={email} \
-                    --output={communal_slurm_log_directory}/%x-%j.out \
-                    --error={communal_slurm_error_directory}/%x-%j.err \
-                    --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
-                    --image_path {image_folder} \
-                    --atlas_path {atlas_drop_path} \
-                    --output_path {registration_drop_path} \
-                    --full_output_path \
-                    --force_orientation {force_orientations} \
-                    --force_flips {force_flips}'"
+        align_flag = "--align_binary_mask" if align_binary_mask else ""
+        crop_border_noise_bool_flag = "--crop_border_noise_bool" if crop_border_noise_bool else ""
+
+        my_command = f"sbatch --job-name=custom_registration \
+                --mem={memory_per_job}G \
+                --ntasks={tasks_per_job} \
+                --cpus-per-task={cpus_per_task} \
+                --partition={partition_oh} \
+                --mail-type=BEGIN,END,FAIL \
+                --mail-user={email} \
+                --output={communal_slurm_log_directory}/%x-%j.out \
+                --error={communal_slurm_error_directory}/%x-%j.err \
+                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
+                --image_path {image_folder} \
+                --atlas_path {atlas_drop_path} \
+                --output_path {registration_drop_path} \
+                --full_output_path \
+                {align_flag} \
+                {crop_border_noise_bool_flag} \
+                --force_orientation {force_orientations} \
+                --force_flips {force_flips}'"
 
         # Run subprocess on command and pull out result. 
         result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
