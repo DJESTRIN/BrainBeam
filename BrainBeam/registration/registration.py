@@ -202,6 +202,7 @@ class MovingImage:
                 if self.force_flips[1] == -1:
                     print("Before flip:", self.downsampled_volume_transposed[:, :5, :])
                     self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, ::-1, :]) # Flip the second axis (A)
+                    slice_views(array1=self.downsampled_volume_transposed,output_filename=os.path.join(self.drop_path,"immediatlyaftertransposed.jpg"))
                     print("After flip:", self.downsampled_volume_transposed[:, :5, :])
                 if self.force_flips[2] == -1:
                     self.downsampled_volume_transposed = np.copy(self.downsampled_volume_transposed[:, :, ::-1])  # Flip the third axis (R)
