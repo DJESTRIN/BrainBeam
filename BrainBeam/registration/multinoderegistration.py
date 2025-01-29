@@ -277,7 +277,7 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif','.tiff']):
 
 
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
-                memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False):
+                memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False, delete_pkls=False):
     """ Build sbatch command and submit for running """
 
     # Cancel all previous jobs I am running
@@ -302,6 +302,9 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
             delete_contents_path(path_oh = registration_drop_path)
             delete_contents_path(path_oh = communal_slurm_log_directory, extensions=['.out'])
             delete_contents_path(path_oh = communal_slurm_error_directory, extensions=['.err'])
+
+        if delete_pkls:
+            delete_contents_path(path_oh = registration_drop_path,extensions=['.pkl'])
         
         # Build command line interface command
         if align_binary_mask:
@@ -363,6 +366,7 @@ def cli_parser():
 
     parser.add_argument('--monitor_only', action='store_true', help='Number of cpus per task')
     parser.add_argument('--force_delete_output', action='store_true', help='Number of cpus per task')
+    parser.add_argument('--force_delete_pkls', action='store_true', help='Number of cpus per task')
     args = parser.parse_args()
     return args
 
@@ -428,7 +432,8 @@ if __name__=='__main__':
                     memory_per_job = args.memory, 
                     tasks_per_job = args.tasks, 
                     cpus_per_task = args.cpus_per_task,
-                    delete_contents_of_output_folders=args.force_delete_output)
+                    delete_contents_of_output_folders=args.force_delete_output,
+                    delete_pkls=args.force_delete_pkls)
         
         # Get communal drop folder from first item in key
         communal_drop_folder = pathobj.manage_paths[next(iter(pathobj.manage_paths))]['communal_drop_folder']
