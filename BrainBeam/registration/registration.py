@@ -315,19 +315,15 @@ class MovingImage:
     
     def crop_border_noise(self, stack_oh, distance_threshold=10,artificial_padding=5):
         """ Try to eliminate noise at the border of tissue """
-        if self.crop_border_noise_bool:
-            print('We are cropping noise on border!')
-            padded_stack_oh = np.pad(stack_oh, artificial_padding, mode='constant', constant_values=-1)
-            distances_oh = distance_transform_edt(padded_stack_oh != -1)
-            cleaned_padded_stack_oh = np.where(distances_oh > distance_threshold, padded_stack_oh, 0)
-            cropped_volume = cleaned_padded_stack_oh[artificial_padding:-artificial_padding, 
-                                            artificial_padding:-artificial_padding, 
-                                            artificial_padding:-artificial_padding]
-            slice_views(array1=cropped_volume,output_filename=os.path.join(self.drop_path,"cropped_borderoutput.jpg"))
-            return cropped_volume
-        
-        else:
-            return stack_oh
+        print('We are cropping noise on border!')
+        padded_stack_oh = np.pad(stack_oh, artificial_padding, mode='constant', constant_values=-1)
+        distances_oh = distance_transform_edt(padded_stack_oh != -1)
+        cleaned_padded_stack_oh = np.where(distances_oh > distance_threshold, padded_stack_oh, 0)
+        cropped_volume = cleaned_padded_stack_oh[artificial_padding:-artificial_padding, 
+                                        artificial_padding:-artificial_padding, 
+                                        artificial_padding:-artificial_padding]
+        slice_views(array1=cropped_volume,output_filename=os.path.join(self.drop_path,"cropped_borderoutput.jpg"))
+        return cropped_volume
 
     def __call__(self):
         self.get_image_list()
