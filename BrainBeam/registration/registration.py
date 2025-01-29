@@ -197,6 +197,7 @@ class MovingImage:
                                                                    int(self.force_orientations[2]))) 
 
             print(f'This is what force flips is set to inside moving image: {self.force_flips}')
+            print(f'This is what force flips is set to for index 1: {self.force_flips[1]}')
             if self.force_flips is not None:
                 if self.force_flips[1] == -1:
                     self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
