@@ -375,6 +375,7 @@ def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "
         return result, running_jobs
     
     # Clear results from previous run in communal directory
+    print('Deleting results in communal folder from previous run...')
     delete_contents_path(path_oh = common_drop_directory)
 
     # Continously monitor jobs if running
