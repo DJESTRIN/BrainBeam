@@ -365,45 +365,51 @@ class alignment:
             if iteration_oh % n == 0:
                 print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
-        def alignoh(resolution, nits, fixed, moving, iteration_number, attempt=0, current_transform=None, transform_file="transform.pkl"):
+        def alignoh(resolution, previous_resolution, nits, fixed, moving, iteration_number, attempt=0, current_transform=None, transform_file="transform.pkl",mmi_results=None):
             """Runs alignment and collects MMI data for each trial."""
             print(f"Resolution: {resolution}, Iterations: {nits}")
-            
-            # Update transform file
+
+            # Construct transform filename
             name, fileend = transform_file.split('.')
             transform_file = os.path.join(self.drop_path, f"nonrigid_{name}_resolution{int(resolution)}_attempt{attempt}_step{iteration_number}.{fileend}")
 
-            # Set grid physical spacing and compute mesh size
+            # Compute B-spline grid size
             grid_physical_spacing = [resolution] * 3
             image_physical_size = [size * spacing for size, spacing in zip(fixed.GetSize(), fixed.GetSpacing())]
             grid_size = [int(image_physical_size[i] / grid_physical_spacing[i] + 0.5) for i in range(3)]
-            
-            # Compute B-spline mesh size
             transform_domain_mesh_size = [max(1, grid_size[i] - 3) for i in range(3)]
             print(f"Mesh size: {transform_domain_mesh_size}")
 
             # Initialize list to store MMI data
-            mmi_results = []
+            if mmi_results is None:
+                mmi_results = []
 
             # Initialize or update the transform
             if current_transform is None:
+                print("Initializing new B-spline transform...")
                 init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
-
             else:
-                # Rescale the previous transform for the new resolution
-                scaling_factor = current_transform.GetParameters()[0] / resolution  # Adjust the scaling factor
-                print(f"Scaling factor: {scaling_factor}")
+                print("Using existing transform...")
+                if previous_resolution != resolution:
+                    ipdb.set_trace()
+                    print("Rescaling transform to match new resolution...")
+                    scaling_factor = previous_resolution / resolution  # Adjust scaling factor
 
-                # Get the original B-spline control points
-                original_control_points = current_transform.GetParameters()
+                    # Get and rescale control points
+                    original_control_points = current_transform.GetParameters()
+                    rescaled_control_points = [param * scaling_factor for param in original_control_points]
 
-                # Rescale the control points according to the scaling factor
-                rescaled_control_points = [param * scaling_factor for param in original_control_points]
+                    # Create a new transform with rescaled control points
+                    init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+                    init_transform.SetParameters(rescaled_control_points)
                 
-                # Create a new B-spline transform with the updated control points
-                init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
-                init_transform.SetParameters(rescaled_control_points)
-                ipdb.set_trace()
+                else:
+                    ipdb.set_trace()
+                    print("Resolution is the same; reusing the transform as-is.")
+                    init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+                    init_transform.SetParameters(current_transform.GetParameters())  # Directly reuse parameters
+
+            ipdb.set_trace()
 
             # Set up the registration method
             registration_method = sitk.ImageRegistrationMethod()
@@ -415,17 +421,24 @@ class alignment:
             registration_method.SetInitialTransform(init_transform, inPlace=False)
             registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
 
-            # Execute registration and capture the MMI value
-            current_time = time.localtime()  # or time.gmtime() for UTC
+            # Execute registration
+            current_time = time.localtime()
             formatted_time = time.strftime("%I:%M %p", current_time)
             print(f"Starting registration at {formatted_time}...")
+            
             current_transform = registration_method.Execute(fixed, moving)
 
-            # Store the final MMI value for this trial
+            # Store and compare MMI values
             final_mmi_value = registration_method.GetMetricValue()
+            print(f"Final MMI value: {final_mmi_value}")
+
+            if mmi_results:
+                prev_mmi = mmi_results[-1]
+                print(f"Previous MMI: {prev_mmi}, Difference: {final_mmi_value - prev_mmi}")
+
             mmi_results.append(final_mmi_value)
 
-            # Save the final transform into a file
+            # Save transform
             print("Saving transform into a file!")
             with open(transform_file, "wb") as f:
                 pickle.dump(current_transform, f)
@@ -475,6 +488,7 @@ class alignment:
         criteria_results = []
 
         # Loop over resolution and iteration values
+        previous_resolution = resolutions[0]
         for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
             search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution*_attempt*_step*.pkl")
             found_files = glob.glob(search_string)
@@ -526,13 +540,16 @@ class alignment:
             # Ensure skipping logic is correct
             if smallest_resolution is not None and int(resolution) > smallest_resolution:
                 continue  # Skip higher resolutions since a smaller one already has an attempt
-            
+
             learning=True
-            attempt_oh = 0
+            try:
+                attempt_oh = 0 + int(attempt) + 1
+            except:
+                attempt_oh = 0
             while learning:
                 ipdb.set_trace()
                 print(f'Alignment resolution {resolution} for attempt {attempt_oh}')
-                mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, 
+                mmi_results, current_transform = alignoh(resolution, previous_resolution, nits, sfixed, smoving, 
                                                          iteration_number = k, attempt = attempt_oh, 
                                                          current_transform=current_transform, transform_file="transform.pkl")
                 criteria_results.append(mmi_results)
@@ -551,6 +568,8 @@ class alignment:
             
             if current_transform is None:
                 raise ValueError("current_transform is None.")
+            
+            previous_resolution = resolution
             
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
