@@ -356,8 +356,6 @@ class alignment:
         """ Multi-Resolution Alignment -- 
             Used for aligning two image volumes for light sheet imaging data.  """
 
-        print('Setting up multiresolution alignment, generating global variables and call back command ... ')
-
         def command_iteration(method, n=5):
             """ Prints current value to command line """
             iteration_oh = method.GetOptimizerIteration()
@@ -369,6 +367,7 @@ class alignment:
 
         def alignoh(resolution, nits, fixed, moving, iteration_number, attempt=0, current_transform=None, transform_file="transform.pkl"):
             """Runs alignment and collects MMI data for each trial."""
+            ipdb.set_trace()
             print(f"Resolution: {resolution}, Iterations: {nits}")
             
             # Update transform file
@@ -392,15 +391,25 @@ class alignment:
                 init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
 
             else:
-                init_transform = current_transform
+                # Rescale the previous transform for the new resolution
+                scaling_factor = current_transform.GetParameters()[0] / resolution  # Adjust the scaling factor
+                print(f"Scaling factor: {scaling_factor}")
+
+                # Get the original B-spline control points
+                original_control_points = current_transform.GetParameters()
+
+                # Rescale the control points according to the scaling factor
+                rescaled_control_points = [param * scaling_factor for param in original_control_points]
+                
+                # Create a new B-spline transform with the updated control points
+                init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+                init_transform.SetParameters(rescaled_control_points)
 
             # Set up the registration method
             registration_method = sitk.ImageRegistrationMethod()
             registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
             registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
             registration_method.SetMetricSamplingPercentage(1.0)
-            # registration_method.SetOptimizerAsRegularStepGradientDescent(learningRate=1.0, minStep=1e-6, 
-            #                                                              numberOfIterations=nits, gradientMagnitudeTolerance=1e-6)
             registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits, gradientConvergenceTolerance=1e-9)
             registration_method.SetOptimizerScalesFromPhysicalShift()
             registration_method.SetInitialTransform(init_transform, inPlace=False)
@@ -438,22 +447,9 @@ class alignment:
                     return False
                 
             return True
-
-        """ Try to stretch image and eliminate background  """
-        # self.moving_mask, self.fixed_mask = self.graphobjoh.plot_surface(volume1 = self.moving_image, volume2 = self.fixed_image, pull_binary_mask = True)
-        # self.moving_mask = binary_fill_holes(self.moving_mask)
-        # structure = np.ones((10, 10, 10))
-        # dialed_moving_mask = binary_dilation(self.moving_mask, structure=structure)
-        # eroded_moving_mask = binary_erosion(self.moving_mask, structure=structure)
-        # outline_moving_mask = dialed_moving_mask ^ eroded_moving_mask 
-        # self.moving_image = np.where(outline_moving_mask, self.moving_image, 0)
-        # self.moving_mask, paremeters = manual_find_axes_sampling(self.fixed_mask, self.moving_mask, drop_dir=self.drop_path, best_params=None)
-        # self.moving_image = zoom(self.moving_image, (paremeters[0], paremeters[1], paremeters[2])) 
-
-        # slice_views(array1 = self.moving_image, 
-        #             array2 = self.fixed_image, 
-        #             output_filename=os.path.join(self.drop_path,f'pre_cutstretched_arrays2.jpg'), 
-        #             image_type='max')
+        
+        """ Start of Alignment """
+        print('Setting up multiresolution alignment, generating global variables and call back command ... ')
 
         # Convert arrays to SimpleITK images
         fixed = sitk.GetImageFromArray(self.fixed_image) if isinstance(self.fixed_image, np.ndarray) else self.fixed_image
@@ -466,24 +462,26 @@ class alignment:
         # Blur images and plot
         sfixed = sitk.SmoothingRecursiveGaussian(fixed, sigma=4.0)
         smoving = sitk.SmoothingRecursiveGaussian(moving, sigma=3.0)
-        slice_views(array1=sitk.GetArrayFromImage(smoving), 
-                    array2 = sitk.GetArrayFromImage(sfixed), 
+        slice_views(array1=sitk.GetArrayFromImage(smoving), array2 = sitk.GetArrayFromImage(sfixed), 
                     output_filename=os.path.join(self.drop_path,f'blurred_images_{self.time_to_str()}.jpg'), 
                     image_type='max')
          
-        if resolutions is None:
-            resolutions = [100.0, 90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0] 
-        
-        if iters is None:
-            iters = [10, 10, 10, 10, 10, 10, 10, 10, 10] 
-
+        # Set up resolutions, iterations, and tolerances
+        resolutions = [100.0, 90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0] 
+        iters = [10, 10, 10, 10, 10, 10, 10, 10, 10] 
         tolerances_oh = [0.1, 0.1, 0.1, 0.01, 0.01, 0.001, 0.0001, 0.00001, 0.000001]
 
+        # Create empty list for recording alignment MMI metrics
         criteria_results = []
+
+        # Loop over resolution and iteration values
         for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
+            # Search for previous alignment files
             search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution*_attempt*_step*.pkl")
             found_files = glob.glob(search_string)
-            smallest_resolution = None #default value
+
+            # Set smallest resolution found to None
+            smallest_resolution = None 
 
             if not found_files:
                 current_transform = None
@@ -505,6 +503,7 @@ class alignment:
                 if int(resolution)>int(smallest_resolution):
                     continue
                 
+                # If the current resolution is smaller than smallest found resolution, get list of those files
                 elif int(resolution)<=int(smallest_resolution):
                     new_search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution{smallest_resolution}_attempt*_step*.pkl")
                     smallest_found_files = glob.glob(new_search_string)
@@ -538,17 +537,11 @@ class alignment:
                 criteria_results.append(mmi_results)
                 learning = plateau_cumsum(criteria_results,tolerance=tolerances_oh[k])
                 
-                # Plot current transformed image
-                resampler = sitk.ResampleImageFilter()
-                resampler.SetSize(moving.GetSize())
-                resampler.SetOutputSpacing(moving.GetSpacing())
-                resampler.SetOutputOrigin(moving.GetOrigin())
-                resampler.SetOutputDirection(moving.GetDirection())
-                resampler.SetTransform(current_transform)  # Apply the current transform to the moving image
-                transformed_image = resampler.Execute(moving)
+                # Apply the current B-spline transform to the moving image (smoving)
+                smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, smoving.GetPixelID())
 
                 # Plot image of current attempt
-                slice_views(array1=sitk.GetArrayFromImage(transformed_image),
+                slice_views(array1=sitk.GetArrayFromImage(smoving),
                             array2 = sitk.GetArrayFromImage(sfixed), 
                             output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution}_step{k}_attempt{attempt_oh}.jpg'), 
                             image_type='max', overlay=True)
@@ -557,8 +550,6 @@ class alignment:
             
             if current_transform is None:
                 raise ValueError("current_transform is None.")
-
-            smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, moving.GetPixelID())
             
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
