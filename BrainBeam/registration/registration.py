@@ -476,7 +476,6 @@ class alignment:
 
         # Loop over resolution and iteration values
         for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
-            # Search for previous alignment files
             search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution*_attempt*_step*.pkl")
             found_files = glob.glob(search_string)
 
@@ -485,7 +484,6 @@ class alignment:
 
             if not found_files:
                 print("No transform files found")
-
             else:
                 # Extract resolution and attempt from filenames
                 resolution_attempt_map = {}
@@ -507,24 +505,28 @@ class alignment:
                     except ValueError:
                         print(f"Skipping malformed filename: {file}")
 
-                # Find the smallest resolution with the highest attempt
+                # Sort resolutions and find the smallest one with a valid attempt
                 sorted_resolutions = sorted(resolution_attempt_map.keys())
-                smallest_resolution = sorted_resolutions[0]  # First (smallest) resolution
 
-                # Get the file with the highest attempt for the smallest resolution
-                attempt_file_list = resolution_attempt_map[smallest_resolution]
-                best_attempt_file = max(attempt_file_list, key=lambda x: x[0])[1]  # Get file with highest attempt
+                for res in sorted_resolutions:
+                    attempt_file_list = resolution_attempt_map[res]
+                    best_attempt_file = max(attempt_file_list, key=lambda x: x[0])[1]  # Get file with highest attempt
 
-                print(f"Using {best_attempt_file} as current transform")
-                with open(best_attempt_file, "rb") as f:
-                    current_transform = pickle.load(f)
+                    # Set the smallest resolution only if there was at least one attempt
+                    if smallest_resolution is None or res < smallest_resolution:
+                        smallest_resolution = res
+                        print(f"Using {best_attempt_file} as current transform")
+                        with open(best_attempt_file, "rb") as f:
+                            current_transform = pickle.load(f)
 
-            # Skip resolutions that have already been processed
-            if smallest_resolution == resolution:
-                continue
-            elif smallest_resolution is not None and int(resolution) > int(smallest_resolution):
-                continue  # Skip resolutions that are larger than the smallest found
+                    # If we have found the first valid transform, break the loop
+                    if smallest_resolution is not None:
+                        break  
 
+            # Ensure skipping logic is correct
+            if smallest_resolution is not None and int(resolution) > smallest_resolution:
+                continue  # Skip higher resolutions since a smaller one already has an attempt
+            
             learning=True
             attempt_oh = 0
             while learning:
