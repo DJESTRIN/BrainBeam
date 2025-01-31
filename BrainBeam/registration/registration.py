@@ -367,7 +367,6 @@ class alignment:
 
         def alignoh(resolution, nits, fixed, moving, iteration_number, attempt=0, current_transform=None, transform_file="transform.pkl"):
             """Runs alignment and collects MMI data for each trial."""
-            ipdb.set_trace()
             print(f"Resolution: {resolution}, Iterations: {nits}")
             
             # Update transform file
@@ -404,6 +403,7 @@ class alignment:
                 # Create a new B-spline transform with the updated control points
                 init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
                 init_transform.SetParameters(rescaled_control_points)
+                ipdb.set_trace()
 
             # Set up the registration method
             registration_method = sitk.ImageRegistrationMethod()
