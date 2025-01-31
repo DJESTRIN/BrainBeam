@@ -480,52 +480,52 @@ class alignment:
             search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution*_attempt*_step*.pkl")
             found_files = glob.glob(search_string)
 
-            # Set smallest resolution found to None
-            smallest_resolution = None 
+            smallest_resolution = None
+            current_transform = None
 
             if not found_files:
-                current_transform = None
-                print('No transform files found')
-            
+                print("No transform files found")
+
             else:
-                # Collect all resolution data for saved files
-                found_files_resolutions=[]
+                # Extract resolution and attempt from filenames
+                resolution_attempt_map = {}
+
                 for file in found_files:
-                    _, data = file.split('resolution')
-                    resolution_oh, _ = data.split('_attempt')
-                    found_files_resolutions.append([int(resolution_oh)])
-                
-                # Determine smallest resolution in list
-                found_files_resolutions = np.array(found_files_resolutions)
-                smallest_resolution = found_files_resolutions[np.argmin(found_files_resolutions)][0]
+                    try:
+                        _, data = file.split('resolution')
+                        resolution_str, attempt_data = data.split('_attempt')
+                        attempt_str, _ = attempt_data.split('_step')
 
-                # Update found files to match the current resolution
-                if int(resolution)>int(smallest_resolution):
-                    continue
-                
-                # If the current resolution is smaller than smallest found resolution, get list of those files
-                elif int(resolution)<=int(smallest_resolution):
-                    new_search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution{smallest_resolution}_attempt*_step*.pkl")
-                    smallest_found_files = glob.glob(new_search_string)
-                else:
-                    raise ValueError("smallest_resolution does not align with any resolutions")
-                
-                # Get the last file (max number) and load it as current_transform
-                values = []
-                for file in smallest_found_files:
-                    _, numberdata = file.split('attempt')
-                    numberoh, _ = numberdata.split('_step')
-                    values.append(int(numberoh))
+                        resolution = int(resolution_str)
+                        attempt = int(attempt_str)
 
-                values = np.array(values)
-                last_file = found_files[np.argmax(values)]
+                        if resolution not in resolution_attempt_map:
+                            resolution_attempt_map[resolution] = []
 
-                print(f'Using {last_file} as current transform')
-                with open(last_file, "rb") as f:
+                        resolution_attempt_map[resolution].append((attempt, file))
+
+                    except ValueError:
+                        print(f"Skipping malformed filename: {file}")
+
+                # Find the smallest resolution with the highest attempt
+                sorted_resolutions = sorted(resolution_attempt_map.keys())
+                smallest_resolution = sorted_resolutions[0]  # First (smallest) resolution
+
+                # Get the file with the highest attempt for the smallest resolution
+                attempt_file_list = resolution_attempt_map[smallest_resolution]
+                best_attempt_file = max(attempt_file_list, key=lambda x: x[0])[1]  # Get file with highest attempt
+
+                print(f"Using {best_attempt_file} as current transform")
+                with open(best_attempt_file, "rb") as f:
                     current_transform = pickle.load(f)
 
+            # Skip resolutions that have already been processed
             if smallest_resolution == resolution:
                 continue
+            elif int(resolution) > int(smallest_resolution):
+                continue  # Skip resolutions that are larger than the smallest found
+
+            ipdb.set_trace()
 
             learning=True
             attempt_oh = 0
