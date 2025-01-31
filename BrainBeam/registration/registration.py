@@ -522,14 +522,13 @@ class alignment:
             # Skip resolutions that have already been processed
             if smallest_resolution == resolution:
                 continue
-            elif int(resolution) > int(smallest_resolution):
+            elif smallest_resolution is not None and int(resolution) > int(smallest_resolution):
                 continue  # Skip resolutions that are larger than the smallest found
-
-            ipdb.set_trace()
 
             learning=True
             attempt_oh = 0
             while learning:
+                ipdb.set_trace()
                 print(f'Alignment resolution {resolution} for attempt {attempt_oh}')
                 mmi_results, current_transform = alignoh(resolution, nits, sfixed, smoving, 
                                                          iteration_number = k, attempt = attempt_oh, 
