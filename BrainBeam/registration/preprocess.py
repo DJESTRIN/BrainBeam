@@ -77,6 +77,15 @@ def preprocess(volume):
     volume = blur(volume)
     return volume
 
+def flatten_list(nested_list):
+    flat_list = []
+    for item in nested_list:
+        if isinstance(item, list):
+            flat_list.extend(flatten_list(item))  # Recursively flatten
+        else:
+            flat_list.append(item)
+    return flat_list
+
 if __name__=='__main__':
     atlas_path = r'c:\Users\listo\example_registration_data\atlas'
     reference_space_key = 'average_template/'

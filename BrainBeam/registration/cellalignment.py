@@ -19,6 +19,7 @@ import itertools
 import argparse
 from BrainBeam.registration.padding import zero_pad_arrays
 from BrainBeam.registration.transforms import *
+from BrainBeam.registration.graphics import slice_views
 
 # Custom classes and functions
 def determine_doublecount_points(array1, array2, threshold=5):
@@ -97,6 +98,12 @@ class cellalignment():
         # Convert cell coordinates to aggregate mask
         self.cell_coordinates_to_aggregate_mask()
 
+        # Generate plot
+        slice_views(array1=self.coordinate_mask_all[0],
+                    array2=self.ds_zp_transformed_moving_image,
+                    output_filename=os.path.join(self.drop_path,"first_example_cell_count_overlay.jpg"))
+
+        ipdb.set_trace()
         # Grab alignment file(s) data
         self.gather_transformations()
 
@@ -131,7 +138,6 @@ class cellalignment():
 
         else:
             self.skip_flag = True
-            ipdb.set_trace()
             print('No cell coordinate files provided, so all cell alignment code will be skipped')
 
     def determine_coexpression(self):

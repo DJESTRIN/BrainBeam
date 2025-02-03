@@ -26,12 +26,14 @@ import SimpleITK as sitk
 from BrainBeam.registration.padding import zero_pad_arrays
 from BrainBeam.registration.bayessearch import find_affine_matrix, set_affine_rotation, manual_find_axes_sampling, adjust_volume_shape, MMI
 from BrainBeam.registration.graphics import volume_graphics, slice_views
-from BrainBeam.registration.preprocess import replace_signal
+from BrainBeam.registration.preprocess import replace_signal, flatten_list
 from BrainBeam.registration.cellalignment import cellalignment
 from datetime import datetime
 import argparse
 import time
 import pickle
+import warnings
+warnings.simplefilter("ignore")
 
 # Set max hyper threading
 max_threads = os.cpu_count()
@@ -351,27 +353,48 @@ class alignment:
             align_binary_mask = False
         self.align_binary_mask = align_binary_mask
         
+    def quick_alignment(self, moving_image, fixed_image, current_transform):
+        resampled_image = sitk.Resample(
+            moving_image,
+            fixed_image,  # Reference image determines output space
+            current_transform,
+            sitk.sitkLinear,  # Interpolation method (Linear for smooth results)
+            0,  # Default pixel value for out-of-bounds regions
+            moving_image.GetPixelID())
+        
+        metric_evaluator = sitk.ImageRegistrationMethod()
+        metric_evaluator.SetMetricAsMattesMutualInformation()
+        mmi_value = metric_evaluator.MetricEvaluate(fixed_image, resampled_image)
+        return resampled_image, mmi_value
+
 
     def multiresolution_align(self,  resolutions=None, iters=None):
         """ Multi-Resolution Alignment -- 
             Used for aligning two image volumes for light sheet imaging data.  """
 
-        def command_iteration(method, n=5):
-            """ Prints current value to command line """
-            iteration_oh = method.GetOptimizerIteration()
-            metric_oh = method.GetMetricValue()
+        # def command_iteration(method, n=1):
+        #     """ Prints current value to command line """
+        #     iteration_oh = method.GetOptimizerIteration()
+        #     metric_oh = method.GetMetricValue()
  
-            # Print current iteration
-            if iteration_oh % n == 0:
-                print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
+        #     # Print current iteration
+        #     if iteration_oh % n == 0:
+        #         print(f"Iteration: {iteration_oh}, Metric value: {metric_oh:.6f}")
 
-        def alignoh(resolution, previous_resolution, nits, fixed, moving, iteration_number, attempt=0, current_transform=None, transform_file="transform.pkl",mmi_results=None):
+        def alignoh(resolution, previous_resolution, nits, fixed, moving, iteration_number, attempt=0, 
+            current_transform=None, transform_file="transform.pkl", mmi_results=None):
             """Runs alignment and collects MMI data for each trial."""
             print(f"Resolution: {resolution}, Iterations: {nits}")
 
+            all_mmi_values = []  # Store metric values at each iteration
+
+            def update_mmi():
+                """Callback function to store metric value at each iteration."""
+                all_mmi_values.append(registration_method.GetMetricValue())
+
             # Construct transform filename
             name, fileend = transform_file.split('.')
-            transform_file = os.path.join(self.drop_path, f"nonrigid_{name}_resolution{int(resolution)}_attempt{attempt}_step{iteration_number}.{fileend}")
+            transform_file = os.path.join(self.drop_path,f"nonrigid_{name}_resolution{int(resolution)}_attempt{attempt}_step{iteration_number}.{fileend}")
 
             # Compute B-spline grid size
             grid_physical_spacing = [resolution] * 3
@@ -388,44 +411,29 @@ class alignment:
             if current_transform is None:
                 print("Initializing new B-spline transform...")
                 init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+
             else:
                 print("Using existing transform...")
-                if previous_resolution != resolution:
-                    ipdb.set_trace()
-                    print("Rescaling transform to match new resolution...")
-                    scaling_factor = previous_resolution / resolution  # Adjust scaling factor
-
-                    # Get and rescale control points
-                    original_control_points = current_transform.GetParameters()
-                    rescaled_control_points = [param * scaling_factor for param in original_control_points]
-
-                    # Create a new transform with rescaled control points
-                    init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
-                    init_transform.SetParameters(rescaled_control_points)
-                
-                else:
-                    ipdb.set_trace()
-                    print("Resolution is the same; reusing the transform as-is.")
-                    init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
-                    init_transform.SetParameters(current_transform.GetParameters())  # Directly reuse parameters
-
-            ipdb.set_trace()
+                init_transform = sitk.BSplineTransformInitializer(fixed, transformDomainMeshSize=transform_domain_mesh_size, order=3)
+                init_transform.SetFixedParameters(current_transform.GetFixedParameters())  
+                init_transform.SetParameters(current_transform.GetParameters())  
 
             # Set up the registration method
             registration_method = sitk.ImageRegistrationMethod()
             registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
             registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
             registration_method.SetMetricSamplingPercentage(1.0)
-            registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits, gradientConvergenceTolerance=1e-9)
+            registration_method.SetOptimizerAsLBFGSB(numberOfIterations=nits)
             registration_method.SetOptimizerScalesFromPhysicalShift()
             registration_method.SetInitialTransform(init_transform, inPlace=False)
-            registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
+
+            # Add command to collect MMI values at each iteration
+            registration_method.AddCommand(sitk.sitkIterationEvent, update_mmi)
 
             # Execute registration
             current_time = time.localtime()
             formatted_time = time.strftime("%I:%M %p", current_time)
             print(f"Starting registration at {formatted_time}...")
-            
             current_transform = registration_method.Execute(fixed, moving)
 
             # Store and compare MMI values
@@ -436,7 +444,7 @@ class alignment:
                 prev_mmi = mmi_results[-1]
                 print(f"Previous MMI: {prev_mmi}, Difference: {final_mmi_value - prev_mmi}")
 
-            mmi_results.append(final_mmi_value)
+            mmi_results.append(all_mmi_values)
 
             # Save transform
             print("Saving transform into a file!")
@@ -480,16 +488,16 @@ class alignment:
                     image_type='max')
          
         # Set up resolutions, iterations, and tolerances
-        resolutions = [100.0, 90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0] 
-        iters = [10, 10, 10, 10, 10, 10, 10, 10, 10] 
-        tolerances_oh = [0.1, 0.1, 0.1, 0.01, 0.01, 0.001, 0.0001, 0.00001, 0.000001]
+        resolutions = [100.0, 90.0, 80.0, 70.0, 60.0, 50.0, 40.0] #, 30.0] 
+        iters = [10, 10, 10, 10, 10, 10, 10 ] #, 10] 
+        tolerances_oh = [0.1, 0.1, 0.1, 0.01, 0.01, 0.001, 0.0001 ]#, 0.00001]
 
         # Create empty list for recording alignment MMI metrics
         criteria_results = []
 
         # Loop over resolution and iteration values
         previous_resolution = resolutions[0]
-        for k,(resolution, nits) in enumerate(zip(resolutions,iters)):
+        for k,(resolution_oh, nits) in enumerate(zip(resolutions,iters)):
             search_string = os.path.join(self.drop_path, f"nonrigid_transform_resolution*_attempt*_step*.pkl")
             found_files = glob.glob(search_string)
 
@@ -498,6 +506,7 @@ class alignment:
 
             if not found_files:
                 print("No transform files found")
+            
             else:
                 # Extract resolution and attempt from filenames
                 resolution_attempt_map = {}
@@ -521,7 +530,7 @@ class alignment:
 
                 # Sort resolutions and find the smallest one with a valid attempt
                 sorted_resolutions = sorted(resolution_attempt_map.keys())
-
+    
                 for res in sorted_resolutions:
                     attempt_file_list = resolution_attempt_map[res]
                     best_attempt_file = max(attempt_file_list, key=lambda x: x[0])[1]  # Get file with highest attempt
@@ -538,30 +547,36 @@ class alignment:
                         break  
 
             # Ensure skipping logic is correct
-            if smallest_resolution is not None and int(resolution) > smallest_resolution:
+            if smallest_resolution is not None and int(resolution_oh)>=int(smallest_resolution):
+                previous_resolution = resolution_oh
                 continue  # Skip higher resolutions since a smaller one already has an attempt
-
-            learning=True
+            
             try:
                 attempt_oh = 0 + int(attempt) + 1
             except:
                 attempt_oh = 0
+
+            learning=True
             while learning:
-                ipdb.set_trace()
-                print(f'Alignment resolution {resolution} for attempt {attempt_oh}')
-                mmi_results, current_transform = alignoh(resolution, previous_resolution, nits, sfixed, smoving, 
+                print(f'Alignment resolution {resolution_oh} for attempt {attempt_oh}')
+                mmi_results, current_transform = alignoh(resolution_oh, previous_resolution, nits, sfixed, smoving, 
                                                          iteration_number = k, attempt = attempt_oh, 
                                                          current_transform=current_transform, transform_file="transform.pkl")
+                
+                # Append to larger list and flatten
                 criteria_results.append(mmi_results)
+                criteria_results = flatten_list(criteria_results)
+    
+                # Determine if learning has plateau'd 
                 learning = plateau_cumsum(criteria_results,tolerance=tolerances_oh[k])
                 
                 # Apply the current B-spline transform to the moving image (smoving)
-                smoving = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, smoving.GetPixelID())
+                smoving_for_plot = sitk.Resample(smoving, sfixed, current_transform, sitk.sitkLinear, 0.0, smoving.GetPixelID())
 
                 # Plot image of current attempt
-                slice_views(array1=sitk.GetArrayFromImage(smoving),
+                slice_views(array1=sitk.GetArrayFromImage(smoving_for_plot),
                             array2 = sitk.GetArrayFromImage(sfixed), 
-                            output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution}_step{k}_attempt{attempt_oh}.jpg'), 
+                            output_filename=os.path.join(self.drop_path,f'mulitresolution_alignment_resolution{resolution_oh}_step{k}_attempt{attempt_oh}.jpg'), 
                             image_type='max', overlay=True)
                 
                 attempt_oh+=1
@@ -569,8 +584,12 @@ class alignment:
             if current_transform is None:
                 raise ValueError("current_transform is None.")
             
-            previous_resolution = resolution
+            previous_resolution = resolution_oh
             
+        plt.figure()
+        plt.plot(criteria_results)
+        plt.savefig(os.path.join(self.drop_path,"MMIresultsall.jpg"))
+
         # Apply the final transformation to the moving image
         print('Applying final transformation to moving image ...')
         resampler = sitk.ResampleImageFilter()
@@ -823,7 +842,8 @@ def main(args):
         cell_alignment_obj = cellalignment(zp_id_atlas = zp_id_atlas_oh, 
                                         zp_template_atlas = alignment_object.target_array, 
                                         ds_zp_transformed_moving_image = alignment_object.nonrigid_moving_image, 
-                                        drop_path = alignment_object.drop_path) # create the object
+                                        drop_path = alignment_object.drop_path,
+                                        cell_count_files = cell_count_files) # create the object
         
         # Update coordinate system data regarding dimensions
         new_x_dim, new_y_dim, new_z_dim = alignment_object.nonrigid_moving_image.shape

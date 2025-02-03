@@ -1,25 +1,25 @@
+cellalignment
+    Use example on cluster where we know cell counts go with transformation
+        Graph example of original ds image volume with non_transformed aggregate cell count mask. To verify cell counts make sense. 
 
+    Make sure ALL transformations are being applied to aggregate cell count array
+        including flips, changes in orientation, rigid, stretching and non rigid.... 
 
-Update code for pulling together and merging data into a dataframe
+    After transformation    
+        eliminate cell counts outside of the atlas range with a few pixels (1-2) of error! 
+        Graph aggregate cell count mask and ds moiving image AFTER transformation to show what it looks like.
+        Figure out how to handle cell counts in 1-2 pixel error range 
 
-Update statistics and graphics for final graphs...  
+dataframe
+    Convert 4D array into dataframe(s)  
+    Add code to multinoderegistration to be run when all jobs are finished 
 
-dataframes
-    complete this code
+statistics
+    Perform stability analysis
+    MASS t-test analysis
+    analysis on voxels???
 
-Multinoderegistration
-    need to update the dictionary
-    need to make sure jobs are submitted correctly
-
-registration    
-
-    Make sure command line arguments match with job submission
-    Remove random files and images being made in BrainBeam git repo... why are they dropping here?
-
-bayessearch/registration
-    Refine whether to use the binary mask or not... add that as options
-
-Extra random
-update registration slurm code to run locally on computer while using optimal recourses for the computer?
+Misc. 
+    update registration slurm code to run locally on computer while using optimal recourses for the computer?
 
 
