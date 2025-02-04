@@ -11,6 +11,9 @@ Version: 1.0
 # Load dependencies
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import scipy.ndimage
+from skimage.morphology import dilation, disk
 import ipdb
 import os, glob
 import pickle
@@ -19,7 +22,7 @@ import itertools
 import argparse
 from BrainBeam.registration.padding import zero_pad_arrays
 from BrainBeam.registration.transforms import *
-from BrainBeam.registration.graphics import slice_views
+from BrainBeam.registration.graphics import slice_views, overlay_masks, volume_graphics
 
 # Custom classes and functions
 def determine_doublecount_points(array1, array2, threshold=5):
@@ -98,12 +101,8 @@ class cellalignment():
         # Convert cell coordinates to aggregate mask
         self.cell_coordinates_to_aggregate_mask()
 
-        # Generate plot
-        slice_views(array1=self.coordinate_mask_all[0],
-                    array2=self.ds_zp_transformed_moving_image,
-                    output_filename=os.path.join(self.drop_path,"first_example_cell_count_overlay.jpg"))
+        self.plot_original_overlay()
 
-        ipdb.set_trace()
         # Grab alignment file(s) data
         self.gather_transformations()
 
@@ -113,11 +112,19 @@ class cellalignment():
         # Generate the 4-D array
         self.generate_4D_array()
         
+    def plot_original_overlay(self):
+        original_array = np.load(os.path.join(self.drop_path,"downsampled_volume.npy"))
+
+        slice_views(array1=self.coordinate_mask_all[1],
+                    array2=original_array,
+                    output_filename=os.path.join(self.drop_path,"original_overlay.jpg"))
+
     def read_cell_count_file(self):
         self.cell_coordinates=[]
         if len(self.cell_count_files)==1:
             # Read in data
             counts_oh = pd.read_csv(self.cell_count_files[0]).to_numpy()
+            counts_oh = counts_oh[:, [1, 0, 2]] 
 
             # Eliminate double counts
             counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
@@ -129,6 +136,7 @@ class cellalignment():
             for i in range(len(self.cell_count_files)):
               # Read in data
               counts_oh = pd.read_csv(self.cell_count_files[i]).to_numpy()
+              counts_oh = counts_oh[:, [1, 0, 2]] 
 
               # Eliminate double counts
               counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
@@ -211,10 +219,10 @@ class cellalignment():
         
         def transform_sort(full_file_path):
             nameoh = full_file_path.split('_')[-1]
-            return int(nameoh.split('.')[0])
+            return int(nameoh.split('.')[0].split('tep')[1])
 
         # get rigid transformations including stretching
-        rigid_transform_files = sorted(glob.glob(os.path.join(self.drop_path,"*rigid_only*.pkl")), key=transform_sort)
+        rigid_transform_files = sorted(glob.glob(os.path.join(self.drop_path,"rigid*.pkl")), key=transform_sort)
         self.rigid_transforms = []
         self.rigid_transform_types = []
         for file in rigid_transform_files:
@@ -232,9 +240,9 @@ class cellalignment():
                 self.rigid_transform_types.append(0)
             
         # get non-rigid transformations
-        nonrigid_transform_files =  sorted(glob.glob(os.path.join(self.drop_path,"*nonrigid*.pkl")), key=transform_sort)
+        self.nonrigid_transform_files =  sorted(glob.glob(os.path.join(self.drop_path,"*nonrigid*.pkl")), key=transform_sort)
         self.nonrigid_transforms = []
-        for file in nonrigid_transform_files:
+        for file in self.nonrigid_transform_files:
             # Open file
             with open(file, "rb") as f:
                 transform_oh = pickle.load(f)
@@ -251,25 +259,55 @@ class cellalignment():
             # Add zero padding to aggregate mask
             template_array = np.zeros((self.new_x_pad_dim, self.new_y_pad_dim, self.new_z_pad_dim))
             transformed_mask, _ = zero_pad_arrays(array1=transformed_mask, array2=template_array)
+            print(f'Pretrasnformation cell count: {maskoh.sum()}')
 
             # Perform rigid transformations
             for transform_oh, transform_type in zip(self.rigid_transforms,self.rigid_transform_types):
                 if transform_type==0:
                     transformed_mask = rigid_transform(best_params = transform_oh,
                                                        moving_image = sitk.GetImageFromArray(transformed_mask), 
-                                                       fixed_image = sitk.GetImageFromArray(self.zp_template_atlas))
+                                                       fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
                 elif transform_type==1:
                     transformed_mask = stretch_transform(best_params = transform_oh, 
                                                          moving_image = sitk.GetImageFromArray(transformed_mask), 
-                                                         fixed_image = sitk.GetImageFromArray(self.zp_template_atlas))
+                                                         fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
                 else:
                     raise("Transform type should be either 0 or 1. Other type given")
                 
             # Perform Non Rigid transformation(s)
-            for transform_oh in self.nonrigid_transforms:
-                transformed_mask = nonrigid_transform(best_params = transform_oh,
-                                                      moving_image = sitk.GetImageFromArray(transformed_mask), 
-                                                      fixed_image = sitk.GetImageFromArray(self.zp_template_atlas))
+            print(f'Post rigid transformation cell count: {transformed_mask.sum()}')
+            final_nonrigid_transform_oh = self.nonrigid_transforms[-1]
+            transformed_mask = nonrigid_transform(best_params = final_nonrigid_transform_oh,
+                                                  moving_image = sitk.GetImageFromArray(transformed_mask),
+                                                  fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
+            print(f'Post non-rigid transformation cell count: {transformed_mask.sum()}')
+           
+            volobj=volume_graphics()
+            volobj.initiate_gif(label='rollmask')
+
+            for slice,atlas_slice in zip(transformed_mask,self.zp_template_atlas):
+                kernel = disk(3)
+                slice *= 100
+                expanded_mask = dilation(slice, kernel)
+                final_slice = atlas_slice + expanded_mask
+                volobj.add_image_to_gif(image=final_slice,label='rollmask')
+            volobj.save_current_gif(label='rollmask',output_filename='rollmask.gif')
+            ipdb.set_trace()
+
+            transformed_mask[self.zp_template_atlas<1]=0
+            print(f'Post atlas crop cell count: {transformed_mask.sum()}')
+            # Remove cell counts outside atlas
+            overlay_masks(atlas = self.zp_template_atlas,
+                              image = self.ds_zp_transformed_moving_image,
+                              mask = transformed_mask,
+                              output_filename=os.path.join(self.drop_path,"LARGEOVERLAY.jpg"),
+                              atlas_categorical=False)
+            ipdb.set_trace()
+
+            # Plot transformation results
+            slice_views(array1=transformed_mask,
+                        array2=self.ds_zp_transformed_moving_image,
+                        output_filename=os.path.join(self.drop_path,"transformed_cell_mask_on_moving_image.jpg"))
 
             self.transformed_volumes.append(transformed_mask)
     

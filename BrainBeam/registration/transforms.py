@@ -25,7 +25,7 @@ def rigid_transform(best_params, moving_image, fixed_image):
     best_resampler.SetSize(fixed_image.GetSize())
     best_resampler.SetOutputSpacing(fixed_image.GetSpacing())
     best_resampler.SetTransform(best_affine_transform)
-    best_resampler.SetInterpolator(sitk.sitkLinear)
+    best_resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     best_aligned_image = best_resampler.Execute(moving_image)
 
     # Convert back to numpy
@@ -47,7 +47,7 @@ def stretch_transform(best_params, moving_image, fixed_image):
 
 def nonrigid_transform(best_params, moving_image, fixed_image):
     """ Given the best parameters, this will perform a non rigid transformation """
-    moving_image = sitk.Resample(moving_image, fixed_image, best_params, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
+    moving_image = sitk.Resample(moving_image, fixed_image, best_params, sitk.sitkNearestNeighbor, 0.0, moving_image.GetPixelID())
     aligned_array = sitk.GetArrayFromImage(moving_image)
     return aligned_array
 

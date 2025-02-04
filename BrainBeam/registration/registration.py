@@ -119,13 +119,17 @@ class target:
 
         # Reioreint axes to R->L, S->I, A->P formattiong
         self.template_transposed = np.transpose(self.template, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
+        self.annotation_transposed = np.transpose(self.annotation, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
 
         if SP_flip == -1:
             self.template_transposed = self.template_transposed[:, ::-1, :]  # Flip the second axis (A)
+            self.annotation_transposed = self.annotation_transposed[:, ::-1, :]  # Flip the second axis (A)
         if AP_flip == -1:
             self.template_transposed = self.template_transposed[:, :, ::-1]  # Flip the third axis (R)
+            self.annotation_transposed = self.annotation_transposed[:, :, ::-1]  # Flip the third axis (R)
 
         self.template = self.template_transposed
+        self.annotation = self.annotation_transposed
 
     def generate_gif(self, volume, full_filename, volume2=None):
         if not os.path.isfile(full_filename):
@@ -160,6 +164,8 @@ class target:
     def __call__(self):
         self.download_atlas()
         self.download_template()
+
+        # ipdb.set_trace()
         self.determine_orientation()
         self.normalize_template_stack()
         if self.visualize:
@@ -275,6 +281,7 @@ class MovingImage:
             if AP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
             print('If force flips or force orientation is on, this should not be printing right now...')
+            ipdb.set_trace()
 
         return self.downsampled_volume_transposed
 
@@ -836,7 +843,7 @@ def main(args):
     cell_count_files = glob.glob(os.path.join(args.output_path,'*cell_counts*csv'))
     if len(cell_count_files)>0:
         # Zero pad the atlas
-        zp_id_atlas_oh = zero_pad_arrays(array1 = target_oh.annotation, array2 = alignment_object.target_array)
+        zp_id_atlas_oh, _ = zero_pad_arrays(array1 = target_oh.annotation, array2 = alignment_object.target_array)
         
         # Create cell alignment object
         cell_alignment_obj = cellalignment(zp_id_atlas = zp_id_atlas_oh, 

@@ -22,6 +22,9 @@ from PIL import Image
 from io import BytesIO
 import tqdm
 import trimesh
+from matplotlib.colors import Normalize
+from scipy import stats
+import ipdb
 
 # Custom functions and classes
 def adjust_image(image, contrast=1.0, brightness=0):
@@ -93,6 +96,67 @@ def slice_views(array1, output_filename, array2=None, contrast=None, brightness=
             ax = axs[i, -1]
             ax.imshow(overlay_image, aspect='equal')
             ax.axis('off')
+
+    plt.tight_layout()
+    plt.savefig(output_filename)
+
+def overlay_masks(atlas, image, mask, output_filename, num_slices=9, grid_shape=(3,3), atlas_categorical=True):
+    
+    assert atlas.shape == image.shape == mask.shape, "All inputs must have the same shape."
+
+    # Set atlas values to blue color range
+    if atlas_categorical:
+        unique_keys = np.unique(atlas)
+        key_to_color = {}
+        for key in unique_keys:
+            blue_value = np.random.rand() 
+            key_to_color[key] = [blue_value]
+
+    # Get evenly spaced slice indices
+    depth = atlas.shape[0]
+    slice_indices = np.linspace(0, depth - 1, num_slices, dtype=int)
+
+    # Generate figure
+    fig, axes = plt.subplots(grid_shape[0], grid_shape[1], figsize=(12, 12))
+    axes = axes.ravel()
+
+    # Loop over slices
+    for i, (idx1,idx2) in enumerate(zip(slice_indices[:-1],slice_indices[1:])):
+        # get intensity projections
+        if atlas_categorical:
+            atlas_oh = atlas[idx1:idx2].astype(np.float32)
+            atlas_oh[np.where(atlas_oh==0)]=np.nan
+            atlas_mip = np.nanmedian(atlas_oh,axis=0) #Mode 
+            atlas_mip[np.where(atlas_mip==np.nan)]=0
+            atlas_mip = atlas_mip.astype(np.uint32)
+
+            for key, color in key_to_color.items():
+                atlas_mip[atlas_mip == key] = color
+
+        else:
+            atlas_mip = np.max(atlas[idx1:idx2], axis=0)
+            atlas_mip = atlas_mip/mask.max()
+
+        image_mip = np.max(image[idx1:idx2], axis=0)
+        mask_mip = np.max(mask[idx1:idx2], axis=0)
+
+        # Normalize to 0 to 1 range
+        mask_mip = mask_mip/mask.max()
+        image_mip = image_mip/image.max()
+
+        combined_image = np.zeros(shape=(image_mip.shape[0],image_mip.shape[1],3))
+        image_mip = np.clip(image_mip * 0.1, 0, 1)
+        atlas_mip = np.clip(atlas_mip * 0.2, 0, 1)
+
+        combined_image [:,:,0] = mask_mip
+        combined_image [:,:,1] = image_mip
+        combined_image [:,:,2] = atlas_mip
+        
+
+        # Display in grid
+        axes[i].imshow(combined_image)
+        axes[i].axis("off")
+        axes[i].set_title(f"Slices {idx1} to {idx2}")
 
     plt.tight_layout()
     plt.savefig(output_filename)
