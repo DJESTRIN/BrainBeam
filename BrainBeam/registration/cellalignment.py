@@ -72,6 +72,8 @@ class cellalignment():
         self.original_x_dim = None
         self.original_y_dim = None
         self.original_z_dim = None
+
+        self.channel_name = []
     
     def update_coordinate_systems(self, new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim):
         # Set dimensions for new and original arrays for reference by code
@@ -109,13 +111,24 @@ class cellalignment():
         # Apply transform(s) to aggregate mask
         self.transform_cell_mask()
 
+        # Crop all data to atlas bounding box
+        self.crop_by_bounding()
+
+        # Graph results 
+        if self.transformed_volumes:
+            for mask_oh, name_oh in zip(self.transformed_volumes,self.channel_name):
+                overlay_masks(atlas = self.zp_id_atlas,
+                            image = self.ds_zp_transformed_moving_image,
+                            mask = mask_oh,
+                            output_filename=os.path.join(self.drop_path,f"atlas_image_cellcount_overlay_{name_oh}.jpg"),
+                            atlas_categorical=True)
+
         # Generate the 4-D array
         self.generate_4D_array()
         
     def plot_original_overlay(self):
         original_array = np.load(os.path.join(self.drop_path,"downsampled_volume.npy"))
-
-        slice_views(array1=self.coordinate_mask_all[1],
+        slice_views(array1=self.coordinate_mask_all[0],
                     array2=original_array,
                     output_filename=os.path.join(self.drop_path,"original_overlay.jpg"))
 
@@ -123,6 +136,7 @@ class cellalignment():
         self.cell_coordinates=[]
         if len(self.cell_count_files)==1:
             # Read in data
+            self.channel_name.append('ASSUMEDrabies')
             counts_oh = pd.read_csv(self.cell_count_files[0]).to_numpy()
             counts_oh = counts_oh[:, [1, 0, 2]] 
 
@@ -134,15 +148,21 @@ class cellalignment():
 
         elif len(self.cell_count_files)>1:
             for i in range(len(self.cell_count_files)):
-              # Read in data
-              counts_oh = pd.read_csv(self.cell_count_files[i]).to_numpy()
-              counts_oh = counts_oh[:, [1, 0, 2]] 
+                # Determine channel
+                if '647' in self.cell_count_files[i]:
+                    self.channel_name.append('rabies')
+                else:
+                    self.channel_name.append('helper')
 
-              # Eliminate double counts
-              counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
+                # Read in data
+                counts_oh = pd.read_csv(self.cell_count_files[i]).to_numpy()
+                counts_oh = counts_oh[:, [1, 0, 2]] 
 
-              # Save to list
-              self.cell_coordinates.append(counts_oh)
+                # Eliminate double counts
+                counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
+
+                # Save to list
+                self.cell_coordinates.append(counts_oh)
 
         else:
             self.skip_flag = True
@@ -282,35 +302,43 @@ class cellalignment():
                                                   fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
             print(f'Post non-rigid transformation cell count: {transformed_mask.sum()}')
            
-            volobj=volume_graphics()
-            volobj.initiate_gif(label='rollmask')
-
-            for slice,atlas_slice in zip(transformed_mask,self.zp_template_atlas):
-                kernel = disk(3)
-                slice *= 100
-                expanded_mask = dilation(slice, kernel)
-                final_slice = atlas_slice + expanded_mask
-                volobj.add_image_to_gif(image=final_slice,label='rollmask')
-            volobj.save_current_gif(label='rollmask',output_filename='rollmask.gif')
-            ipdb.set_trace()
-
-            transformed_mask[self.zp_template_atlas<1]=0
-            print(f'Post atlas crop cell count: {transformed_mask.sum()}')
             # Remove cell counts outside atlas
-            overlay_masks(atlas = self.zp_template_atlas,
-                              image = self.ds_zp_transformed_moving_image,
-                              mask = transformed_mask,
-                              output_filename=os.path.join(self.drop_path,"LARGEOVERLAY.jpg"),
-                              atlas_categorical=False)
-            ipdb.set_trace()
+            transformed_mask[self.zp_id_atlas==0] *= 0
+            print(f'Post atlas crop cell count: {transformed_mask.sum()}')
 
-            # Plot transformation results
-            slice_views(array1=transformed_mask,
-                        array2=self.ds_zp_transformed_moving_image,
-                        output_filename=os.path.join(self.drop_path,"transformed_cell_mask_on_moving_image.jpg"))
-
+            # Append mask to list
             self.transformed_volumes.append(transformed_mask)
-    
+
+    def crop_by_bounding(self):
+        print("Cropping final data by bounding box. ")
+        # Get bounding box of the id image
+        nonzero_coordinates = np.where(self.zp_id_atlas>0)
+        mins_oh = [nonzero_coordinates[0].min(), nonzero_coordinates[1].min(), nonzero_coordinates[2].min()]
+        maxs_oh = [nonzero_coordinates[0].max(), nonzero_coordinates[1].max(), nonzero_coordinates[2].max()]
+
+        # Crop all data
+        self.zp_id_atlas = self.zp_id_atlas[mins_oh[0]:maxs_oh[0],
+                                            mins_oh[1]:maxs_oh[1],
+                                            mins_oh[2]:maxs_oh[2]]
+        
+        self.zp_template_atlas = self.zp_template_atlas[mins_oh[0]:maxs_oh[0],
+                                            mins_oh[1]:maxs_oh[1],
+                                            mins_oh[2]:maxs_oh[2]]
+        
+        self.ds_zp_transformed_moving_image = self.ds_zp_transformed_moving_image[mins_oh[0]:maxs_oh[0],
+                                            mins_oh[1]:maxs_oh[1],
+                                            mins_oh[2]:maxs_oh[2]]
+        
+        if self.transformed_volumes:
+            transformed_volumes_cropped = []
+            for mask in self.transformed_volumes:
+                mask = mask[mins_oh[0]:maxs_oh[0],
+                            mins_oh[1]:maxs_oh[1],
+                            mins_oh[2]:maxs_oh[2]]
+                transformed_volumes_cropped.append(mask)
+            
+            self.transformed_volumes = transformed_volumes_cropped
+
     def generate_4D_array(self):
         """ Save the final array (4D) where 3D are Height, Width, Depth
             4th dimension contains:

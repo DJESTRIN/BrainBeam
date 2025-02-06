@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 """ Parse ARA tree. Code forked from Princeton University github.
     Citation:  """
-import graphviz, json
-import tifffile
+import json
 
 class Node():
     """ The elements in the graph """
@@ -140,35 +139,6 @@ class Graph():
         for child in self.graph[nodename].children:
             self._print_branch_helper(child.name,stoplevel=stoplevel,level=level+1)
         level-=1
-    
-    def visualize_graph(self,nodename,stoplevel=-1):
-        """ 
-        ---PURPOSE---
-        Visualize a graph using graphviz starting at a given node
-        and stopping at a certain number of levels down 
-        the ontology.
-        ---INPUT---
-        nodename     The parent node you want to start at
-        stoplevel    The number of levels down from the parent 
-                     node that you want to print. -1 shows all
-        ---OUTPUT--- 
-        graph        
-        """
-        digraph = graphviz.Digraph()
-        self.visualize_graph_helper(nodename=nodename,graph=digraph,level=0,stoplevel=stoplevel)
-        return digraph
-    
-    def visualize_graph_helper(self,nodename,graph,level,stoplevel):
-        if stoplevel == -1:
-            pass
-        elif level >= stoplevel:
-            return
-        graph.node(nodename)
-        for child in self.graph[nodename].children:
-            graph.edge(nodename,child.name)
-            self.visualize_graph_helper(child.name,graph=graph,level=level+1,stoplevel=stoplevel)
-        level-=1
-        return
     
     def make_html_ontology(self):
         """ 

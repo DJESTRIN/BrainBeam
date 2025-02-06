@@ -25,6 +25,8 @@ import trimesh
 from matplotlib.colors import Normalize
 from scipy import stats
 import ipdb
+import tifffile as tiff
+import pandas as pd
 
 # Custom functions and classes
 def adjust_image(image, contrast=1.0, brightness=0):
@@ -106,11 +108,14 @@ def overlay_masks(atlas, image, mask, output_filename, num_slices=9, grid_shape=
 
     # Set atlas values to blue color range
     if atlas_categorical:
-        unique_keys = np.unique(atlas)
+        unique_keys = np.unique(atlas.astype(int))
         key_to_color = {}
         for key in unique_keys:
-            blue_value = np.random.rand() 
-            key_to_color[key] = [blue_value]
+            if key==0:
+                key_to_color[key] = 0
+            else:
+                blue_value = np.random.rand()
+                key_to_color[key] = [blue_value]
 
     # Get evenly spaced slice indices
     depth = atlas.shape[0]
@@ -124,14 +129,12 @@ def overlay_masks(atlas, image, mask, output_filename, num_slices=9, grid_shape=
     for i, (idx1,idx2) in enumerate(zip(slice_indices[:-1],slice_indices[1:])):
         # get intensity projections
         if atlas_categorical:
-            atlas_oh = atlas[idx1:idx2].astype(np.float32)
-            atlas_oh[np.where(atlas_oh==0)]=np.nan
-            atlas_mip = np.nanmedian(atlas_oh,axis=0) #Mode 
-            atlas_mip[np.where(atlas_mip==np.nan)]=0
-            atlas_mip = atlas_mip.astype(np.uint32)
-
+            atlas_mip = atlas[idx2].astype(int)
+            atlas_mip_copy = atlas_mip.copy().astype(np.float32)
             for key, color in key_to_color.items():
-                atlas_mip[atlas_mip == key] = color
+                xoh,yoh = np.where(atlas_mip == key)
+                if xoh.size>0:
+                    atlas_mip_copy[xoh, yoh] = color
 
         else:
             atlas_mip = np.max(atlas[idx1:idx2], axis=0)
@@ -139,22 +142,22 @@ def overlay_masks(atlas, image, mask, output_filename, num_slices=9, grid_shape=
 
         image_mip = np.max(image[idx1:idx2], axis=0)
         mask_mip = np.max(mask[idx1:idx2], axis=0)
+        mask_cell_coordinates = np.where(mask_mip>0)
 
-        # Normalize to 0 to 1 range
-        mask_mip = mask_mip/mask.max()
-        image_mip = image_mip/image.max()
+        # Normalize to 0 to 1 rang
 
         combined_image = np.zeros(shape=(image_mip.shape[0],image_mip.shape[1],3))
-        image_mip = np.clip(image_mip * 0.1, 0, 1)
-        atlas_mip = np.clip(atlas_mip * 0.2, 0, 1)
+        #image_mip = np.clip(image_mip * 0.1, 0, 1)
+        #atlas_mip = np.clip(atlas_mip * 0.5, 0, 1)
 
-        combined_image [:,:,0] = mask_mip
-        combined_image [:,:,1] = image_mip
+        #combined_image [:,:,1] = image_mip
         combined_image [:,:,2] = atlas_mip
         
 
         # Display in grid
-        axes[i].imshow(combined_image)
+        axes[i].imshow(atlas_mip_copy,cmap="Blues")
+        if mask_mip.max()>0:
+            axes[i].scatter(x=mask_cell_coordinates[1],y=mask_cell_coordinates[0],color='red',marker='o',s=3,alpha=0.6)
         axes[i].axis("off")
         axes[i].set_title(f"Slices {idx1} to {idx2}")
 
@@ -321,3 +324,38 @@ class volume_graphics:
 
         return image
 
+
+def quick_cell_plot(ds_image_file,cell_counts_file):
+    """ Generate a fast plot of cell coordinates over the downsampled image volume """
+    scalings = [50/2,50/2.3,50/2.3]
+    downsampled_volume = tiff.imread(ds_image_file)
+    cell_counts = pd.read_csv(cell_counts_file).to_numpy()
+    cell_counts_ds = cell_counts.copy()
+    for i in range(len(cell_counts.T)):
+        cell_counts_ds[:,i] = cell_counts_ds[:,i]/scalings[i]
+
+    cell_counts_ds = np.round(cell_counts_ds).astype(int)
+
+    # Generate a gif 
+    gif_frames = []
+    for i in tqdm.tqdm(range(len(downsampled_volume))):
+        fig, ax = plt.subplots()
+        ax.imshow(downsampled_volume[i], cmap='Greens',vmin=downsampled_volume.min(),vmax=(downsampled_volume.max()/15))  # Plot the image in green
+        
+        mask = cell_counts_ds[:, 2] == i
+        coords_in_slice = cell_counts_ds[mask]
+        if len(coords_in_slice) > 0:
+            ax.scatter(coords_in_slice[:, 0], coords_in_slice[:, 1], color='red', marker='o',s=3,alpha=0.3)
+
+        ax.axis("off")
+        fig.canvas.draw()
+        image = Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+        gif_frames.append(image)
+        plt.close(fig)
+
+    gif_frames[0].save('c197_a02.gif', save_all=True, append_images=gif_frames[1:], duration=50, loop=0)
+
+if __name__=='__main__':
+    imageoh = r'C:\Users\listo\example_registration_data\sub1_output\current_run_2025_01_21_20_54_54\downsampled_moving_image.tiff'
+    cell_count_file = r'C:\Users\listo\example_registration_data\sub1_output\current_run_2025_01_21_20_54_54\c197_a02_cell_counts.csv'
+    quick_cell_plot(ds_image_file=imageoh,cell_counts_file=cell_count_file)

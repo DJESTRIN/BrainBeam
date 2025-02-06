@@ -164,8 +164,6 @@ class target:
     def __call__(self):
         self.download_atlas()
         self.download_template()
-
-        # ipdb.set_trace()
         self.determine_orientation()
         self.normalize_template_stack()
         if self.visualize:
@@ -281,8 +279,6 @@ class MovingImage:
             if AP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
             print('If force flips or force orientation is on, this should not be printing right now...')
-            ipdb.set_trace()
-
         return self.downsampled_volume_transposed
 
     def downsample(self,output_filename):

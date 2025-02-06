@@ -366,11 +366,12 @@ def cli_parser():
     parser.add_argument('--monitor_only', action='store_true', help='Number of cpus per task')
     parser.add_argument('--force_delete_output', action='store_true', help='Number of cpus per task')
     parser.add_argument('--force_delete_pkls', action='store_true', help='Number of cpus per task')
+    parser.add_argument('--generate_dataframe', action='store_true', help='Number of cpus per task')
     args = parser.parse_args()
     return args
 
 def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "running_directories.pkl", 
-                 file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60):
+                 file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60, generate_dataframe=False):
     """ Find and monitor my jobs in the slurm queue  """
 
     def find_my_jobs(original_job_ids,username='dje4001'):
@@ -400,6 +401,29 @@ def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "
         monitor(common_drop_directory, directory_file = directory_file_oh, currently_running=result, file_extensions=file_extensions_oh)
         result, running_jobs = find_my_jobs(running_jobs)
 
+    # Run data collection to dataframe code if argument present
+    if generate_dataframe:
+        my_command = f"sbatch --job-name=custom_registration \
+                --mem={memory_per_job}G \
+                --ntasks={tasks_per_job} \
+                --cpus-per-task={cpus_per_task} \
+                --partition={partition_oh} \
+                --mail-type=BEGIN,END,FAIL \
+                --mail-user={email} \
+                --output={communal_slurm_log_directory}/%x-%j.out \
+                --error={communal_slurm_error_directory}/%x-%j.err \
+                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./dataframes.py \
+                --image_path {image_folder} '"
+        
+def execute_final_analyses():
+    """ Function used for running the final set of analyses. 
+    (1) Generate dataframe
+    (2) Run Univariate MASS t-tests + plotting
+    (3) Stability analysis + plotting
+    (4) Final figure development
+    """
+    ipdb.set_trace()
+
 if __name__=='__main__':
     # Parse command line inputs
     args = cli_parser()
@@ -420,7 +444,7 @@ if __name__=='__main__':
 
         # Monitor jobs if succesful. 
         monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
-                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60, generate_dataframe=args.generate_dataframe)
 
     else:
         # Send all data to sbatch
@@ -439,7 +463,7 @@ if __name__=='__main__':
 
         # Monitor jobs if succesful. 
         monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
-                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60, generate_dataframe=args.generate_dataframe)
 
     """
     Note regarding usage:
