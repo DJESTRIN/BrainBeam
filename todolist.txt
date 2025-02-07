@@ -1,14 +1,5 @@
 cellalignment
-    Use example on cluster where we know cell counts go with transformation
-        Graph example of original ds image volume with non_transformed aggregate cell count mask. To verify cell counts make sense. 
-
-    Make sure ALL transformations are being applied to aggregate cell count array
-        including flips, changes in orientation, rigid, stretching and non rigid.... 
-
-    After transformation    
-        eliminate cell counts outside of the atlas range with a few pixels (1-2) of error! 
-        Graph aggregate cell count mask and ds moiving image AFTER transformation to show what it looks like.
-        Figure out how to handle cell counts in 1-2 pixel error range 
+    Consider saving a mapped_array_helper array that contains information regarding each channel of mapped_array ...
 
 dataframe
     Convert 4D array into dataframe(s)  
