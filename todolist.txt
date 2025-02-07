@@ -1,8 +1,8 @@
 cellalignment
     Consider saving a mapped_array_helper array that contains information regarding each channel of mapped_array ...
+    
 
 dataframe
-    Convert 4D array into dataframe(s)  
     Add code to multinoderegistration to be run when all jobs are finished 
 
 statistics

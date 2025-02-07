@@ -133,38 +133,30 @@ class cellalignment():
                     output_filename=os.path.join(self.drop_path,"original_overlay.jpg"))
 
     def read_cell_count_file(self):
-        self.cell_coordinates=[]
-        if len(self.cell_count_files)==1:
-            # Read in data
-            self.channel_name.append('ASSUMEDrabies')
-            counts_oh = pd.read_csv(self.cell_count_files[0]).to_numpy()
-            counts_oh = counts_oh[:, [1, 0, 2]] 
+        """ Convert cell count files into numpy array attributes for class. 
+            Eliminates double counts as well. """
+        if len(self.cell_count_files)>0: # Are count files provided
+            
+            self.channel_name=[] 
+            self.cell_coordinates=[]
+            for file in self.cell_count_files:
+                # Determine channel name
+                if '488' in file:
+                    self.channel_name.append('488')
+                elif '561' in file:
+                    self.channel_name.append('561')
+                elif '647' in file:
+                    self.channel_name.append('647')
+                elif '785' in file:
+                    self.channel_name.append('785')
 
-            # Eliminate double counts
-            counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
-
-            # Save to list
-            self.cell_coordinates.append(counts_oh)
-
-        elif len(self.cell_count_files)>1:
-            for i in range(len(self.cell_count_files)):
-                # Determine channel
-                if '647' in self.cell_count_files[i]:
-                    self.channel_name.append('rabies')
-                else:
-                    self.channel_name.append('helper')
-
-                # Read in data
-                counts_oh = pd.read_csv(self.cell_count_files[i]).to_numpy()
-                counts_oh = counts_oh[:, [1, 0, 2]] 
-
-                # Eliminate double counts
+                # Load in counts, arranges axes and eliminate double counts
+                counts_oh = pd.read_csv(file).to_numpy()
+                counts_oh = counts_oh[:, [1, 0, 2]] # May need to re-orient axis....?
                 counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
-
-                # Save to list
                 self.cell_coordinates.append(counts_oh)
 
-        else:
+        else: # No count csv files provided
             self.skip_flag = True
             print('No cell coordinate files provided, so all cell alignment code will be skipped')
 
