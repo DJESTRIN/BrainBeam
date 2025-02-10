@@ -11,13 +11,16 @@ from statsmodels.api import OLS as lm
 from statsmodels.api import add_constant
 from BrainBeam.statistics.datagenerator import generate_pseudo_data, increase_pseudo_stability
 import ipdb
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import pandas as pd
 import tqdm
 
 class slope_stability():
     def __init__(self, dataframe_oh, drop_directory, xaxis_label = 'CONTROL', yaxis_label = 'CORT', 
-                 simulation=False, simtrials = 3000, convergence_test = False, graph_results = False):
+                 simulation=False, simtrials = 10000, convergence_test = False, graph_results = False):
         self.dataframe = dataframe_oh
         self.drop_directory = drop_directory
         self.xaxis_label = xaxis_label
@@ -31,6 +34,9 @@ class slope_stability():
         self.df_wide, self.X, self.y = self.tall_to_slope_wide()
         self.X, self.y = increase_pseudo_stability(X = self.X, y = self.y, percent_data = 0.7)
         self.slope_data, self.intercept_data = self.ols_slope()
+        
+        if self.graph_results:
+            self.plot_slope()
         
         if self.simulation:
             self.subset_simulation()
@@ -63,14 +69,14 @@ class slope_stability():
         slope_data = [slope_lo, slope, slope_hi]
         return slope_data, intercept_data
 
-    def plot_slope(self):
-        self.X = self.X[self.xaxis_label]
-        min_val = self.X.min()
-        max_val = self.X.max()
+    def plot_slope(self,label_oh='stability_general.jpg'):
+        Xoh = self.X[self.xaxis_label]
+        min_val = Xoh.min()
+        max_val = Xoh.max()
         X_points = np.linspace(min_val, max_val, 51)
 
         plt.figure(figsize=(10, 6))
-        plt.scatter(self.X,self.y)
+        plt.scatter(Xoh,self.y)
 
         # Gather model information
         slope_lo, slope, slope_hi = self.slope_data
@@ -86,6 +92,9 @@ class slope_stability():
         plt.yscale('log')
         plt.xlabel(self.xaxis_label)
         plt.ylabel(self.yaxis_label)
+
+        plt.savefig(os.path.join(self.drop_directory,label_oh))
+        plt.close()
         return
 
     def run_simulation(self, X_subset, y_subset):
@@ -94,10 +103,10 @@ class slope_stability():
         try:
             slope = model.params[1]
         except:
-            ipdb.set_trace()
+            slope = np.nan
         return slope
 
-    def subset_simulation(self):
+    def subset_simulation_helper(self):
         """ 
         Create an np.nan array with num rows = len(X) and ncolumns = ntrials
         Pull out a random combination subset from original data where subset size is randomly taken from 3 to length of X
@@ -107,23 +116,80 @@ class slope_stability():
         k means and plot clusters ...
         """
         xy = np.array([self.X[self.xaxis_label], self.y]).T
-        if self.convergence_test:
-            ipdb.set_trace()
+        simulated_slopes = []
+        region_subset_logic = []
+        for k in tqdm.tqdm(range(self.simtrials)):
+            numpulls = int(np.random.uniform(4, xy.shape[0]))
+            indx = np.random.choice(xy.shape[0], numpulls, replace=False)
+            subset = xy[indx]
+            simulated_slopes.append(self.run_simulation(X_subset = subset[:,0], y_subset = subset[:,1]))
+            
+            # Create arrays of zero and 1 for each brain in list
+            logical_oh = np.zeros(shape=(xy.shape[0],1))
+            logical_oh[indx] = 1
+            region_subset_logic.append(logical_oh)
         
-        else:
-            simulated_slopes = []
-            for k in tqdm.tqdm(range(self.simtrials)):
-                numpulls = int(np.random.uniform(4, xy.shape[0]))
-                indx = np.random.choice(xy.shape[0], numpulls, replace=False)
-                subset = xy[indx]
-                simulated_slopes.append(self.run_simulation(X_subset = subset[:,0], y_subset = subset[:,1]))
-            ipdb.set_trace()
+        simulated_slopes = np.array(simulated_slopes)
+        region_subset_logic = np.array(region_subset_logic)
+        region_subset_logic = region_subset_logic.squeeze()
 
-        
+        weighted_results = []
+        for region in region_subset_logic.T:
+            weighted_results.append(np.nanmean(region*simulated_slopes))
+        weighted_results = np.array(weighted_results)
+        return weighted_results
+    
+    def subset_simulation(self):
+        if self.convergence_test:
+            trial_list = [1,10,100,1000,10000,100000,1000000]
+            weighted_results_list = []
+            for trial in trial_list:
+                self.simtrials = trial
+                weighted_results_list.append(self.subset_simulation_helper())
+            weighted_results_list = np.array(weighted_results_list)
+            standard_deviations = np.std(weighted_results_list,axis=1)
+            
+            if self.graph_results:
+                plt.figure()
+                plt.plot(np.array(trial_list),standard_deviations)
+                plt.xscale('log')
+                plt.savefig(os.path.join(self.drop_directory,"convergence_test_results.jpg"))
+                plt.close()
+
+        else:
+            weighted_results = self.subset_simulation_helper()        
+
+def cli_argparsing():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pseudo_study',action='store_true',help='If this is set, code will generate pseudo data for testing purposes')
+    parser.add_argument('--csv_file',required=False,type=str,help="Full path to csv file containing dataset in LONG format")
+    parser.add_argument('--drop_directory',required=True, type=str, help = "Where all final results are saved")
+
+    parser.add_argument('--run_simulation',action='store_true',help='Run a simulation to get weighted slopes for regions')
+    parser.add_argument('--run_simulation_convergence',action='store_true',help='Determine if number of simulations produces different weighted slope results')
+    parser.add_argument('--graph_results',action='store_true',help='Graph results and save to drop path')
+    args = parser.parse_args()
+    return args
 
 if __name__=='__main__':
-    df = generate_pseudo_data()
-    drop = r'C:\Users\listo\example_stability_data'
-    slopeobj = slope_stability(dataframe_oh = df, drop_directory=drop, simulation = True)
+    # Parse command line arguments
+    args_oh = cli_argparsing()
+    
+    # Load in real or pseudo data for analysis
+    if args_oh.pseudo_study:
+        df = generate_pseudo_data()
+    else:
+        try:
+            df = pd.read_csv(args_oh.csv_file)
+        
+        except:
+            print('Issue with reading csv file. May not have been provided. Using Pseudo data!!')
+            df = generate_pseudo_data()
+
+    # Set up and run stability analysis for dataset
+    slopeobj = slope_stability(dataframe_oh = df, 
+                               drop_directory=args_oh.drop_directory, 
+                               simulation = args_oh.run_simulation, 
+                               convergence_test=args_oh.run_simulation_convergence, 
+                               graph_results=args_oh.graph_results)
     slopeobj()
-    ipdb.set_trace()
