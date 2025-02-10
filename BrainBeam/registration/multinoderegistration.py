@@ -289,7 +289,7 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif','.tiff']):
 
 
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
-                memory_per_job = 256, tasks_per_job = 1, cpus_per_task = 4, delete_contents_of_output_folders = False, delete_pkls=False):
+                memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False, delete_pkls=False):
     """ Build sbatch command and submit for running """
 
     # Cancel all previous jobs I am running
