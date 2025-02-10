@@ -352,6 +352,9 @@ class cellalignment():
         self.mapped_array = mapped_array
         np.save(os.path.join(self.drop_path,'mapped_array.npy'), self.mapped_array) 
 
+        self.channel_name = np.asarray(self.channel_name)
+        np.save(os.path.join(self.drop_path,'channel_names.npy'), self.channel_name) 
+
 def cli_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--zp_id_atlas_file', type=str)

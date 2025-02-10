@@ -15,6 +15,7 @@ import pandas as pd
 import tqdm
 import argparse
 import os, glob
+import ipdb
 
 class lightsheet_volume_data():
     """ Get medi data regarding subject's name, group etc from path"""
@@ -42,14 +43,20 @@ class lightsheet_volume_data():
     def gather_data(self):
         # Find all mapped files in final path
         mapped_files = glob.glob(os.path.join(self.data_path,r"**\*mapped*.npy"), recursive=True)
+        channel_files = glob.glob(os.path.join(self.data_path,r"**\*channel_*.npy"), recursive=True)
 
         # Load in data from files as numpy array
         # Get medidata containing animal info into list
         self.data = []
         self.medidata = []
-        for npfile in mapped_files:
+        self.channel_data = []
+        self.channel_medidata = []
+        for npfile,channelfile in zip(mapped_files,channel_files):
             self.data.append(np.load(npfile))
             self.medidata.append(self.strip_file_to_name(path_oh = npfile))
+
+            self.channel_data.append(np.load(channelfile))
+            self.channel_medidata.append(self.strip_file_to_name(path_oh = channelfile))
 
 class array_to_dataframe():
     def __init__(self, lightsheet_volume_object, tree_object, data_path):
