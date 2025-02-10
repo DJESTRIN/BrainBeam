@@ -371,7 +371,7 @@ def cli_parser():
     return args
 
 def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "running_directories.pkl", 
-                 file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60, generate_dataframe=False):
+                 file_extensions_oh=['jpg','gif','npy'], username='dje4001', sleep = 60, generate_dataframe=False):
     """ Find and monitor my jobs in the slurm queue  """
 
     def find_my_jobs(original_job_ids,username='dje4001'):
