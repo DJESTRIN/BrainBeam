@@ -19,7 +19,8 @@ def get_coordinates(path,threshold=0.92):
     Saves a csv file containing coordinates of cells.
     """
     #load in segmentation 
-    largemat=np.load(path)
+    fileoh=np.load(path)
+    largemat = fileoh['data']
     cellbodies=np.squeeze(largemat[:,:,:,2])
     cellbodies_copy=np.copy(cellbodies)
 
