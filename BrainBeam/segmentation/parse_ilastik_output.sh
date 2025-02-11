@@ -5,7 +5,7 @@ code_dir=$1
 slice_folder=$2
 
 # Get local numpy files if present
-numpy_files=$( find $slice_folder -type f -name '*npy*' )
+numpy_files=$( find $slice_folder -type f -name '*npz*' )
 
 # Set up the environment
 source ~/.bashrc
