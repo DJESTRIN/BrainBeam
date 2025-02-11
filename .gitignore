@@ -4,3 +4,4 @@ Archive/
 **/*.err
 tempshowfig.py
 BrainBeam.egg-info/
+BrainBeam/gui/localallocation.py

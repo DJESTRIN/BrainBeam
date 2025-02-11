@@ -138,7 +138,7 @@ class BrainBeamGuiBase():
         self.set_up_overview_headers()
 
         #Set up gui images path
-        image_path = os.path.join(self.wd, "gui\images")
+        image_path = os.path.join(self.wd, r"\BrainBeam\gui\images")
         self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
         self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
         self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
@@ -324,7 +324,7 @@ class BrainBeamGuiBase():
     
     def call_logo(self):
         #Set log image
-        image_path = os.path.join(self.wd, "gui/images")
+        image_path = os.path.join(self.wd, "BrainBeam/gui/images")
         image_path = os.path.join(image_path,"BBlogoV1.png")
         self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
 
