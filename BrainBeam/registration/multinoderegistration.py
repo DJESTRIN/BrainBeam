@@ -205,12 +205,11 @@ class managepaths():
         for subject, variables in self.manage_paths.items():
             registration_drop_path = variables.get('registration_drop_path', '')
             if os.path.exists(os.path.join(registration_drop_path,"align_binary_mask.txt")):
-                with open(os.path.join(registration_drop_path,"align_binary_mask.txt"), 'r') as file:
-                    binary_mask_align = ' '.join(str(int(line.strip())) for line in file)
+                binary_mask_align = True
                 self.manage_paths[subject]['align_binary_mask'] = binary_mask_align
             
             else:
-                self.manage_paths[subject]['align_binary_mask'] = ''
+                self.manage_paths[subject]['align_binary_mask'] = False
 
     def load_crop_border_file(self):
         """ find force flips file and load if present """
