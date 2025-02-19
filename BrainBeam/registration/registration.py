@@ -16,7 +16,7 @@ from scipy.ndimage import distance_transform_edt
 import ipdb
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 from PIL import Image
 import glob
 import tifffile as tiff
@@ -80,12 +80,12 @@ class target:
 
         # Gather meta data on average intensities
         av_szs = np.array([len(mean_intensity_x), len(mean_intensity_y), len(mean_intensity_z)])
-        avs = np.array([mean_intensity_x, mean_intensity_y, mean_intensity_z])
+        avs = [mean_intensity_x, mean_intensity_y, mean_intensity_z]
 
         # Find the AP axis and determine whether it needs to be flipped
         longest_dim = np.where(av_szs == av_szs.max())
         
-        AP = avs[longest_dim]
+        AP = avs[longest_dim[0][0]]
         if np.argmax(AP) < (len(AP) // 2):
             AP_flip=-1 # flip orientation
         else:
@@ -103,7 +103,7 @@ class target:
         # Check whether any axes were chosen twice
         # Determine whether S->I needs to be flipped
         dims = {0, 1, 2}
-        previous_dims = {int(longest_dim[0]), int(mirror_dim[0])}
+        previous_dims = {int(longest_dim[0][0]), int(mirror_dim[0][0])}
         leftover_dim = list(dims - previous_dims)  # Subtract sets and extract the value
 
         if len(leftover_dim) == 1:
@@ -234,12 +234,12 @@ class MovingImage:
 
             # Gather meta data on average intensities
             av_szs = np.array([len(mean_intensity_x), len(mean_intensity_y), len(mean_intensity_z)])
-            avs = np.array([mean_intensity_x, mean_intensity_y, mean_intensity_z])
+            avs = [mean_intensity_x, mean_intensity_y, mean_intensity_z]
 
             # Find the AP axis and determine whether it needs to be flipped
             longest_dim = np.where(av_szs == av_szs.max())
             
-            AP = avs[longest_dim]
+            AP = avs[longest_dim[0][0]]
             if np.argmax(AP) < (len(AP) // 2):
                 AP_flip=1 # flip orientation
             else:
@@ -257,7 +257,7 @@ class MovingImage:
             # Check whether any axes were chosen twice
             # Determine whether S->I needs to be flipped
             dims = {0, 1, 2}
-            previous_dims = {int(longest_dim[0]), int(mirror_dim[0])}
+            previous_dims = {int(longest_dim[0][0]), int(mirror_dim[0][0])}
             leftover_dim = list(dims - previous_dims)  # Subtract sets and extract the value
 
             if len(leftover_dim) == 1:
@@ -272,12 +272,15 @@ class MovingImage:
                 SP_flip=1 # Keep orientation as not flipped
 
             # Reioreint axes to R->L, S->I, A->P formattiong
-            self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, (int(mirror_dim[0]), int(leftover_dim), int(longest_dim[0]))) 
+            self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, (int(mirror_dim[0][0]), int(leftover_dim), int(longest_dim[0][0]))) 
+            self.force_orientations = [int(mirror_dim[0][0]), int(leftover_dim), int(longest_dim[0][0])]
 
             if SP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
+                self.force_flips = [1, -1, 1]
             if AP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
+                self.force_flips = [1, 1, -1]
             print('If force flips or force orientation is on, this should not be printing right now...')
         return self.downsampled_volume_transposed
 
@@ -846,7 +849,9 @@ def main(args):
                                         zp_template_atlas = alignment_object.target_array, 
                                         ds_zp_transformed_moving_image = alignment_object.nonrigid_moving_image, 
                                         drop_path = alignment_object.drop_path,
-                                        cell_count_files = cell_count_files) # create the object
+                                        cell_count_files = cell_count_files,
+                                        force_orientations=Image_oh.force_orientation, 
+                                        force_flips=Image_oh.force_flips) # create the object
         
         # Update coordinate system data regarding dimensions
         new_x_dim, new_y_dim, new_z_dim = alignment_object.nonrigid_moving_image.shape

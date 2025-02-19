@@ -11,7 +11,7 @@ Version: 1.0
 # Load dependencies
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from skimage import measure
 from scipy import ndimage

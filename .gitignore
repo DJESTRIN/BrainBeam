@@ -5,3 +5,4 @@ Archive/
 tempshowfig.py
 BrainBeam.egg-info/
 BrainBeam/gui/localallocation.py
+BrainBeam/registration/test.py

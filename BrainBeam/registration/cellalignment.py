@@ -11,7 +11,9 @@ Version: 1.0
 # Load dependencies
 import pandas as pd
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 import scipy.ndimage
 from skimage.morphology import dilation, disk
 import ipdb
@@ -40,6 +42,105 @@ def determine_doublecount_points(array1, array2, threshold=5):
     final_array = np.delete(combined_array, to_remove, axis=0)
     return final_array
 
+
+def atlas_cell_3d_plot(atlas,cell_mask,file, downsample_factor=4):
+    matplotlib.use("tkagg")
+    cell_mask = cell_mask[::-1,:,:]
+    mask_coordinates = np.where(cell_mask>0)
+    atlas_downsampled = atlas[::downsample_factor, ::downsample_factor, ::downsample_factor]
+    coords = np.array(np.where(atlas_downsampled>1)).T 
+
+    values = atlas_downsampled[coords[:, 0], coords[:, 1], coords[:, 2]]
+    unique_values = np.unique(values)
+
+    # Assign each unique key a unique color
+    num_colors = len(unique_values)
+    color_map = plt.get_cmap('tab10', num_colors)  # Pick a colormap with discrete colors
+    color_dict = {val: color_map(i) for i, val in enumerate(unique_values)}  # Map keys to colors
+
+    # Create a color array
+    colors = np.array([color_dict[val] for val in values])
+
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c=colors, alpha=0.05)
+    ax.scatter(mask_coordinates[0]/downsample_factor,
+               mask_coordinates[1]/downsample_factor,
+               mask_coordinates[2]/downsample_factor, 
+               color='red')
+    plt.savefig(file, dpi=300) 
+    print('saved voxel image')
+    plt.show()
+    return 
+
+
+def slide_atlas_plot(atlas, cell_mask):
+    # Ensure TkAgg is used
+    matplotlib.use("tkagg")
+    # Extract coordinates and values, filtering out zero or unwanted points
+    valid_mask = atlas > 1  # Only include values greater than 1
+    coords = np.array(np.where(valid_mask)).T  # [z, y, x] format
+    values = atlas[valid_mask]  # Get corresponding values
+
+    unique_values, inverse_indices = np.unique(values, return_inverse=True)  # Get unique mapping
+    num_colors = len(unique_values)
+
+    # Use a perceptually uniform colormap with more distinct colors
+    color_map = plt.get_cmap('rainbow', num_colors)  # Alternatives: 'turbo', 'tab20'
+    colors = color_map(inverse_indices)  # Assign colors based on index
+
+    mask_coordinates = np.array(np.where(cell_mask > 0)).T
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(6, 6))
+    plt.subplots_adjust(bottom=0.25)  # Space for slider
+
+    # Initial slice setup
+    initial_slice = atlas.shape[2] // 2
+    slice_mask = coords[:, 2] == initial_slice  # Select only points in the initial slice
+    cell_slice_mask = mask_coordinates[:, 2] == initial_slice
+
+    sc = ax.scatter(coords[slice_mask, 0], coords[slice_mask, 1], c=colors[slice_mask], s=10)
+    sc_mask = ax.scatter(mask_coordinates[cell_slice_mask, 0], 
+                        mask_coordinates[cell_slice_mask, 1], 
+                        marker="^", facecolors='red', edgecolors='black', 
+                        linewidth=1.5, s=50)
+
+    ax.set_xlim([0, atlas.shape[0]])
+    ax.set_ylim([0, atlas.shape[1]])
+    ax.set_title(f'Slice {initial_slice}')
+
+    # Add slider for scrolling through slices
+    ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
+    slider = Slider(ax_slider, 'Slice', 0, atlas.shape[2] - 1, valinit=initial_slice, valstep=1)
+
+    # Update function for the slider
+    def update(val):
+        slice_idx = int(slider.val)
+        
+        slice_mask = coords[:, 2] == slice_idx  # Select new atlas slice points
+        cell_slice_mask = mask_coordinates[:, 2] == slice_idx  # Select new cell slice points
+        
+        if np.any(slice_mask):
+            sc.set_offsets(coords[slice_mask, :2])
+            sc.set_color(colors[slice_mask])
+        else:
+            sc.set_offsets([])
+
+        if np.any(cell_slice_mask):
+            sc_mask.set_offsets(mask_coordinates[cell_slice_mask, :2])
+        else:
+            sc_mask.set_offsets([])
+
+        ax.set_title(f'Slice {slice_idx}')
+        fig.canvas.draw_idle()
+
+    slider.on_changed(update)
+
+    plt.show()
+
+
+
 def determine_coexpressing_points(array1, array2, threshold=5):
     distances = cdist(array1, array2, metric='euclidean')
     within_threshold = np.where(distances < threshold)
@@ -52,12 +153,17 @@ class cellalignment():
                  zp_template_atlas, 
                  ds_zp_transformed_moving_image, 
                  drop_path, 
-                 cell_count_files = None):
+                 force_orientations,
+                 force_flips,
+                 cell_count_files = None,):
         self.zp_id_atlas = zp_id_atlas
         self.zp_template_atlas = zp_template_atlas
         self.ds_zp_transformed_moving_image = ds_zp_transformed_moving_image
         self.drop_path = drop_path # Path containing pkl transformation files
         self.cell_count_files = cell_count_files
+        self.force_orientations = force_orientations
+        self.force_flips = force_flips
+
 
         if self.cell_count_files:
             self.skip_flag = False
@@ -122,6 +228,14 @@ class cellalignment():
                             mask = mask_oh,
                             output_filename=os.path.join(self.drop_path,f"atlas_image_cellcount_overlay_{name_oh}.jpg"),
                             atlas_categorical=True)
+                print(f'output jpg file to {self.drop_path}')
+
+                # atlas_cell_3d_plot(atlas = self.zp_id_atlas, 
+                #                    cell_mask = mask_oh,
+                #                    file=os.path.join(self.drop_path,f"atlas_view_{name_oh}.jpg"))
+                
+                slide_atlas_plot(atlas = self.zp_id_atlas,
+                                cell_mask = mask_oh)
 
         # Generate the 4-D array
         self.generate_4D_array()
@@ -153,6 +267,8 @@ class cellalignment():
                 # Load in counts, arranges axes and eliminate double counts
                 counts_oh = pd.read_csv(file).to_numpy()
                 counts_oh = counts_oh[:, [1, 0, 2]] # May need to re-orient axis....?
+                counts_oh[:, 2] = counts_oh[::-1, 2]
+                
                 counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
                 self.cell_coordinates.append(counts_oh)
 
@@ -268,6 +384,19 @@ class cellalignment():
         for maskoh in self.coordinate_mask_all:
             transformed_mask = maskoh.copy()
 
+            # counts to brain transpose    
+            transformed_mask = np.transpose(transformed_mask,(2,1,0))
+
+            if self.force_orientations is not None:
+                transformed_mask = np.transpose(transformed_mask,
+                                                (self.force_orientations[0],
+                                                 self.force_orientations[1],
+                                                 self.force_orientations[2])) # brain to atlas transpose
+            if self.force_flips is not None:
+                transformed_mask = transformed_mask[::self.force_flips[0], 
+                                                    ::self.force_flips[1], 
+                                                    ::self.force_flips[2]]  # Flip if needed
+
             # Add zero padding to aggregate mask
             template_array = np.zeros((self.new_x_pad_dim, self.new_y_pad_dim, self.new_z_pad_dim))
             transformed_mask, _ = zero_pad_arrays(array1=transformed_mask, array2=template_array)
@@ -295,7 +424,7 @@ class cellalignment():
             print(f'Post non-rigid transformation cell count: {transformed_mask.sum()}')
            
             # Remove cell counts outside atlas
-            transformed_mask[self.zp_id_atlas==0] *= 0
+            # transformed_mask[self.zp_id_atlas==0] *= 0
             print(f'Post atlas crop cell count: {transformed_mask.sum()}')
 
             # Append mask to list
@@ -416,3 +545,5 @@ if __name__=='__main__':
 # cell_alignment_obj = cellalignment(zp_id_atlas, zp_template_atlas, ds_zp_transformed_moving_image, drop_path) # create the object
 # cell_alignment_obj.update_coordinate_systems(new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim) # add the coordinate system data
 # cell_alignment_obj() # Call object to run primary pipeline which will output a 4 dim numpy array. 
+
+# & C:/Users/listo/AppData/Local/anaconda3/envs/registration/python.exe c:/Users/listo/BrainBeam/BrainBeam/registration/cellalignment.py --zp_id_atlas_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_02_02_20_10_17\target_array.npy --zp_template_atlas_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_02_02_20_10_17\target_array.npy --ds_zp_transformed_moving_image_file C:\Users\listo\example_registration_data\sub2_output\current_run_2025_02_02_20_10_17\nonrigid_moving_image.npy --drop_path C:\Users\listo\example_registration_data\sub2_output\current_run_2025_02_02_20_10_17 --cell_count_files C:\Users\listo\example_registration_data\sub2_output\current_run_2025_02_02_20_10_17\cage4467200_animal04_channel561_cell_counts.csv C:\Users\listo\example_registration_data\sub2_output\current_run_2025_02_02_20_10_17\cage4467200_animal04_channel647_cell_counts.csv 

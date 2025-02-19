@@ -201,7 +201,7 @@ class managepaths():
                 self.manage_paths[subject]['force_orientations'] = ''
     
     def load_align_binary_mask_file(self):
-        """ find force flips file and load if present """
+        """ find align binary mask """
         for subject, variables in self.manage_paths.items():
             registration_drop_path = variables.get('registration_drop_path', '')
             if os.path.exists(os.path.join(registration_drop_path,"align_binary_mask.txt")):
@@ -212,7 +212,7 @@ class managepaths():
                 self.manage_paths[subject]['align_binary_mask'] = False
 
     def load_crop_border_file(self):
-        """ find force flips file and load if present """
+        """ This is currently not used .... """
         for subject, variables in self.manage_paths.items():
             registration_drop_path = variables.get('registration_drop_path', '')
             if os.path.exists(os.path.join(registration_drop_path,"crop_border_noise_bool.txt")):
