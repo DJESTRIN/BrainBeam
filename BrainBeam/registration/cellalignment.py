@@ -375,8 +375,7 @@ class cellalignment():
         self.transformed_volumes = []
         for maskoh in self.coordinate_mask_all:
             transformed_mask = maskoh.copy()
-            ipdb.set_trace()
-            if 
+            # ipdb.set_trace()
             if self.force_flips is not None:
                 transformed_mask = transformed_mask[::self.force_flips[0], 
                                                     ::self.force_flips[1], 
