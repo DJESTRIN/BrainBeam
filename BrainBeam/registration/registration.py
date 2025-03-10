@@ -204,6 +204,8 @@ class MovingImage:
                                                                   (int(self.force_orientations[0]), 
                                                                    int(self.force_orientations[1]), 
                                                                    int(self.force_orientations[2]))) 
+            else:
+                self.downsampled_volume_transposed = self.downsampled_volume.copy() # Written as a quick fix  03/10/2025
 
             print(f'This is what force flips is set to inside moving image: {self.force_flips}')
             if self.force_flips is not None:
@@ -850,11 +852,11 @@ def main(args):
                                         ds_zp_transformed_moving_image = alignment_object.nonrigid_moving_image, 
                                         drop_path = alignment_object.drop_path,
                                         cell_count_files = cell_count_files,
-                                        force_orientations=Image_oh.force_orientation, 
+                                        force_orientations=Image_oh.force_orientations, 
                                         force_flips=Image_oh.force_flips) # create the object
         
         # Update coordinate system data regarding dimensions
-        new_x_dim, new_y_dim, new_z_dim = alignment_object.nonrigid_moving_image.shape
+        new_x_dim, new_y_dim, new_z_dim = Image_oh.downsampled_volume.shape
         original_x_dim, original_y_dim, original_z_dim = Image_oh.orig_x_dim, Image_oh.orig_y_dim, Image_oh.orig_z_dim
         cell_alignment_obj.update_coordinate_systems(new_x_dim, new_y_dim, new_z_dim, original_x_dim, original_y_dim, original_z_dim) # add the coordinate system data
         

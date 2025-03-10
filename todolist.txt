@@ -1,16 +1,16 @@
 cellalignment
-    Consider saving a mapped_array_helper array that contains information regarding each channel of mapped_array ...
+    Figure out correct transformation of cell coordinates to final atlas space
     
-
 dataframe
     Add code to multinoderegistration to be run when all jobs are finished 
 
 statistics
+    List brain regions that are not apart of known inputs
     Perform stability analysis
     MASS t-test analysis
-    analysis on voxels???
 
 Misc. 
     update registration slurm code to run locally on computer while using optimal recourses for the computer?
 
 
+Run other brains through code. 

@@ -25,6 +25,7 @@ import argparse
 from BrainBeam.registration.padding import zero_pad_arrays
 from BrainBeam.registration.transforms import *
 from BrainBeam.registration.graphics import slice_views, overlay_masks, volume_graphics
+import itertools
 
 # Custom classes and functions
 def determine_doublecount_points(array1, array2, threshold=5):
@@ -139,8 +140,6 @@ def slide_atlas_plot(atlas, cell_mask):
 
     plt.show()
 
-
-
 def determine_coexpressing_points(array1, array2, threshold=5):
     distances = cdist(array1, array2, metric='euclidean')
     within_threshold = np.where(distances < threshold)
@@ -186,12 +185,18 @@ class cellalignment():
         self.new_x_dim = new_x_dim
         self.new_y_dim = new_y_dim
         self.new_z_dim = new_z_dim
+        print(f'new dims: {self.new_x_dim}, {self.new_y_dim}, {self.new_z_dim}')
         self.new_x_pad_dim = self.ds_zp_transformed_moving_image.shape[0]
         self.new_y_pad_dim = self.ds_zp_transformed_moving_image.shape[1]
         self.new_z_pad_dim = self.ds_zp_transformed_moving_image.shape[2]
+        self.old_dims = sorted([original_x_dim,original_y_dim,original_z_dim])
+        self.old_to_new_arrange = np.argsort([original_x_dim,original_y_dim,original_z_dim])
         self.original_x_dim = original_x_dim
         self.original_y_dim = original_y_dim
         self.original_z_dim = original_z_dim
+        self.original_x_dim_reordered = self.old_dims[0]
+        self.original_y_dim_reordered = self.old_dims[1]
+        self.original_z_dim_reordered = self.old_dims[2]
 
     def __call__(self):
         # Load in cell coordinates for all files and eliminate double counts
@@ -265,10 +270,10 @@ class cellalignment():
                     self.channel_name.append('785')
 
                 # Load in counts, arranges axes and eliminate double counts
-                counts_oh = pd.read_csv(file).to_numpy()
-                counts_oh = counts_oh[:, [1, 0, 2]] # May need to re-orient axis....?
-                counts_oh[:, 2] = counts_oh[::-1, 2]
-                
+                counts_oh = pd.read_csv(file).to_numpy().astype(int)
+                counts_oh = counts_oh[:,[1,0,2]] # Maps cell coordinates to original volume axes
+                counts_oh = np.asarray(counts_oh).squeeze()
+
                 counts_oh = determine_doublecount_points(array1=counts_oh, array2=counts_oh)
                 self.cell_coordinates.append(counts_oh)
 
@@ -301,7 +306,7 @@ class cellalignment():
         self.x_factor = self.new_x_dim/self.original_x_dim
         self.y_factor = self.new_y_dim/self.original_y_dim
         self.z_factor = self.new_z_dim/self.original_z_dim
- 
+     
         # Downsample cell coordinates based on scaling factors
         self.ds_cell_coordinates_all=[]
         for cell_list in self.cell_coordinates:
@@ -309,19 +314,6 @@ class cellalignment():
             for cell in cell_list:
                 x,y,z = cell
                 ds_x, ds_y, ds_z = int(round(x*self.x_factor)), int(round(y*self.y_factor)), int(round(z*self.z_factor))
-
-                # Clip any values that are accidently greater than ds dimensions.
-                # However, this code should ideally not be used
-                if ds_x>self.new_x_dim:
-                    ds_x=int(self.new_x_dim)
-
-                if ds_y>self.new_y_dim:
-                    ds_y=int(self.new_y_dim)
-
-                if ds_z>self.new_z_dim:
-                    ds_z=int(self.new_z_dim)
-
-                # Append new coordinates to the list
                 self.ds_cell_coordinates.append([ds_x, ds_y, ds_z])
 
             # Convert to a numpy array and make sure no values are greater then dims
@@ -335,7 +327,7 @@ class cellalignment():
 
             # Aggregate total number of cells per voxel in 3d mask
             for cell in cell_list:
-                x, y, z = (cell - 1)   ##### This -1 should be deleted?
+                x, y, z = cell   ##### This -1 should be deleted?
                 self.coordinate_mask_oh[x, y, z] += 1
             
             # Append numpy array to list
@@ -383,15 +375,8 @@ class cellalignment():
         self.transformed_volumes = []
         for maskoh in self.coordinate_mask_all:
             transformed_mask = maskoh.copy()
-
-            # counts to brain transpose    
-            transformed_mask = np.transpose(transformed_mask,(2,1,0))
-
-            if self.force_orientations is not None:
-                transformed_mask = np.transpose(transformed_mask,
-                                                (self.force_orientations[0],
-                                                 self.force_orientations[1],
-                                                 self.force_orientations[2])) # brain to atlas transpose
+            ipdb.set_trace()
+            if 
             if self.force_flips is not None:
                 transformed_mask = transformed_mask[::self.force_flips[0], 
                                                     ::self.force_flips[1], 
@@ -400,31 +385,28 @@ class cellalignment():
             # Add zero padding to aggregate mask
             template_array = np.zeros((self.new_x_pad_dim, self.new_y_pad_dim, self.new_z_pad_dim))
             transformed_mask, _ = zero_pad_arrays(array1=transformed_mask, array2=template_array)
-            print(f'Pretrasnformation cell count: {maskoh.sum()}')
 
             # Perform rigid transformations
             for transform_oh, transform_type in zip(self.rigid_transforms,self.rigid_transform_types):
                 if transform_type==0:
                     transformed_mask = rigid_transform(best_params = transform_oh,
-                                                       moving_image = sitk.GetImageFromArray(transformed_mask), 
-                                                       fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
+                                                    moving_image = sitk.GetImageFromArray(transformed_mask), 
+                                                    fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
                 elif transform_type==1:
                     transformed_mask = stretch_transform(best_params = transform_oh, 
-                                                         moving_image = sitk.GetImageFromArray(transformed_mask), 
-                                                         fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
+                                                        moving_image = sitk.GetImageFromArray(transformed_mask), 
+                                                        fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
                 else:
                     raise("Transform type should be either 0 or 1. Other type given")
                 
             # Perform Non Rigid transformation(s)
-            print(f'Post rigid transformation cell count: {transformed_mask.sum()}')
             final_nonrigid_transform_oh = self.nonrigid_transforms[-1]
             transformed_mask = nonrigid_transform(best_params = final_nonrigid_transform_oh,
-                                                  moving_image = sitk.GetImageFromArray(transformed_mask),
-                                                  fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
-            print(f'Post non-rigid transformation cell count: {transformed_mask.sum()}')
-           
+                                                moving_image = sitk.GetImageFromArray(transformed_mask),
+                                                fixed_image = sitk.GetImageFromArray(self.zp_template_atlas.astype(np.float32)))
+        
             # Remove cell counts outside atlas
-            # transformed_mask[self.zp_id_atlas==0] *= 0
+            transformed_mask[self.zp_id_atlas==0] *= 0
             print(f'Post atlas crop cell count: {transformed_mask.sum()}')
 
             # Append mask to list

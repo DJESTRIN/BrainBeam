@@ -36,6 +36,16 @@ class lightsheet_volume_data():
         # Get group id
         if 'cort' in path_oh.lower():
             group='cort'
+
+        elif 'tmt' in path_oh.lower():
+            group='tmt'
+
+        elif 'vanilla' in path_oh.lower():
+            group='vanilla'
+
+        elif 'water' in path_oh.lower():
+            group='water'
+
         else:
             group='control'
         return cage, animal, group
@@ -114,7 +124,7 @@ class array_to_dataframe():
                                     'lateralization', 'regionname', 'regionid', 
                                     'rawcount', 'normalizedcount'])
 
-        for data_oh, medidata_oh in zip(data,medidata):
+        for data_oh, medidata_oh in tqdm.tqdm(zip(data,medidata),total=len(data)):
             # Parse current data
             id_atlas = data_oh[:,:,:,0]
             template_atlas = data_oh[:,:,:,1]
@@ -122,7 +132,7 @@ class array_to_dataframe():
             aggregate_cell_counts = data_oh[:,:,:,3:]
             cage, animal, group = medidata_oh
             
-            for k in tqdm.tqdm(range(aggregate_cell_counts.shape[3])):
+            for k in range(aggregate_cell_counts.shape[3]):
                 mask_oh = aggregate_cell_counts[:,:,:,k]
 
                 # Generate an array containing RegionName, RegiodID, Lateralization, Rawcount and NormalizedCount

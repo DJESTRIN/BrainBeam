@@ -186,7 +186,6 @@ class managepaths():
             
             else:
                 self.manage_paths[subject]['force_flips'] = ''
-
            
     def load_force_orientations(self):
         """ find force flips file and load if present """
