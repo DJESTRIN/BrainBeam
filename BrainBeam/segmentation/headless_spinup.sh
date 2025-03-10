@@ -1,12 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=stitching_pipeline         # Job name
-#SBATCH --output=job_output_%j.log            # Standard output and error log
-#SBATCH --ntasks=1                            # Number of tasks (usually 1 for batch jobs)
-#SBATCH --time=02:00:00                       # Time limit (hh:mm:ss)
-#SBATCH --mem=5G                             # Memory per node
-#SBATCH --mail-type=BEGIN,END,FAIL           # Notifications
-#SBATCH --mail-user=dje4001@med.cornell.edu  # Email address
-
 # Parse command line inputs
 code_dir=$1
 ilastik_input_dir=$2
