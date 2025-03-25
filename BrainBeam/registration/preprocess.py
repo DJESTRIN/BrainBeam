@@ -10,6 +10,7 @@ Version: 1.0
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from BrainBeam.registration.graphics import slice_views
+from scipy.spatial.distance import cdist
 from BrainBeam.registration.padding import zero_pad_arrays
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from pathlib import Path
@@ -86,6 +87,28 @@ def flatten_list(nested_list):
             flat_list.append(item)
     return flat_list
 
+def determine_doublecount_points(array1, array2, threshold=5):
+    combined_array = np.vstack((array1, array2))
+    distances = cdist(combined_array, combined_array, metric='euclidean')
+    within_threshold = (distances < threshold) & ~np.eye(combined_array.shape[0], dtype=bool)
+    
+    to_remove = set()
+    for i in range(within_threshold.shape[0]):
+        if i not in to_remove:
+            close_points = np.where(within_threshold[i])[0]
+            to_remove.update(close_points)
+    
+    to_remove = sorted(to_remove)
+    final_array = np.delete(combined_array, to_remove, axis=0)
+    return final_array
+
+def determine_coexpressing_points(array1, array2, threshold=5):
+    distances = cdist(array1, array2, metric='euclidean')
+    within_threshold = np.where(distances < threshold)
+    overlapping_points = np.concatenate((array1[within_threshold[0]], array2[within_threshold[1]]), axis=0)
+    unique_overlapping_points = np.unique(overlapping_points, axis=0)
+    return unique_overlapping_points
+
 if __name__=='__main__':
     atlas_path = r'c:\Users\listo\example_registration_data\atlas'
     reference_space_key = 'average_template/'
@@ -96,3 +119,4 @@ if __name__=='__main__':
     # volume_test = np.load(file)
     # desig_volume = replace_signal(volume=volume_test)
     desig_template = replace_signal(volume = template, normalize=True)
+

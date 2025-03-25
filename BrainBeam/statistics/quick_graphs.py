@@ -14,8 +14,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
-
-
+from BrainBeam.statistics.stability import slope_stability as sst 
 
 df = pd.read_csv(r'C:\Users\listo\communal_registration_logcal_drop\tmtexperiment.csv')
 df = df[df["regionname"] != "root"]
@@ -24,6 +23,13 @@ df = df[df["regionname"] != "arbor vitae"]
 # Step 1: Sum rawcount across suid to remove lateralization
 df_sum = df.groupby(['suid', 'group', 'regionname', 'regionid'], as_index=False).agg({'rawcount': 'sum'})
 
+sstobj = sst(dataframe_oh=df_sum, drop_directory=r'C:\Users\listo\communal_registration_logcal_drop',
+    xaxis_label = 'water', yaxis_label = 'tmt', simulation=False, simtrials = 10000, convergence_test = False,
+    graph_results = True, regionvarname = 'regionname', groupvarname = 'group', countvarname = 'rawcount')
+
+sstobj()
+
+ipdb.set_trace()
 # Step 2: Compute mean and SEM per group
 df_stats = df_sum.groupby(['group', 'regionname', 'regionid'], as_index=False).agg(
     mean_rawcount=('rawcount', 'mean'),

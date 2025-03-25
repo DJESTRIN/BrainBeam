@@ -27,6 +27,9 @@ from scipy import stats
 import ipdb
 import tifffile as tiff
 import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 
 # Custom functions and classes
 def adjust_image(image, contrast=1.0, brightness=0):
@@ -354,6 +357,104 @@ def quick_cell_plot(ds_image_file,cell_counts_file):
         plt.close(fig)
 
     gif_frames[0].save('c197_a02.gif', save_all=True, append_images=gif_frames[1:], duration=50, loop=0)
+
+
+def atlas_cell_3d_plot(atlas,cell_mask,file, downsample_factor=4):
+    matplotlib.use("tkagg")
+    cell_mask = cell_mask[::-1,:,:]
+    mask_coordinates = np.where(cell_mask>0)
+    atlas_downsampled = atlas[::downsample_factor, ::downsample_factor, ::downsample_factor]
+    coords = np.array(np.where(atlas_downsampled>1)).T 
+
+    values = atlas_downsampled[coords[:, 0], coords[:, 1], coords[:, 2]]
+    unique_values = np.unique(values)
+
+    # Assign each unique key a unique color
+    num_colors = len(unique_values)
+    color_map = plt.get_cmap('tab10', num_colors)  # Pick a colormap with discrete colors
+    color_dict = {val: color_map(i) for i, val in enumerate(unique_values)}  # Map keys to colors
+
+    # Create a color array
+    colors = np.array([color_dict[val] for val in values])
+
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c=colors, alpha=0.05)
+    ax.scatter(mask_coordinates[0]/downsample_factor,
+               mask_coordinates[1]/downsample_factor,
+               mask_coordinates[2]/downsample_factor, 
+               color='red')
+    plt.savefig(file, dpi=300) 
+    print('saved voxel image')
+    plt.show()
+    return 
+
+
+def slide_atlas_plot(atlas, cell_mask):
+    # Ensure TkAgg is used
+    matplotlib.use("tkagg")
+    # Extract coordinates and values, filtering out zero or unwanted points
+    valid_mask = atlas > 1  # Only include values greater than 1
+    coords = np.array(np.where(valid_mask)).T  # [z, y, x] format
+    values = atlas[valid_mask]  # Get corresponding values
+
+    unique_values, inverse_indices = np.unique(values, return_inverse=True)  # Get unique mapping
+    num_colors = len(unique_values)
+
+    # Use a perceptually uniform colormap with more distinct colors
+    color_map = plt.get_cmap('rainbow', num_colors)  # Alternatives: 'turbo', 'tab20'
+    colors = color_map(inverse_indices)  # Assign colors based on index
+
+    mask_coordinates = np.array(np.where(cell_mask > 0)).T
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(6, 6))
+    plt.subplots_adjust(bottom=0.25)  # Space for slider
+
+    # Initial slice setup
+    initial_slice = atlas.shape[2] // 2
+    slice_mask = coords[:, 2] == initial_slice  # Select only points in the initial slice
+    cell_slice_mask = mask_coordinates[:, 2] == initial_slice
+
+    sc = ax.scatter(coords[slice_mask, 0], coords[slice_mask, 1], c=colors[slice_mask], s=10)
+    sc_mask = ax.scatter(mask_coordinates[cell_slice_mask, 0], 
+                        mask_coordinates[cell_slice_mask, 1], 
+                        marker="^", facecolors='red', edgecolors='black', 
+                        linewidth=1.5, s=50)
+
+    ax.set_xlim([0, atlas.shape[0]])
+    ax.set_ylim([0, atlas.shape[1]])
+    ax.set_title(f'Slice {initial_slice}')
+
+    # Add slider for scrolling through slices
+    ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
+    slider = Slider(ax_slider, 'Slice', 0, atlas.shape[2] - 1, valinit=initial_slice, valstep=1)
+
+    # Update function for the slider
+    def update(val):
+        slice_idx = int(slider.val)
+        
+        slice_mask = coords[:, 2] == slice_idx  # Select new atlas slice points
+        cell_slice_mask = mask_coordinates[:, 2] == slice_idx  # Select new cell slice points
+        
+        if np.any(slice_mask):
+            sc.set_offsets(coords[slice_mask, :2])
+            sc.set_color(colors[slice_mask])
+        else:
+            sc.set_offsets([])
+
+        if np.any(cell_slice_mask):
+            sc_mask.set_offsets(mask_coordinates[cell_slice_mask, :2])
+        else:
+            sc_mask.set_offsets([])
+
+        ax.set_title(f'Slice {slice_idx}')
+        fig.canvas.draw_idle()
+
+    slider.on_changed(update)
+
+    plt.show()
+
 
 if __name__=='__main__':
     imageoh = r'C:\Users\listo\example_registration_data\sub1_output\current_run_2025_01_21_20_54_54\downsampled_moving_image.tiff'

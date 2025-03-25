@@ -14,13 +14,15 @@ import ipdb
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 import pandas as pd
 import tqdm
 
 class slope_stability():
     def __init__(self, dataframe_oh, drop_directory, xaxis_label = 'CONTROL', yaxis_label = 'CORT', 
-                 simulation=False, simtrials = 10000, convergence_test = False, graph_results = False):
+                 simulation=False, simtrials = 10000, convergence_test = False, graph_results = False,
+                 regionvarname = 'BrainRegion', groupvarname = 'Group', countvarname = 'NumberOfCells'):
         self.dataframe = dataframe_oh
         self.drop_directory = drop_directory
         self.xaxis_label = xaxis_label
@@ -29,10 +31,15 @@ class slope_stability():
         self.simtrials = simtrials
         self.convergence_test = convergence_test
         self.graph_results = graph_results
+
+        # Variable names
+        self.regionvarname = regionvarname
+        self.groupvarname = groupvarname
+        self.countvarname = countvarname
     
     def __call__(self):
         self.df_wide, self.X, self.y = self.tall_to_slope_wide()
-        self.X, self.y = increase_pseudo_stability(X = self.X, y = self.y, percent_data = 0.7)
+        # self.X, self.y = increase_pseudo_stability(X = self.X, y = self.y, percent_data = 0.7)
         self.slope_data, self.intercept_data = self.ols_slope()
         
         if self.graph_results:
@@ -42,8 +49,8 @@ class slope_stability():
             self.subset_simulation()
 
     def tall_to_slope_wide(self):
-        averages = self.dataframe.groupby(['BrainRegion', 'Group'])['NumberOfCells'].mean().reset_index()
-        df_wide = averages.pivot(index='BrainRegion', columns='Group', values='NumberOfCells')
+        averages = self.dataframe.groupby([ self.regionvarname , self.groupvarname])[self.countvarname].mean().reset_index()
+        df_wide = averages.pivot(index= self.regionvarname , columns=self.groupvarname, values=self.countvarname)
         df_wide = df_wide.reset_index()
 
         # Get X and Y values for simplicity
@@ -73,27 +80,37 @@ class slope_stability():
         Xoh = self.X[self.xaxis_label]
         min_val = Xoh.min()
         max_val = Xoh.max()
-        X_points = np.linspace(min_val, max_val, 51)
-
-        plt.figure(figsize=(10, 6))
-        plt.scatter(Xoh,self.y)
+        X_points = np.logspace(np.log10(min_val+0.01), np.log10(max_val), 1000)
+        sns.set(style="whitegrid", context="notebook")
+        plt.figure(figsize=(10, 10))
+        sns.scatterplot(x=Xoh, y=self.y, color='green', alpha=0.7, edgecolor=None)
 
         # Gather model information
         slope_lo, slope, slope_hi = self.slope_data
         intercept_lo, intercept, intercept_hi = self.intercept_data
+        plt.plot(X_points, ((X_points * slope) + intercept), color='green', linewidth=2, label='Best fit')
+        plt.plot(X_points, ((X_points * slope_lo) + intercept), color='green', linestyle='--', alpha=0.7, label='Confidence bounds')
+        plt.plot(X_points, ((X_points * slope_hi) + intercept), color='green', linestyle='--', alpha=0.7)
+        plt.plot(X_points, X_points, color='red', linewidth=2, label='y = x')
 
-        # Plot y = mx+b
-        plt.plot(X_points, ((X_points*slope)+intercept), color='red')
-        plt.plot(X_points, ((X_points*slope_lo)+intercept), color='red',linestyle='--')
-        plt.plot(X_points, ((X_points*slope_hi)+intercept), color='red',linestyle='--')
+        # Add vertical and horizontal reference lines
+        plt.axvline(x=1, color='black', linestyle='--', linewidth=1.5, label='x = 1')
+        plt.axhline(y=1, color='black', linestyle='--', linewidth=1.5, label='y = 1')
 
-        # Labels and title
+        # Improve plot aesthetics
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel(self.xaxis_label)
-        plt.ylabel(self.yaxis_label)
+        plt.xlabel(self.xaxis_label, fontsize=12)
+        plt.ylabel(self.yaxis_label, fontsize=12)
+        
+        # Add legend
+        plt.legend(frameon=True, fontsize=11)
 
-        plt.savefig(os.path.join(self.drop_directory,label_oh))
+        # Remove top and right spines for a cleaner look
+        sns.despine()
+
+        # Save figure
+        plt.savefig(os.path.join(self.drop_directory, label_oh), dpi=300, bbox_inches='tight')
         plt.close()
         return
 

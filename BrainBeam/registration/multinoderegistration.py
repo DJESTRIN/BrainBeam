@@ -16,8 +16,8 @@ import pickle
 import shutil
 import time
 import ipdb
-from BrainBeam.registration.monitorprocess import monitor
-from BrainBeam.registration.monitorprocess import extract_path_info as epi
+from BrainBeam.registration.MonitorProcess import monitor
+from BrainBeam.registration.MonitorProcess import extract_path_info as epi
 
 # Build custom class for gather all path data and submitting jobs via slurm
 class managepaths():
@@ -284,8 +284,6 @@ def delete_contents_path(path_oh,extensions=['.jpg','.gif','.tiff']):
     else:
         print(f"Path '{path_oh}' does not exist.")
 
-
-
 def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu', email = 'dje4001@med.cornell.edu', 
                 memory_per_job = 256, tasks_per_job = 3, cpus_per_task = 8, delete_contents_of_output_folders = False, delete_pkls=False):
     """ Build sbatch command and submit for running """
@@ -294,7 +292,6 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
     if delete_contents_of_output_folders:
         my_first_command = f"scancel -n custom_registration"
         first_command_result = subprocess.run([my_first_command], shell=True, capture_output=True, text=True)
-
 
     jids = []
     for subject, variables in managepathobj.manage_paths.items():
@@ -330,7 +327,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 --mail-user={email} \
                 --output={communal_slurm_log_directory}/%x-%j.out \
                 --error={communal_slurm_error_directory}/%x-%j.err \
-                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./registration.py \
+                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./RunRegistration.py \
                 --image_path {image_folder} \
                 --atlas_path {atlas_drop_path} \
                 --output_path {registration_drop_path} \
@@ -398,15 +395,6 @@ def monitor_jobs(common_drop_directory, original_job_ids, directory_file_oh  = "
         # Gather data for common directory (such as images)
         monitor(common_drop_directory, directory_file = directory_file_oh, currently_running=result, file_extensions=file_extensions_oh)
         result, running_jobs = find_my_jobs(running_jobs)
-    
-# def execute_final_analyses():
-#     """ Function used for running the final set of analyses. 
-#     (1) Generate dataframe
-#     (2) Run Univariate MASS t-tests + plotting
-#     (3) Stability analysis + plotting
-#     (4) Final figure development
-#     """
-#     ipdb.set_trace()
 
 if __name__=='__main__':
     # Parse command line inputs
