@@ -157,7 +157,6 @@ if __name__=='__main__':
     # Run main function using cli inputs
     main(args, logger)
 
-
     
     # Example local call
     
