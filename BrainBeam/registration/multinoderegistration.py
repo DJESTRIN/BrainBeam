@@ -327,7 +327,7 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
                 --mail-user={email} \
                 --output={communal_slurm_log_directory}/%x-%j.out \
                 --error={communal_slurm_error_directory}/%x-%j.err \
-                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./RunRegistration.py \
+                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./runregistr.py \
                 --image_path {image_folder} \
                 --atlas_path {atlas_drop_path} \
                 --output_path {registration_drop_path} \

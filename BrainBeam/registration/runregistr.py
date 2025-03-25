@@ -11,10 +11,10 @@ Version: 1.0
 import numpy as np
 import os
 import glob
-from BrainBeam.registration.RegistratioinImages import TargetImage, MovingImage, CellImage
+from BrainBeam.registration.registrationimages import TargetImage, MovingImage, CellImage
 from BrainBeam.registration.padding import zero_pad_arrays
 from BrainBeam.registration.graphics import volume_graphics, slice_views, overlay_masks
-from BrainBeam.registration.Registration import alignment
+from BrainBeam.registration.registration import alignment
 from datetime import datetime
 import argparse
 import logging
