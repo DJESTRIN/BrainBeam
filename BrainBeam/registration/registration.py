@@ -15,7 +15,7 @@ import glob
 from scipy.ndimage import zoom, binary_dilation, binary_fill_holes
 import SimpleITK as sitk
 from BrainBeam.registration.padding import zero_pad_arrays
-from BrainBeam.registration.BayesRigidTransform import find_affine_matrix, set_affine_rotation, manual_find_axes_sampling, adjust_volume_shape, MMI
+from BrainBeam.registration.bayestransform import find_affine_matrix, set_affine_rotation, manual_find_axes_sampling, adjust_volume_shape, MMI
 from BrainBeam.registration.graphics import slice_views
 from BrainBeam.registration.preprocess import replace_signal, flatten_list
 from datetime import datetime
