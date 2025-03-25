@@ -16,8 +16,8 @@ import pickle
 import shutil
 import time
 import ipdb
-from BrainBeam.registration.MonitorProcess import monitor
-from BrainBeam.registration.MonitorProcess import extract_path_info as epi
+from BrainBeam.registration.monitorprocess import monitor
+from BrainBeam.registration.monitorprocess import extract_path_info as epi
 
 # Build custom class for gather all path data and submitting jobs via slurm
 class managepaths():
