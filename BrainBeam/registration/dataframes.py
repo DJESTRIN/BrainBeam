@@ -15,6 +15,7 @@ import pandas as pd
 import tqdm
 import argparse
 import os, glob
+from rich.progress import Progress
 import ipdb
 
 class lightsheet_volume_data():
@@ -78,14 +79,20 @@ class array_to_dataframe():
         self.tall_dataframe_output_file = None
         self.wide_dataframe_output_file = None
 
+        self.progress_bar = Progress()
+        self.progress_bar.start() 
+
     def __call__(self):
         self.volume_to_dataframe()
         self.tall_to_wide_dataframe()
+        self.progress_bar.stop() 
     
     def atlas_to_counts(self,atlas,mask):
         # Loop over atlas keys to get 
         # (1) cell counts, (2) normalized cell counts, (3) starter cell normalized cell count
         
+        self.atlas_progress_bar = self.progress_bar.add_task("[yellow] Atlas ID...", total=len(np.unique(atlas)))
+
         ipsi_key_and_counts = []
         contra_key_and_counts = []
         for key in np.unique(atlas):
@@ -109,6 +116,9 @@ class array_to_dataframe():
 
             ipsi_key_and_counts.append([region_name,key,raw_cell_count_ipsi,normalized_cell_count_ipsi])
             contra_key_and_counts.append([region_name,key,raw_cell_count_contra,normalized_cell_count_contra])
+
+            # Update progress bar
+            self.progress_bar.update(self.atlas_progress_bar, advance=1)
         
         ipsi_key_and_counts = np.array(ipsi_key_and_counts)
         contra_key_and_counts = np.array(contra_key_and_counts)
@@ -124,7 +134,8 @@ class array_to_dataframe():
                                     'lateralization', 'regionname', 'regionid', 
                                     'rawcount', 'normalizedcount'])
 
-        for data_oh, medidata_oh in tqdm.tqdm(zip(data,medidata),total=len(data)):
+        self.subject_progress_bar = self.progress_bar.add_task("[cyan]Subject...", total=len(data))
+        for data_oh, medidata_oh in zip(data,medidata):
             # Parse current data
             id_atlas = data_oh[:,:,:,0]
             template_atlas = data_oh[:,:,:,1]
@@ -132,6 +143,9 @@ class array_to_dataframe():
             aggregate_cell_counts = data_oh[:,:,:,3:]
             cage, animal, group = medidata_oh
             
+            # Create count progress bar
+            self.count_progress_bar = self.progress_bar.add_task("[magenta]Cell Count channels ...", total=len(range(aggregate_cell_counts.shape[3])))
+
             for k in range(aggregate_cell_counts.shape[3]):
                 mask_oh = aggregate_cell_counts[:,:,:,k]
 
@@ -162,6 +176,12 @@ class array_to_dataframe():
                 # Append using concat (avoids performance warnings in newer pandas versions)
                 df_oh = pd.concat([ispi_df, contra_df], ignore_index=True)
                 self.df = pd.concat([self.df, df_oh], ignore_index=True)
+
+                # Update progress bar
+                self.progress_bar.update(self.count_progress_bar, advance=1)
+
+            # Update progress bar
+            self.progress_bar.update(self.subject_progress_bar, advance=1)
 
         self.df.to_csv(os.path.join(self.data_path,"df_tall.csv"),index=False)
     
