@@ -260,7 +260,7 @@ def compare_networks(condition_graphs, top_n=10, corr_threshold=0.3, n_permutati
             plt.title(f"Top {top_n} regions by degree ({cond})")
             plt.xticks(rotation=45)
             plt.tight_layout()
-            plt.savefig('topregions.jpg')
+            plt.savefig(f'topregions{cond}.jpg')
 
         # 3. Pairwise Jaccard overlaps heatmap
         jaccard_mat = pd.DataFrame(0, index=conds, columns=conds, dtype=float)
