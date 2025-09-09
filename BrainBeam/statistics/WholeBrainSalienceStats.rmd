@@ -1,0 +1,182 @@
+---
+title: "WholeBrainSalienceStats"
+author: "David Estrin"
+date: "2025-09-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(lme4)
+library(emmeans)
+library(ggplot2)
+library(performance)
+library(car)
+library(dplyr)
+library(viridis)
+library(scales)
+library(scico)
+library(lmerTest) 
+library(ggrepel)
+library(tidyr)
+
+
+```
+
+```{r Activity Dataset, echo=FALSE}
+volcano_df <- read.csv("C:\\Users\\listo\\communal_registration_logcal_drop\\salience_experiment\\results\\all_volcano_data.csv")
+
+volcano_df <- volcano_df %>%
+  mutate(comparison = factor(comparison, levels = c(
+    "water vs vanilla",
+    "water vs tmt",
+    "vanilla vs tmt"
+  )))
+
+
+# Example: Add a column for color based on the comparison and fold change
+volcano_df <- volcano_df %>%
+  mutate(color_group = case_when(
+    comparison == "water vs vanilla" & t_value > 0 ~ "water",
+    comparison == "water vs vanilla" & t_value < 0 ~ "vanilla",
+    
+    comparison == "vanilla vs tmt" & t_value > 0 ~ "vanilla",
+    comparison == "vanilla vs tmt" & t_value < 0 ~ "tmt",
+    
+    comparison == "water vs tmt" & t_value > 0 ~ "water",
+    comparison == "water vs tmt" & t_value < 0 ~ "tmt"))
+
+
+
+# Filter out any rows without a defined group
+volcano_df <- volcano_df %>%
+  filter(!is.na(color_group))
+
+# Define colors
+color_values <- c("water" = "#5c6bc0", "vanilla" = "#ffcc66", "tmt" = "#a83232")
+
+# Select top regions by absolute t_value per comparison
+top_regions <- volcano_df %>%
+  group_by(comparison) %>%
+  slice_max(order_by = abs(t_value), n = 8) %>%
+  ungroup()
+
+# Plot with labels
+p <- ggplot(volcano_df, aes(x = fold_change, y = neg_log_p_value, fill = color_group)) +
+  geom_point(shape = 21, size = 4, alpha = 0.7, color = "black", stroke = 1) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black", size = 0.7) +
+  scale_fill_manual(values = color_values) +
+  facet_grid(comparison ~ ., switch = "y") +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    axis.ticks.length = unit(0.15, "cm"),
+    legend.position = "none"
+  ) +
+  labs(
+    x = " ",
+    y = " "
+  )
+
+print(p)
+
+# Save
+ggsave("C:\\Users\\listo\\communal_registration_logcal_drop\\salience_experiment\\results\\volcano_plots_labeled.pdf", 
+       p, width = 3, height = 9, dpi = 300)
+
+```
+
+```{r Activity Dataset, echo=FALSE}
+topdf <- read.csv("C:\\Users\\listo\\communal_registration_logcal_drop\\salience_experiment\\results\\largestregionsbygroup.csv")
+topdf$regionname<-paste(topdf$regionname,topdf$lateralization)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Define colors for each condition
+condition_colors <- c("water" = "#5c6bc0",   # blue
+                      "vanilla" = "#ffcc66", # yellow
+                      "tmt" = "#a83232")     # red
+
+# Loop over comparisons
+for (comp in unique(topdf$comparison)) {
+  
+  # Figure out which groups are in this comparison
+  groups <- unlist(strsplit(comp, " vs "))
+  
+  # Filter for one comparison at a time
+  comp_df <- topdf %>%
+    filter(comparison == comp) %>%
+    arrange(desc(abs(effects))) %>%
+    mutate(regionname = factor(regionname, levels = unique(regionname)))
+  
+  # Reshape for bar plot
+  comp_long <- comp_df %>%
+    select(regionname, group1mean, group2mean, group1sem, group2sem) %>%
+    pivot_longer(cols = c(group1mean, group2mean, group1sem, group2sem),
+                 names_to = c("group", ".value"),
+                 names_pattern = "(group[12])(mean|sem)") %>%
+    mutate(group = ifelse(group == "group1", groups[1], groups[2]))  # assign correct group names
+  
+  # ---- SCALE EFFECTS FOR SECOND AXIS ----
+  mean_range <- range(c(comp_long$mean + comp_long$sem, comp_long$mean - comp_long$sem))
+  effect_range <- range(comp_df$effects)
+  
+  scale_factor <- diff(mean_range) / diff(effect_range)
+  offset <- mean_range[1] - effect_range[1] * scale_factor
+  comp_df <- comp_df %>%
+    mutate(effects_scaled = effects * scale_factor + offset)
+  
+  # Base plot
+  p_base <- ggplot(comp_long, aes(x = regionname, y = mean, fill = group)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), color = "black") +
+    geom_errorbar(aes(ymin = mean - sem, ymax = mean + sem),
+                  position = position_dodge(width = 0.8), width = 0) +
+    geom_point(
+      data = comp_df, aes(x = regionname, y = effects_scaled),
+      shape = 21, size = 3, stroke = 1,
+      fill = NA, color = "green", inherit.aes = FALSE
+    ) +
+    scale_fill_manual(values = condition_colors[groups]) +
+    scale_y_continuous(
+      name = "Mean values",
+      sec.axis = sec_axis(~ (. - offset) / scale_factor, name = "Effects (Cohen's d)")
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.title.y = element_text(color = "black"),
+      axis.title.y.right = element_text(color = "green"),
+      legend.position = "right"
+    ) +
+    labs(
+      title = comp,
+      x = "Region",
+      fill = "Group"
+    )
+  
+  # --- Save with x-axis labels ---
+  print(p_base)
+  ggsave(paste0("C:\\Users\\listo\\communal_registration_logcal_drop\\salience_experiment\\results\\volcano_barplot_", 
+                gsub(" ", "_", comp), ".pdf"),
+         p_base, width = 8, height = 5, dpi = 300)
+  
+  # --- Save without x-axis labels ---
+  p_no_x <- p_base + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+  
+  print(p_no_x)
+  ggsave(paste0("C:\\Users\\listo\\communal_registration_logcal_drop\\salience_experiment\\results\\volcano_barplot_", 
+                gsub(" ", "_", comp), "_noX.pdf"),
+         p_no_x, width = 9, height = 3, dpi = 300)
+}
+
+```
+

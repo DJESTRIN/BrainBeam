@@ -22,7 +22,7 @@ import tqdm
 class slope_stability():
     def __init__(self, dataframe_oh, drop_directory, xaxis_label = 'CONTROL', yaxis_label = 'CORT', 
                  simulation=False, simtrials = 10000, convergence_test = False, graph_results = False,
-                 regionvarname = 'BrainRegion', groupvarname = 'Group', countvarname = 'NumberOfCells'):
+                 regionvarname = 'BrainRegion', groupvarname = 'Group', countvarname = 'NumberOfCells',label_oh='stability_general'):
         self.dataframe = dataframe_oh
         self.drop_directory = drop_directory
         self.xaxis_label = xaxis_label
@@ -31,6 +31,7 @@ class slope_stability():
         self.simtrials = simtrials
         self.convergence_test = convergence_test
         self.graph_results = graph_results
+        self.label_oh = label_oh
 
         # Variable names
         self.regionvarname = regionvarname
@@ -39,9 +40,19 @@ class slope_stability():
     
     def __call__(self):
         self.df_wide, self.X, self.y = self.tall_to_slope_wide()
-        # self.X, self.y = increase_pseudo_stability(X = self.X, y = self.y, percent_data = 0.7)
+        # self.X, self.y = increase_pseudo_stability(X = self.X, y = self.y, percent_data = 0.7)  For generating fake data to debug code
         self.slope_data, self.intercept_data = self.ols_slope()
-        
+
+        # Save data, slope and intercept data to files
+        linedata = pd.DataFrame(data={'slope_low':[self.slope_data[0]],
+                      'slope_av':[self.slope_data[1]],
+                      'slope_high':[self.slope_data[2]],
+                      'intercept_low':[self.intercept_data[0]],
+                      'intercept_av':[self.intercept_data[1]],
+                      'intercept_high':[self.intercept_data[2]]})
+        linedata.to_csv(os.path.join(self.drop_directory,'linedata.csv'))
+        self.dataframe.to_csv(os.path.join(self.drop_directory,'stabilitydataframe.csv'))
+
         if self.graph_results:
             self.plot_slope()
         
@@ -51,7 +62,6 @@ class slope_stability():
     def tall_to_slope_wide(self):
         averages = self.dataframe.groupby([ self.regionvarname , self.groupvarname])[self.countvarname].mean().reset_index()
         df_wide = averages.pivot(index= self.regionvarname , columns=self.groupvarname, values=self.countvarname)
-        df_wide = df_wide.reset_index()
 
         # Get X and Y values for simplicity
         X = df_wide[self.xaxis_label]  # Independent variable (X)
@@ -76,7 +86,7 @@ class slope_stability():
         slope_data = [slope_lo, slope, slope_hi]
         return slope_data, intercept_data
 
-    def plot_slope(self,label_oh='stability_general.jpg'):
+    def plot_slope(self):
         Xoh = self.X[self.xaxis_label]
         min_val = Xoh.min()
         max_val = Xoh.max()
@@ -110,8 +120,26 @@ class slope_stability():
         sns.despine()
 
         # Save figure
-        plt.savefig(os.path.join(self.drop_directory, label_oh), dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.drop_directory, f'{self.label_oh}.jpg'), dpi=300, bbox_inches='tight')
         plt.close()
+
+        plt.figure()
+        lower_error = slope - slope_lo
+        upper_error = slope_hi - slope
+        asymmetric_error = np.vstack((lower_error, upper_error))
+        x=1
+        plt.errorbar(x, slope, yerr=asymmetric_error, fmt='o', capsize=5, capthick=1, elinewidth=1)
+        plt.axhline(y=1, color='black', linestyle='--', linewidth=1)
+        plt.ylabel('Slope +/- 95% CI')
+        plt.savefig(os.path.join(self.drop_directory, f'{self.label_oh}_slopes.jpg'), dpi=300, bbox_inches='tight')
+
+        plt.figure()
+        lower_error = intercept - intercept_lo
+        upper_error = intercept_hi - intercept
+        asymmetric_error = np.vstack((lower_error, upper_error))
+        x=1
+        plt.errorbar(x, intercept, yerr=asymmetric_error, fmt='o', capsize=5, capthick=1, elinewidth=1)
+        plt.savefig(os.path.join(self.drop_directory, f'{self.label_oh}_intercepts.jpg'), dpi=300, bbox_inches='tight')
         return
 
     def run_simulation(self, X_subset, y_subset):
@@ -173,8 +201,29 @@ class slope_stability():
                 plt.savefig(os.path.join(self.drop_directory,"convergence_test_results.jpg"))
                 plt.close()
 
-        else:
-            weighted_results = self.subset_simulation_helper()        
+        self.weighted_results = self.subset_simulation_helper()
+        self.df_wide['weights'] = self.weighted_results
+        self.df_wide = self.df_wide.sort_values(by='weights')
+        self.df_wide.to_csv(os.path.join(self.drop_directory,'weightswide.csv'))
+
+        # Jitter plot of weights
+        plt.figure(figsize=(10,10))
+        sns.boxplot(data=self.df_wide, y="weights", width=0.5, showcaps=False, 
+            boxprops={'facecolor':'none'}, whiskerprops={'linewidth':0})  
+        sns.stripplot(data=self.df_wide, y="weights", jitter=True, alpha=0.7, color='black')
+        plt.ylabel("Slope Weights")  # Update label for y-axis
+        plt.savefig(os.path.join(self.drop_directory, 'weightjitter_box.jpg'))
+
+        df_sorted = self.df_wide.sort_values(by="weights", ascending=True).head(30)
+        df_sorted = df_sorted.reset_index()
+        plt.figure(figsize=(8, 6))
+        plt.hlines(df_sorted["regionname"], xmin=0, xmax=df_sorted["weights"], color="skyblue", linewidth=2)
+        plt.scatter(df_sorted["weights"], df_sorted["regionname"], color="darkblue", s=100)
+        plt.xlabel("Weighted Slope Value")
+        plt.title("30 Regions Driving Stress-induced Slope Instability")
+        plt.xlim(0, 1)
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.drop_directory, f'{self.xaxis_label}_v_{self.yaxis_label}_lollipop.jpg')) 
 
 def cli_argparsing():
     parser = argparse.ArgumentParser()

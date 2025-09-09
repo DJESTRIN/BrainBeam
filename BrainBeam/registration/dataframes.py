@@ -16,6 +16,10 @@ import tqdm
 import argparse
 import os, glob
 from rich.progress import Progress
+from joblib import Parallel, delayed
+import multiprocessing
+import matplotlib.pyplot as plt
+
 import ipdb
 
 class lightsheet_volume_data():
@@ -71,6 +75,7 @@ class lightsheet_volume_data():
 
 class array_to_dataframe():
     def __init__(self, lightsheet_volume_object, tree_object, data_path):
+        self.not_plotted = True
         self.data_path = data_path
         self.tree_object = tree_object
         self.lightsheet_volume_object = lightsheet_volume_object
@@ -87,42 +92,86 @@ class array_to_dataframe():
         self.tall_to_wide_dataframe()
         self.progress_bar.stop() 
     
-    def atlas_to_counts(self,atlas,mask):
-        # Loop over atlas keys to get 
-        # (1) cell counts, (2) normalized cell counts, (3) starter cell normalized cell count
-        
-        self.atlas_progress_bar = self.progress_bar.add_task("[yellow] Atlas ID...", total=len(np.unique(atlas)))
+    @staticmethod
+    def process_region(key, atlas, mask, tree_object):
+        if key == 0:
+            return None  # Skip background
 
-        ipsi_key_and_counts = []
-        contra_key_and_counts = []
-        for key in np.unique(atlas):
-            # Skip background
-            if key == 0 :
-                continue
+        # Determine ipsi vs contra sides. For unilateral rabies injections, ipsi is assumed to be side with most labeling
+        midpoint = atlas.shape[1] // 2
+        left_total = mask[:, :midpoint, :].sum()
+        right_total = mask[:, midpoint:, :].sum()
 
-            # Get all types of counts divided into ipsi and contralateral
-            ipsi_indeces = np.where((atlas == key) & (np.indices(atlas.shape)[1] > (atlas.shape[1] // 2)))
-            contra_indeces = np.where((atlas == key) & (np.indices(atlas.shape)[1] < (atlas.shape[1] // 2)))
+        if left_total >= right_total:
+            ipsi_side = 'left'
+        else:
+            ipsi_side = 'right'
 
-            raw_cell_count_ipsi = mask[ipsi_indeces].sum()
-            raw_cell_count_contra = mask[contra_indeces].sum()
-    
-            normalized_cell_count_ipsi = mask[ipsi_indeces].sum() / mask.sum()
-            normalized_cell_count_contra = mask[contra_indeces].sum() / mask.sum()
+        left_indeces = np.where((atlas == key) & (np.indices(atlas.shape)[1] < midpoint))
+        right_indeces = np.where((atlas == key) & (np.indices(atlas.shape)[1] > midpoint))
 
-            # Get region name from id
-            node_oh = self.tree_object.find_node(id_or_name=int(key))
-            region_name = node_oh["name"]
+        if ipsi_side == 'left':
+            raw_cell_count_ipsi = mask[left_indeces].sum()
+            raw_cell_count_contra = mask[right_indeces].sum()
+        else:
+            raw_cell_count_ipsi = mask[right_indeces].sum()
+            raw_cell_count_contra = mask[left_indeces].sum()
 
-            ipsi_key_and_counts.append([region_name,key,raw_cell_count_ipsi,normalized_cell_count_ipsi])
-            contra_key_and_counts.append([region_name,key,raw_cell_count_contra,normalized_cell_count_contra])
+        # Normalize
+        total_cells = mask.sum()
+        normalized_cell_count_ipsi = raw_cell_count_ipsi / total_cells
+        normalized_cell_count_contra = raw_cell_count_contra / total_cells
 
-            # Update progress bar
-            self.progress_bar.update(self.atlas_progress_bar, advance=1)
-        
-        ipsi_key_and_counts = np.array(ipsi_key_and_counts)
-        contra_key_and_counts = np.array(contra_key_and_counts)
-        return ipsi_key_and_counts, contra_key_and_counts
+        # Get region name from id
+        node_oh = tree_object.find_node(id_or_name=int(key))
+        region_name = node_oh["name"]
+
+        return [region_name, key, raw_cell_count_ipsi, normalized_cell_count_ipsi], \
+            [region_name, key, raw_cell_count_contra, normalized_cell_count_contra]
+
+    def atlas_to_counts(self, atlas, mask):
+        keys = np.unique(atlas)
+
+        results = Parallel(n_jobs=-1, backend="loky")(delayed(self.process_region)(key, atlas, mask, self.tree_object) for key in keys)
+
+        results = [r for r in results if r is not None]
+
+        ipsi_key_and_counts, contra_key_and_counts = zip(*results)
+
+        return np.array(ipsi_key_and_counts), np.array(contra_key_and_counts)
+
+    def plot_midline(self,atlas,mask):
+        if self.not_plotted:
+            # Choose a slice index to visualize
+            slice_idx = atlas.shape[0] // 2  # middle slice in Z
+
+            # Midline
+            midpoint = atlas.shape[1] // 2
+
+            fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+            # Plot atlas in grey: 0 -> black, anything else -> white
+            atlas_slice = atlas[slice_idx]
+            atlas_display = np.where(atlas_slice > 0, 1.0, 0.0)  # 1 for regions, 0 for background
+
+            axs[0].imshow(atlas_display, cmap='gray')
+            axs[0].axhline(midpoint, color='red', linestyle='--', label='Midline')
+            axs[0].set_title('Atlas (grey)')
+            axs[0].legend()
+
+            # Plot mask
+            axs[1].imshow(mask[slice_idx], cmap='gray')
+            axs[1].axhline(midpoint, color='red', linestyle='--', label='Midline')
+            axs[1].set_title('Mask')
+            axs[1].legend()
+
+            for ax in axs:
+                ax.axis('off')
+
+            plt.tight_layout()
+            plt.savefig('atlasmidline.jpg')
+
+            self.not_plotted=False
 
     def volume_to_dataframe(self):
         """ Convert numpy arrays into dataframes """
@@ -135,7 +184,9 @@ class array_to_dataframe():
                                     'rawcount', 'normalizedcount'])
 
         self.subject_progress_bar = self.progress_bar.add_task("[cyan]Subject...", total=len(data))
-        for data_oh, medidata_oh in zip(data,medidata):
+        self.count_progress_bar = self.progress_bar.add_task("[magenta]Cell Count channels ...", total=1)  # Placeholder total
+
+        for it, (data_oh, medidata_oh) in enumerate(zip(data,medidata)):
             # Parse current data
             id_atlas = data_oh[:,:,:,0]
             template_atlas = data_oh[:,:,:,1]
@@ -144,10 +195,12 @@ class array_to_dataframe():
             cage, animal, group = medidata_oh
             
             # Create count progress bar
-            self.count_progress_bar = self.progress_bar.add_task("[magenta]Cell Count channels ...", total=len(range(aggregate_cell_counts.shape[3])))
-
-            for k in range(aggregate_cell_counts.shape[3]):
+            self.progress_bar.reset(self.count_progress_bar, total=aggregate_cell_counts.shape[3])
+            for k,channel_name in zip(range(aggregate_cell_counts.shape[3]),self.lightsheet_volume_object.channel_data[it]):
+                channel_name_oh = channel_name
                 mask_oh = aggregate_cell_counts[:,:,:,k]
+
+                self.plot_midline(atlas=id_atlas,mask=mask_oh)
 
                 # Generate an array containing RegionName, RegiodID, Lateralization, Rawcount and NormalizedCount
                 key_to_counts_oh_ipsi, key_to_counts_oh_contra  = self.atlas_to_counts(atlas=id_atlas,mask=mask_oh)
@@ -157,7 +210,7 @@ class array_to_dataframe():
                 cage_column = np.tile(cage, len(key_to_counts_oh_ipsi))
                 suid_column = np.tile(f'{cage}_{animal}', len(key_to_counts_oh_ipsi))
                 group_column = np.tile(group, len(key_to_counts_oh_ipsi))
-                channel_column = np.tile(f'channel{k}', len(key_to_counts_oh_ipsi))
+                channel_column = np.tile(f'{channel_name_oh}', len(key_to_counts_oh_ipsi))
                 lateralization_column = np.tile(f'ipsilateral', len(key_to_counts_oh_ipsi))
 
                 ispi_df = pd.DataFrame({'subject': subject_column, 'cage': cage_column, 'suid': suid_column, 
@@ -192,6 +245,8 @@ class array_to_dataframe():
         self.df_wide.to_csv(os.path.join(self.data_path,"df_wide.csv"),index=False)
 
 if __name__=='__main__':
+    multiprocessing.set_start_method("spawn", force=True)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path',type=str, help="Full path containing 4D numpy file")
     args = parser.parse_args()

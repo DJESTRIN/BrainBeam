@@ -8,3 +8,7 @@ BrainBeam/gui/localallocation.py
 BrainBeam/registration/test.py
 *.jpg
 **/*.jpg
+*.jpg
+*.jpeg
+*.png
+*.pdf
