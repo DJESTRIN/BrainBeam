@@ -2,71 +2,62 @@
 # -*- coding: utf-8 -*-
 """
 Module name: setup.py
-Description: Used to set up Sweet2Plus as a package
+Description: Package configuration for BrainBeam
 Author: David Estrin
 Version: 1.0
 Date: 11-14-2024
 """
 
-from setuptools import setup, find_packages
+from pathlib import Path
 
-# Function to read and convert UTF-16LE requirements.txt to UTF-8
-def read_requirements():
-    file_path = 'requirements.txt'
-    
-    with open(file_path, 'rb') as f:
-        content = f.read()
-    
-    try:
-        # Try decoding the content as UTF-8
-        requirements = content.decode('utf-8').splitlines()
-        
-    except UnicodeDecodeError:
-        # If decoding as UTF-8 fails, decode as UTF-16LE and re-encode to UTF-8
-        requirements = content.decode('utf-16le').splitlines()
-        
-        # Re-save the file with UTF-8 encoding
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write("\n".join(requirements))
+from setuptools import find_namespace_packages, setup
 
-        with open(file_path, 'rb') as f:
-            content = f.read()
-        requirements = content.decode('utf-8').splitlines()
 
-        if requirements and requirements[0].startswith('\ufeff'):
-            requirements[0] = requirements[0][1:]
-    
-        # Filter out empty lines and comments
-        requirements = [line for line in requirements if line.strip() and not line.startswith('#')]
-    return requirements
+BASE_DIR = Path(__file__).resolve().parent
+REQUIREMENTS_FILE = BASE_DIR / 'requirements.txt'
 
-requirements = read_requirements()
 
-additional_packages = [
-    'numpy',
-    'matplotlib',
-    'pandas',
-    'ipdb',
-    'seaborn',
-    'scikit-learn',
-    'tqdm']
+def read_requirements(file_path: Path = REQUIREMENTS_FILE):
+    raw_requirements = file_path.read_bytes()
+    decoded_requirements = None
 
-requirements.extend(additional_packages)
-requirements=requirements[1:]
+    for encoding in ('utf-8-sig', 'utf-16', 'utf-16le'):
+        try:
+            candidate = raw_requirements.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+
+        if '\x00' in candidate:
+            continue
+
+        decoded_requirements = candidate
+        break
+
+    if decoded_requirements is None:
+        raise UnicodeError(f'Unable to decode requirements file: {file_path}')
+
+    requirements = []
+    for line in decoded_requirements.splitlines():
+        requirement = line.strip()
+        if requirement and not requirement.startswith('#'):
+            requirements.append(requirement)
+
+    return list(dict.fromkeys(requirements))
+
 
 setup(
     name='BrainBeam',
     version='0.1',
-    packages=find_packages(),  # Automatically find subfolder1 and subfolder2 as packages.
-    install_requires=requirements,
+    packages=find_namespace_packages(include=['BrainBeam*']),
+    install_requires=read_requirements(),
     author='David Estrin',
     author_email='',
     description='Brain Beam is used for light sheet analysis',
-    url='https://github.com/DJESTRIN/BrainBeam',  # Replace with your repository URL.
+    url='https://github.com/DJESTRIN/BrainBeam',
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.9',
 )

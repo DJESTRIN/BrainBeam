@@ -3,6 +3,18 @@ A generalized open-source pipeline and gui for analyzing light sheet brain tissu
 
 <h2> <b> ⚠️ Warning: This code is still under development. ⚠️ </b> </h2>
 Please kindly ignore any issues with code as well as any missing citations to others code. 
+
+<h2> <b> Installation </b> </h2>
+
+- Create a Python 3.9+ environment.
+- Install the Python dependencies with `python -m pip install -r requirements.txt`.
+- To install the package itself from the repository root, run `python -m pip install -e .`.
+
+<h2> <b> Entry points </b> </h2>
+
+- `Run_BrainBeam.sh` launches the local GUI entry point at `BrainBeam/gui/BrainBeam.py`.
+- `pipeline_spinup.sh <scratch_directory> <store_start_directory> <store_finish_directory>` is the top-level SLURM submission script. It submits raw-data copy jobs, then starts the TIFF conversion/destriping/stitching chain through the bash scripts under `BrainBeam/`.
+- The SLURM scripts assume a Linux cluster environment with `sbatch`, Bash, and the required Conda environments already available. They are not intended to run directly on Windows outside a Bash-compatible shell.
  <h2> <b> BrainBeam's Guided User Interface </b></h2>
 
  
@@ -40,5 +52,4 @@ Portions of this library utalize code from (or are inspired by) the following re
 - Data: David James Estrin, Christine Kuang
 
 Please cite this git repository as Estrin, D.J., et al., (2025) BrainBeam: A generalized open-source pipeline and gui for analyzing light sheet brain tissue. unpublished if you use any code or intellectual property from it. Thank you!
-
 
