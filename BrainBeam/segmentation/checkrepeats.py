@@ -15,7 +15,6 @@ import itertools
 import numpy as np
 import tqdm
 from PIL import Image
-import ipdb
 
 class checkrepeats:
     def __init__(self,root_directory,selection_size=1000,pattern="*.tiff",recursive=True):
@@ -36,11 +35,12 @@ class checkrepeats:
 
     def setup(self):
         # Set up regular expressioin
-        self.pattern_to_find = r"Ex_.*?_Em_.*?/" 
-        self.green = "Ex_488_Em_525/"  
-        self.orange = "Ex_561_Em_600/"
-        self.red = "Ex_647_Em_680/"
-        self.farred = "Ex_785_Em_785/"
+        path_sep_pattern = r"[\\/]"
+        self.pattern_to_find = rf"Ex_.*?_Em_.*?{path_sep_pattern}"
+        self.green = f"Ex_488_Em_525{os.sep}"
+        self.orange = f"Ex_561_Em_600{os.sep}"
+        self.red = f"Ex_647_Em_680{os.sep}"
+        self.farred = f"Ex_785_Em_785{os.sep}"
         self.same=0
         self.notsame=0
         print("Finished Set up")
@@ -96,7 +96,7 @@ class checkrepeats:
     def comp_filesizes(self,path1,path2):
         # Get file sizes
         size1=os.path.getsize(path1)
-        size2=os.path.getsize(path1)
+        size2=os.path.getsize(path2)
 
         # Compare file sizes
         if np.array_equal(size1, size2):
