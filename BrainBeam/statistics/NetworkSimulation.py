@@ -11,16 +11,25 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-import seaborn as sns
+from scipy import stats
+import itertools
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
 import ipdb
 
 def custom_naming(region_name: str) -> str:
     r_lower = region_name.lower()
 
-    # --- Prefrontal / Association ---
+    # --- Medial Prefrontal Cortex (distinct) ---
     if any(sub in r_lower for sub in [
-        'frontal pole', 'orbital', 'retrosplenial',
-        'dorsal peduncular', 'anterior area', 'rostrolateral area'
+        'prelimbic', 'infralimbic', 'medial prefrontal', 'anterior cingulate'
+    ]):
+        return 'mPFC'
+
+    # --- Other Prefrontal / Association ---
+    elif any(sub in r_lower for sub in [
+        'frontal pole', 'orbital', 'rostrolateral area', 'retrosplenial',
+        'dorsal peduncular', 'anterior area'
     ]):
         return 'Prefrontal/Association'
 
@@ -62,7 +71,7 @@ def custom_naming(region_name: str) -> str:
         'medial mammillary', 'preoptic', 'lateral septal',
         'parataenial', 'precommissural', 'subparafascicular'
     ]):
-        return 'Hypothalamus'
+        return 'Hypothalamus/Septum'
 
     # --- Midbrain / Brainstem ---
     elif any(sub in r_lower for sub in [
@@ -78,7 +87,7 @@ def custom_naming(region_name: str) -> str:
     ]):
         return 'Cerebellum'
 
-    # --- Hippocampal / Memory ---
+    # --- Hippocampus / Memory ---
     elif any(sub in r_lower for sub in [
         'perirhinal', 'hippocamp', 'dentate', 'postsubiculum',
         'subiculum', 'hippocampal formation'
@@ -88,13 +97,13 @@ def custom_naming(region_name: str) -> str:
     # --- Striatum / Basal Ganglia ---
     elif any(sub in r_lower for sub in [
         'bed nuclei of the stria terminalis', 'bnst', 'stria medullaris',
-        'nucleus accumbens'
+        'nucleus accumbens', 'caudate', 'putamen', 'globus pallidus'
     ]):
         return 'Striatum/Basal ganglia'
 
-    # --- White matter tracts / commissures ---
+    # --- White matter / Tracts ---
     elif any(sub in r_lower for sub in [
-        'corpus callosum', 'cingulum', 'pyramid', 'tract'
+        'corpus callosum', 'cingulum', 'pyramid', 'tract', 'fornix'
     ]):
         return 'White matter/Tracts'
 
@@ -103,182 +112,174 @@ def custom_naming(region_name: str) -> str:
         return 'Olfactory'
 
     # --- Gustatory ---
-    elif 'gustatory' in r_lower:
+    elif 'gustatory' in r_lower or 'insular' in r_lower:
         return 'Gustatory'
 
     # --- Default ---
     else:
         return 'Other'
 
-
-def compare_networks(condition_graphs, top_n=10, corr_threshold=0.3, n_permutations=1000, seed=0, plot=True):
+def compare_networks_bootstrap(boot_metrics_dict, full_graphs=None, top_n=10, output_csv="network_metrics_long.csv", posthoc_csv="network_posthoc.csv"):
     """
-    Compare network properties across experimental conditions, 
-    with permutation-based p-values for overlaps and node degrees.
-    Optionally plots results.
+    Compare networks using bootstrapped distributions for all metrics and save data for R plotting.
 
     Parameters
     ----------
-    condition_graphs : dict
-        Dictionary mapping condition name -> (df, corr_matrix, graph)
+    boot_metrics_dict : dict
+        Dictionary {group: bootstrapped metrics DataFrame from network.bootstrap_network_metrics()}.
+    full_graphs : dict, optional
+        Dictionary {group: full networkx graph} for node-level metrics.
     top_n : int
-        Number of top regions to report by degree.
-    corr_threshold : float
-        Correlation cutoff to consider edges for overlap.
-    n_permutations : int
-        Number of permutations for null distributions.
-    seed : int
-        Random seed for reproducibility.
-    plot : bool
-        Whether to generate summary plots.
+        Number of top regions to consider by degree.
+    output_csv : str
+        File path to save long-format CSV with mean ± SEM.
+    posthoc_csv : str
+        File path to save post-hoc test results.
 
     Returns
     -------
-    summary_df : pd.DataFrame
-        Network-level metrics by condition.
-    overlap_df : pd.DataFrame
-        Edge overlaps across conditions (with p-values).
-    top_regions_df : pd.DataFrame
-        Top N regions by degree for each condition (with p-values).
+    df_long : pd.DataFrame
+        Tall-format DataFrame with all metrics (mean ± SEM) ready for plotting.
+    df_posthoc : pd.DataFrame
+        Post-hoc test results (ANOVA + pairwise) per metric/region.
     """
-    rng = np.random.default_rng(seed)
-    summary_stats = []
-    top_regions = []
-    edge_sets = {}
-    null_distributions = {}
+    df_list = []
+    network_metrics = ['n_nodes', 'n_edges', 'avg_degree', 'avg_clustering', 'density']
+    network_boot_summaries = {}
+    node_boot_values = {}
 
-    for cond, (df, corr, G) in condition_graphs.items():
-        # --- Summary network stats
-        stats = {
-            "condition": cond,
-            "n_nodes": G.number_of_nodes(),
-            "n_edges": G.number_of_edges(),
-            "avg_degree": sum(dict(G.degree()).values()) / G.number_of_nodes(),
-            "avg_clustering": nx.average_clustering(G),
-            "density": nx.density(G),
-        }
-        summary_stats.append(stats)
+    for grp, boot_df in boot_metrics_dict.items():
+        if boot_df.empty:
+            continue
 
-        # --- Degrees
-        degrees = dict(G.degree())
-        top_deg = sorted(degrees.items(), key=lambda x: x[1], reverse=True)[:top_n]
+        network_summary = (
+            boot_df
+            .groupby('bootstrap_id', as_index=False)
+            .agg(
+                n_nodes=('n_nodes', 'first'),
+                n_edges=('n_edges', 'first'),
+                avg_degree=('degree', 'mean'),
+                avg_clustering=('clustering', 'mean'),
+                density=('density', 'first')
+            )
+        )
+        network_boot_summaries[grp] = network_summary
 
-        # Null distribution for degrees
-        deg_null = {node: [] for node in G.nodes()}
-        A = nx.to_numpy_array(G)
-        nodes = list(G.nodes())
-        for _ in range(n_permutations):
-            A_perm = A.copy()
-            rng.shuffle(A_perm.flat)
-            G_perm = nx.from_numpy_array(A_perm > 0)
-            mapping = dict(zip(range(len(nodes)), nodes))
-            G_perm = nx.relabel_nodes(G_perm, mapping)
-            perm_degrees = dict(G_perm.degree())
-            for node in deg_null:
-                deg_null[node].append(perm_degrees.get(node, 0))
-        null_distributions[cond] = deg_null
-
-        for region, deg in top_deg:
-            null_vals = np.array(deg_null[region])
-            p_val = (np.sum(null_vals >= deg) + 1) / (n_permutations + 1)
-            top_regions.append({
-                "condition": cond,
-                "region": region,
-                "degree": deg,
-                "p_value": p_val
+        for metric in network_metrics:
+            metric_vals = network_summary[metric].dropna().to_numpy()
+            n_boot = len(metric_vals)
+            mean_val = np.mean(metric_vals) if n_boot else np.nan
+            sem_val = np.std(metric_vals, ddof=1) / np.sqrt(n_boot) if n_boot > 1 else 0
+            df_list.append({
+                'metric': metric,
+                'region': np.nan,
+                'condition': grp,
+                'mean': mean_val,
+                'sem': sem_val,
+                'n_boot': n_boot
             })
 
-        # --- Collect edges above threshold
-        edges = set()
-        for u, v, w in G.edges(data="weight", default=1.0):
-            if abs(w) >= corr_threshold:
-                edges.add(tuple(sorted((u, v))))
-        edge_sets[cond] = edges
+        if full_graphs is not None and grp in full_graphs:
+            G = full_graphs[grp]
+            degrees = dict(G.degree())
+            top_deg = sorted(degrees.items(), key=lambda x: x[1], reverse=True)[:top_n]
 
-    # --- Convert to DataFrames
-    summary_df = pd.DataFrame(summary_stats)
-    top_regions_df = pd.DataFrame(top_regions)
+            for region, deg in top_deg:
+                node_vals = boot_df.loc[boot_df['region'] == region, 'degree'].dropna().to_numpy()
+                node_boot_values[(grp, region)] = node_vals
+                n_boot = len(node_vals)
+                mean_val = np.mean(node_vals) if n_boot else deg
+                sem_val = np.std(node_vals, ddof=1) / np.sqrt(n_boot) if n_boot > 1 else 0
+                df_list.append({
+                    'metric': 'degree',
+                    'region': region,
+                    'condition': grp,
+                    'mean': mean_val,
+                    'sem': sem_val,
+                    'n_boot': n_boot
+                })
 
-    # --- Compute pairwise overlaps
-    overlap_records = []
-    conds = list(edge_sets.keys())
-    for i in range(len(conds)):
-        for j in range(i+1, len(conds)):
-            c1, c2 = conds[i], conds[j]
-            e1, e2 = edge_sets[c1], edge_sets[c2]
-            overlap = len(e1 & e2)
-            only_c1 = len(e1 - e2)
-            only_c2 = len(e2 - e1)
-            union = len(e1 | e2)
-            jaccard = overlap / union if union > 0 else 0
+    df_long = pd.DataFrame(df_list)
+    df_long.to_csv(output_csv, index=False)
 
-            # --- permutation test for overlaps ---
-            shared_null = []
-            nodes_c2 = list(condition_graphs[c2][2].nodes())
-            for _ in range(n_permutations):
-                rng.shuffle(nodes_c2)
-                mapping = dict(zip(condition_graphs[c2][2].nodes(), nodes_c2))
-                G2_perm = nx.relabel_nodes(condition_graphs[c2][2], mapping)
-                e2_perm = set(tuple(sorted(edge)) for edge in G2_perm.edges())
-                shared_null.append(len(e1 & e2_perm))
-            shared_null = np.array(shared_null)
-            p_val = (np.sum(shared_null >= overlap) + 1) / (n_permutations + 1)
+    # --- Post-hoc tests: ANOVA + pairwise comparisons ---
+    posthoc_results = []
+    for metric in df_long['metric'].unique():
+        df_metric = df_long[df_long['metric'] == metric]
 
-            overlap_records.append({
-                "cond1": c1, "cond2": c2,
-                "shared_edges": overlap,
-                f"unique_{c1}": only_c1,
-                f"unique_{c2}": only_c2,
-                "jaccard_index": jaccard,
-                "p_value": p_val
+        if df_metric['region'].isna().all():
+            boot_data = []
+            for grp in df_metric['condition'].unique():
+                vals = network_boot_summaries[grp][metric].dropna().to_numpy()
+                if len(vals):
+                    boot_data.append(pd.DataFrame({'value': vals, 'condition': grp}))
+            if len(boot_data) < 2:
+                continue
+            df_anova = pd.concat(boot_data)
+            model = ols('value ~ C(condition)', data=df_anova).fit()
+            anova_table = sm.stats.anova_lm(model, typ=2)
+            p_anova = anova_table['PR(>F)'].values[0]
+            posthoc_results.append({
+                'metric': metric,
+                'region': np.nan,
+                'comparison': 'ANOVA',
+                'p_value': p_anova
             })
-    overlap_df = pd.DataFrame(overlap_records)
 
-    # --- PLOTTING ---
-    if plot:
-        sns.set(style="whitegrid")
+            for grp1, grp2 in itertools.combinations(df_metric['condition'].unique(), 2):
+                vals1 = network_boot_summaries[grp1][metric].dropna().to_numpy()
+                vals2 = network_boot_summaries[grp2][metric].dropna().to_numpy()
+                t_stat, p_val = stats.ttest_ind(vals1, vals2, equal_var=False)
+                posthoc_results.append({
+                    'metric': metric,
+                    'region': np.nan,
+                    'comparison': f'{grp1} vs {grp2}',
+                    'p_value': p_val
+                })
+        else:
+            for region in df_metric['region'].dropna().unique():
+                df_region = df_metric[df_metric['region']==region]
+                boot_data = []
+                for grp in df_region['condition'].unique():
+                    vals = node_boot_values.get((grp, region))
+                    if vals is not None and len(vals):
+                        boot_data.append(pd.DataFrame({'value': vals, 'condition': grp}))
+                if len(boot_data) < 2:
+                    continue
+                df_anova = pd.concat(boot_data)
+                model = ols('value ~ C(condition)', data=df_anova).fit()
+                anova_table = sm.stats.anova_lm(model, typ=2)
+                p_anova = anova_table['PR(>F)'].values[0]
+                posthoc_results.append({
+                    'metric': 'degree',
+                    'region': region,
+                    'comparison': 'ANOVA',
+                    'p_value': p_anova
+                })
 
-        # 1. Summary metrics
-        fig, axes = plt.subplots(1, 3, figsize=(18,5))
-        sns.barplot(data=summary_df, x="condition", y="avg_degree", ax=axes[0])
-        axes[0].set_title("Average Degree")
-        sns.barplot(data=summary_df, x="condition", y="avg_clustering", ax=axes[1])
-        axes[1].set_title("Average Clustering")
-        sns.barplot(data=summary_df, x="condition", y="density", ax=axes[2])
-        axes[2].set_title("Density")
-        plt.tight_layout()
-        plt.savefig('summarys.jpg')
+                # Pairwise t-tests
+                conditions = df_anova['condition'].unique()
+                for grp1, grp2 in itertools.combinations(conditions, 2):
+                    vals1 = df_anova.loc[df_anova['condition']==grp1,'value'].values
+                    vals2 = df_anova.loc[df_anova['condition']==grp2,'value'].values
+                    t_stat, p_val = stats.ttest_ind(vals1, vals2, equal_var=False)
+                    posthoc_results.append({
+                        'metric': 'degree',
+                        'region': region,
+                        'comparison': f'{grp1} vs {grp2}',
+                        'p_value': p_val
+                    })
 
-        # 2. Top regions by degree
-        for cond in top_regions_df["condition"].unique():
-            df_cond = top_regions_df[top_regions_df["condition"] == cond].sort_values("degree", ascending=False)
-            plt.figure(figsize=(10,4))
-            sns.barplot(data=df_cond, x="region", y="degree", palette="viridis")
-            for i, row in enumerate(df_cond.itertuples()):
-                if row.p_value < 0.05:
-                    plt.text(i, row.degree+0.1, "*", ha='center', va='bottom', color='red', fontsize=14)
-            plt.title(f"Top {top_n} regions by degree ({cond})")
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-            plt.savefig(f'topregions{cond}.jpg')
+    df_posthoc = pd.DataFrame(posthoc_results)
+    df_posthoc.to_csv(posthoc_csv, index=False)
 
-        # 3. Pairwise Jaccard overlaps heatmap
-        jaccard_mat = pd.DataFrame(0, index=conds, columns=conds, dtype=float)
-        for _, row in overlap_df.iterrows():
-            jaccard_mat.loc[row.cond1, row.cond2] = row.jaccard_index
-            jaccard_mat.loc[row.cond2, row.cond1] = row.jaccard_index
-        plt.figure(figsize=(6,5))
-        sns.heatmap(jaccard_mat, annot=True, fmt=".2f", cmap="Blues")
-        plt.title("Pairwise Edge Jaccard Index")
-        plt.savefig('heatmap.jpg')
-
-    return summary_df, overlap_df, top_regions_df
-
+    return df_long, df_posthoc
 
 class network:
     def __init__(self, dataframe, threat_dict, custom_grouping_dict, 
                  origin=None, origin_name='mPFC', groups=['water','vanilla','tmt'], 
-                 correlation_threshold=0.2, top_n=100):
+                 correlation_threshold=0.2, top_n=100, 
+                 bootstrap_n=1000, sample_size=None, seed=0):
         self.df = dataframe
         self.threat_dict = threat_dict
         self.custom_grouping_dict = custom_grouping_dict
@@ -291,40 +292,116 @@ class network:
         self.groups = groups
         self.correlation_threshold = correlation_threshold
         self.top_n = top_n
+        self.bootstrap_n = bootstrap_n
+        self.sample_size = sample_size
+        self.rng = np.random.default_rng(seed)
+        self.group_colors = {'water': '#5c6bc0', 'vanilla': '#ffcc66', 'tmt': '#a83232'}
 
     def __call__(self):
-        # --- Correlation data and graphs ---
-        df_water, corr_water, top_corr_regions = self.correlation_dataframe(group_index=0)
-        G_water = self.generate_graph(corr_water, df_water)
 
-        df_vanilla, corr_vanilla, __ = self.correlation_dataframe(group_index=1, top_corr_regions=top_corr_regions)
-        G_vanilla = self.generate_graph(corr_vanilla, df_vanilla)
+        # Generate example graph layout
+        full_graphs = {}
+        full_corr_mats = {}
+        full_dfs = {}
+        for i, grp in enumerate(self.groups):
+            df_grp, corr_mat, _ = self.correlation_dataframe(group_index=i)
+            G = self.generate_graph(corr_mat, df_grp)
+            full_graphs[grp] = G
+            full_corr_mats[grp] = corr_mat
+            full_dfs[grp] = df_grp
 
-        df_tmt, corr_tmt, __ = self.correlation_dataframe(group_index=2, top_corr_regions=top_corr_regions)
-        G_tmt = self.generate_graph(corr_tmt, df_tmt)
-
-        # --- Normalize node sizes across all graphs ---
-        G_list = [G_water, G_vanilla, G_tmt]
+        G_list = list(full_graphs.values())
         sizes_list = self.compute_normalized_node_sizes(G_list)
-        sizes_list = [number + 5000 for sublist in sizes_list for number in sublist]
 
-        # --- Plot graphs ---
-        self.plot_graph(G_water, filename='water_graph.jpg', node_color="#5c6bc0", sizes=sizes_list[0])
-        self.plot_graph(G_vanilla, filename='vanilla_graph.jpg', node_color="#ffcc66", sizes=sizes_list[1])
-        self.plot_graph(G_tmt, filename='tmt_graph.jpg', node_color="#a83232", sizes=sizes_list[2])
+        for i, grp in enumerate(self.groups):
+            color = self.group_colors.get(grp, "#FF0000")
+            self.plot_graph(
+                full_graphs[grp],
+                filename=f'{grp}_graph.jpg', 
+                node_color=color,
+                sizes=[j + 20 for j in sizes_list[i]]
+            )
 
-        # --- Compare networks ---
-        summary_df, overlap_df, top_regions_df = compare_networks({
-            "water": (df_water, corr_water, G_water),
-            "vanilla": (df_vanilla, corr_vanilla, G_vanilla),
-            "tmt": (df_tmt, corr_tmt, G_tmt)
-        }, top_n=10, corr_threshold=0.3)
+        # Bootstrap Graph Theory 
+        boot_long_df = self.bootstrap_network_metrics()  
+        boot_long_df.to_csv("bootstrapped_network_stats_long.csv", index=False)
 
-    def correlation_dataframe(self, group_index, top_corr_regions=None):
-        df_control = self.df[self.df['group'] == self.groups[group_index]]
+        # Summary statistics on boot strapped graphs
+        boot_metrics_dict = {grp: boot_long_df[boot_long_df['condition'] == grp] for grp in self.groups}
+        summary_df, top_regions_df = compare_networks_bootstrap(boot_metrics_dict,full_graphs=full_graphs,top_n=10)
+        return summary_df, top_regions_df
+
+    def add_gaussian_noise(self, df, value_col, group_cols, rng, noise_frac=0.1):
+        df = df.copy()
+
+        for _, idx in df.groupby(group_cols).groups.items():
+            vals = df.loc[idx, value_col].values
+            if len(vals) < 2:
+                continue
+
+            sigma = np.std(vals, ddof=1)
+            if sigma == 0:
+                continue
+
+            noise = rng.normal(0, noise_frac * sigma, size=len(vals))
+            df.loc[idx, value_col] += noise
+
+        return df
+
+
+    def bootstrap_network_metrics(self):
+        """ Network metric dataset based on bootstrapping."""
+
+        rows = []  
+        for grp_idx, grp in enumerate(self.groups):
+            df_grp = self.df[self.df['group'] == grp]
+            suids = df_grp['suid'].unique()
+            n_suids = len(suids)
+
+            for boot_id in range(self.bootstrap_n):
+
+                # Generate a random sample boot strapped based on data with some random noise
+                max_drop = max(n_suids - 3, 1)  
+                k = self.rng.integers(1, max_drop + 1)
+                actual_sample_size = n_suids - k
+                sampled_suids = self.rng.choice(suids, size=actual_sample_size, replace=False)
+                df_sample = df_grp[df_grp['suid'].isin(sampled_suids)]
+                df_sample = self.add_gaussian_noise(df_sample,'rawcount', group_cols=['regionname', 'group'],rng=self.rng, noise_frac=0.1)
+
+                # Graph for current boot strap dataset
+                df_boot, corr_mat, _ = self.correlation_dataframe(group_index=grp_idx, df=df_sample)
+                G = self.generate_graph(corr_mat, df_boot)
+
+                # Concat Metrics
+                degrees = dict(G.degree())
+                clustering = nx.clustering(G)
+                strengths = dict(G.degree(weight="weight")) if len(list(G.edges(data=True))) else None
+                for region in G.nodes():
+                    rows.append({
+                        "bootstrap_id": boot_id,
+                        "condition": grp,
+                        "region": region,
+                        "degree": degrees.get(region),
+                        "clustering": clustering.get(region),
+                        "strength": strengths.get(region) if strengths is not None else None,
+                        "n_nodes": G.number_of_nodes(),
+                        "n_edges": G.number_of_edges(),
+                        "density": nx.density(G)
+                    })
+
+        return pd.DataFrame(rows)
+
+    def correlation_dataframe(self, group_index, top_corr_regions=None, df=None):
+        """
+        If df is provided, use it instead of pulling from self.df.
+        """
+        if df is None:
+            df_control = self.df[self.df['group'] == self.groups[group_index]]
+        else:
+            df_control = df.copy()
+
         df_pivot = df_control.pivot_table(
-            index='suid', columns='regionname', values='normalizedcount', aggfunc='mean'
-        )
+            index='suid', columns='regionname', values='rawcount', aggfunc='mean')
         df_pivot.columns = df_pivot.columns.map(str)
 
         # Collapse origin
@@ -344,6 +421,9 @@ class network:
         df_top = df_pivot[valid_top_corr].copy()
         mapping = {col: custom_naming(col) for col in df_top.columns}
         df_top_grouped = df_top.groupby(mapping, axis=1).sum()
+
+        if 'White matter/Tracts' in df_top_grouped.columns:
+            df_top_grouped = df_top_grouped.drop(columns='White matter/Tracts')
 
         # Final dataframe
         cols_to_concat = [df_pivot[self.origin_name]]
@@ -372,7 +452,6 @@ class network:
         return G
 
     def compute_normalized_node_sizes(self, G_list, min_size=400, max_size=1500):
-        # Collect all degrees across graphs
         all_degrees = []
         for G in G_list:
             all_degrees.extend([G.degree(n, weight='weight') for n in G.nodes])
@@ -389,65 +468,35 @@ class network:
                 else:
                     size = min_size
                 sizes.append(size)
-            sizes = np.nan_to_num(np.array(sizes), nan=200).tolist()
-            sizes_list.append(sizes)
+            sizes_list.append(np.nan_to_num(np.array(sizes), nan=200).tolist())
         return sizes_list
 
     def plot_graph(self, G, filename, node_color="#FF0000", highlight_nodes=['mPFC'], 
                show_labels=False, sizes=None):
-        """
-        Plot network graph with publication-ready aesthetics and optional precomputed node sizes.
-        
-        Parameters
-        ----------
-        G : networkx.Graph
-            Weighted graph with edge weights as correlation coefficients.
-        filename : str
-            Output filename for saved figure.
-        node_color : str
-            Hex color for regular nodes.
-        highlight_nodes : list
-            Nodes to highlight (e.g., mPFC).
-        show_labels : bool
-            Whether to show node labels.
-        sizes : list or None
-            Precomputed node sizes. If None, will calculate from degree.
-        """
-
-        # --- Layout ---
         pos = nx.spring_layout(G, weight='weight', k=1.0, iterations=200, seed=42)
 
-        # --- Node sizes ---
         if sizes is None:
-            sizes = [max(np.sqrt(G.degree(n, weight='weight'))*5000, 1000) for n in G.nodes]
-            sizes = np.nan_to_num(np.array(sizes), nan=200).tolist()
+            # Base node size factor: adjust 100–200 for visibility
+            base_size = 500
+            sizes = [base_size + G.degree(n, weight='weight')*400 for n in G.nodes]
 
-        # --- Node colors ---
-        colors = [('#ff33cc' if n in highlight_nodes else node_color) for n in G.nodes]
+        # Ensure no NaNs
+        sizes = np.nan_to_num(np.array(sizes), nan=200).tolist()
 
-        # --- Edge widths and color ---
+        colors = [('#1b9e77' if n in highlight_nodes else node_color) for n in G.nodes]
+
         edges = G.edges(data=True)
-        edge_widths = [abs(d['weight']) * 10 for (_, _, d) in edges]
+        edge_widths = [abs(d['weight']) * 5 for (_, _, d) in edges]  # reduce scale if too thick
         edge_color = "#888888"
 
-        # --- Dynamic figure size based on layout spread ---
-        x_vals = [p[0] for p in pos.values()]
-        y_vals = [p[1] for p in pos.values()]
-        x_span = max(x_vals) - min(x_vals)
-        y_span = max(y_vals) - min(y_vals)
-        scale_factor = 10
-        fig_width = max(8, x_span * scale_factor)
-        fig_height = max(6, y_span * scale_factor)
-
-        # --- Plot ---
-        plt.figure(figsize=(fig_width, fig_height))
+        plt.figure(figsize=(10, 8))
         nx.draw(
             G, pos,
             with_labels=show_labels,
             node_size=sizes,
             node_color=colors,
             edgecolors='black',
-            linewidths=10,
+            linewidths=6,
             width=edge_widths,
             edge_color=edge_color,
             alpha=0.9,
@@ -456,11 +505,6 @@ class network:
         plt.tight_layout()
         plt.savefig(filename, dpi=300)
         plt.close()
-
-
-
-
-
 
 
 
