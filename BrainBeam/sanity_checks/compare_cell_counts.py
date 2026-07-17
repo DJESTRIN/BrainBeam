@@ -20,20 +20,18 @@ def compare_csv_files(file1,file2,file_names=None,print_out=False):
     f1=pd.read_csv(file1)
     f2=pd.read_csv(file2)
 
-    # align dataframes and calculate the overlap
-    af1, af2 = f1.align(f2, join='inner')
-    matches = (af1[['x', 'y', 'z']] == af2[['x', 'y', 'z']]).all(axis=1)
-    total_overlap = matches.mean()*100
-
     # Calculate number of rows that do not match per dataset
     f1_cor = set(f1[['x', 'y', 'z']].itertuples(index=False, name=None))
     f2_cor = set(f2[['x', 'y', 'z']].itertuples(index=False, name=None))
+    overlapping_cells = f1_cor & f2_cor
+    union_cells = f1_cor | f2_cor
+    total_overlap = (len(overlapping_cells) / len(union_cells) * 100) if union_cells else 100.0
     f1_not_in_f2 = f1_cor - f2_cor
     f2_not_in_f1 = f2_cor - f1_cor
     num_f1 = len(f1_not_in_f2)
     num_f2 = len(f2_not_in_f1)
-    per_f1 = len(f1_not_in_f2)/len(f1_cor)
-    per_f2 = len(f2_not_in_f1)/len(f2_cor)
+    per_f1 = ((len(f1_not_in_f2)/len(f1_cor)) * 100) if f1_cor else 0.0
+    per_f2 = ((len(f2_not_in_f1)/len(f2_cor)) * 100) if f2_cor else 0.0
 
     if print_out:
         print_statement=f"""These files contain {total_overlap}% overlap. \n 
@@ -107,5 +105,4 @@ if __name__=='__main__':
     if args.root_dir:
         full_dir_analyses(args.root_dir)
     else:
-        compare_csv_files(args.file1,args.file2,file_names=['Rabies Channel','Helper_virus_channel'])
-
+        compare_csv_files(args.file1,args.file2,file_names=['Rabies Channel','Helper_virus_channel'],print_out=True)
