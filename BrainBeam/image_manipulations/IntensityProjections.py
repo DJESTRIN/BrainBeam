@@ -9,9 +9,7 @@ Version: 1.0
 """
 import glob, os
 import tqdm
-import ipdb
 from skimage.io import imread
-import matplotlib.pyplot as plt
 import numpy as np
 from multiprocessing import Pool
 import pandas as pd
@@ -48,16 +46,16 @@ class IntensityProjection():
         """
         # Get a list of images to run Intensity Projection on
         if list_of_images is None:
-            try:
-                self.images=glob.glob(directory+f"*.{image_filetype}*",recursive=recursive_search)
-            except:
-                raise("directory and list_of_images not provided, therefore error")
+            if directory is None:
+                raise ValueError("directory and list_of_images were not provided")
+            pattern = os.path.join(directory, f"*.{image_filetype}*")
+            self.images=glob.glob(pattern,recursive=recursive_search)
         else:
             self.images=list_of_images
 
         # Determine list of images is real
         if not self.images:
-            raise('List of images is empty, check search patterns')
+            raise ValueError('List of images is empty, check search patterns')
         
         # Determine output slice type from options
         if slice_type not in {'Axial', 'Coronal', 'Sagittal'}:
@@ -115,13 +113,12 @@ class IntensityProjection():
         """ Calculate max intensity projection for series of images, 2 images at a time """
         if self.slice_type=='Axial':
             # Load first image as default max
-            image_final=self.grab_image(self.image[0])
+            image_final=self.grab_image(self.images[0])
             image_final=image_final[...,np.newaxis]
 
             # Loop over rest of images in stack
             for image in self.images[1:]:
-                image_oh=imread(image)
-                image_oh=np.array(image_oh)
+                image_oh=self.grab_image(image)
                 image_oh=image_oh[...,np.newaxis]
                 precalculation=np.concatenate((image_final,image_oh),axis=2)
                 image_final=np.max(precalculation,axis=2)
@@ -156,7 +153,7 @@ class IntensityProjectionWithCounts(IntensityProjection):
                  y_stop=None,
                  z_start=None,
                  z_stop=None, 
-                 count_files=[]):
+                 count_files=None):
         
         super().__init__(directory,
                          list_of_images,
@@ -185,9 +182,9 @@ class IntensityProjectionWithCounts(IntensityProjection):
         # Filter cell counts based on x_start, x_stop, y_start, y_stop, z_start, z_stop
         self.cell_counts_oh=[]
         for countsoh in self.cell_counts:
-            new_countsoh = countsoh[(countsoh[:, 0] >= self.x_start) & (countsoh[:, 0] <= self.x_stop) & 
-                                        (countsoh[:, 1] >= self.y_start) & (countsoh[:, 1] <= self.y_stop) & 
-                                        (countsoh[:, 2] >= self.z_start) & (countsoh[:, 2] <= self.z_stop)]
+            new_countsoh = countsoh[(countsoh[:, 0] >= self.x_start) & (countsoh[:, 0] < self.x_stop) & 
+                                        (countsoh[:, 1] >= self.y_start) & (countsoh[:, 1] < self.y_stop) & 
+                                        (countsoh[:, 2] >= self.z_start) & (countsoh[:, 2] < self.z_stop)]
             self.cell_counts_oh.append(new_countsoh)
 
     def overlay_counts_on_MIP(self):
@@ -294,12 +291,14 @@ def generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal',rows=5,cols=5,fil
     Mask_grid=[]
 
     if slice_type=='Axial':
-        batches = divide_list_into_batches(images_oh, grids)
+        batches = create_number_batches(len(images_oh), grids)
         for batchoh in batches:
+            if not batchoh:
+                continue
             MIPobj=IntensityProjectionWithCounts(list_of_images=images_oh,
                                                  slice_type=slice_type,
                                                  z_start=batchoh[0],
-                                                 z_stop=batchoh[-1],
+                                                 z_stop=batchoh[-1] + 1,
                                                  count_files=[cellcountfile]) # Create object
             MIP,Mask=MIPobj() # Run protocol and get MIP for batch of images
             normMIP=(MIP-MIP.min())/(MIP.max()-MIP.min())*255
@@ -313,11 +312,13 @@ def generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal',rows=5,cols=5,fil
         if slice_type=='Coronal':
             batches = create_number_batches(height, grids)
             for batchoh in batches:
+                if not batchoh:
+                    continue
                 MIPobj=IntensityProjectionWithCounts(directory=None,
                                                      list_of_images=images_oh,
                                                      slice_type=slice_type,
                                                      x_start=batchoh[0],
-                                                     x_stop=batchoh[1],
+                                                     x_stop=batchoh[-1] + 1,
                                                      count_files=[cellcountfile]) # Create object
                 MIP,Mask=MIPobj() # Run protocol and get MIP for batch of images
                 normMIP=(MIP-MIP.min())/(MIP.max()-MIP.min())*255
@@ -328,11 +329,13 @@ def generate_MIP_grid(diroh,cellcountfile,slice_type='Coronal',rows=5,cols=5,fil
         if slice_type=='Sagittal':
             batches = create_number_batches(width, grids)
             for batchoh in batches:
+                if not batchoh:
+                    continue
                 MIPobj=IntensityProjectionWithCounts(directory=None,
                                                      list_of_images=images_oh,
                                                      slice_type=slice_type,
                                                      y_start=batchoh[0],
-                                                     y_stop=batchoh[1],
+                                                     y_stop=batchoh[-1] + 1,
                                                      count_files=[cellcountfile]) # Create object
                 MIP,Mask=MIPobj() # Run protocol and get MIP for batch of images
                 normMIP=(MIP-MIP.min())/(MIP.max()-MIP.min())*255
@@ -353,9 +356,11 @@ def plot_image_grid(images,output_file,masks=None,rows=5,cols=5):
             col_oh = np.concatenate((col_oh, image), axis=1)
             col_counter+=1
         
-        if col_counter>cols:
+        if col_counter>=cols:
             col_counter=0
             all_rows.append(col_oh)
+    if col_counter!=0:
+        all_rows.append(col_oh)
 
     all_rows=np.asarray(all_rows)
     bigMIP=np.concatenate(all_rows, axis=0)
@@ -367,7 +372,7 @@ def plot_image_grid(images,output_file,masks=None,rows=5,cols=5):
             mask=mask[0]
 
             if col_counter==0:
-                col_oh = image
+                col_oh = mask
                 col_counter+=1
 
             else:
@@ -377,6 +382,8 @@ def plot_image_grid(images,output_file,masks=None,rows=5,cols=5):
             if col_counter>=cols:
                 col_counter=0
                 all_rows.append(col_oh)
+        if col_counter!=0:
+            all_rows.append(col_oh)
     
     all_rows=np.asarray(all_rows)
     bigMask=np.concatenate(all_rows, axis=0)
@@ -384,7 +391,6 @@ def plot_image_grid(images,output_file,masks=None,rows=5,cols=5):
     save_image_with_mask_to_pdf(image_array=bigMIP,mask_array=bigMask,pdf_path=output_file)
 
 def save_image_with_mask_to_pdf(image_array, mask_array, pdf_path):
-    ipdb.set_trace()
     # Convert the grayscale image to a Pillow Image
     grayscale_image = Image.fromarray(image_array).convert("L")
     
@@ -403,12 +409,12 @@ def save_image_with_mask_to_pdf(image_array, mask_array, pdf_path):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
-    parser.add_argument('--image_directory',type=str)
-    parser.add_argument('--cell_count_file',type=str)
+    parser.add_argument('--image_directory',type=str, required=True)
+    parser.add_argument('--cell_count_file',type=str, required=True)
+    parser.add_argument('--output_file', type=str)
     args=parser.parse_args()
-    # diroh=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680'
-    # cellcountfile=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\cell_counts.csv'
+    output_file = args.output_file or os.path.join(args.image_directory, 'MIP.pdf')
     allMIPs,allMasks=generate_MIP_grid(args.image_directory,args.cell_count_file,slice_type='Sagittal')
     plot_image_grid(images=allMIPs,
-                    output_file=r'C:\Users\listo\data\20231010_19_26_11_CAGE4467197_ANIMAL02_VIRUSRABIES_CORTEXPERIMENTAL_SEXMALE\Ex_647_Em_680MIP.pdf',
+                    output_file=output_file,
                     masks=allMasks)
