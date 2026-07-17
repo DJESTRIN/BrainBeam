@@ -1,4 +1,5 @@
 #Package dependencies
+import os
 import numpy as np
 from pathlib import PurePath
 from skimage.measure import regionprops as rp
@@ -61,7 +62,7 @@ def get_coordinates(path,threshold=0.92):
         doh=pd.DataFrame({'x':points[:,2],'y':points[:,1],'z':points[:,0]})
     
         #Set up the output file
-        outfile,_=path.split('.')
+        outfile,_=os.path.splitext(path)
         outfile+='.csv'
         
         #Save dataframe to csv file
