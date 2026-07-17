@@ -57,8 +57,13 @@ class lightsheet_volume_data():
 
     def gather_data(self):
         # Find all mapped files in final path
-        mapped_files = glob.glob(os.path.join(self.data_path,r"**\*mapped*.npy"), recursive=True)
-        channel_files = glob.glob(os.path.join(self.data_path,r"**\*channel_*.npy"), recursive=True)
+        mapped_files = sorted(glob.glob(os.path.join(self.data_path, "**", "*mapped*.npy"), recursive=True))
+        channel_files = sorted(glob.glob(os.path.join(self.data_path, "**", "*channel_*.npy"), recursive=True))
+
+        if len(mapped_files) != len(channel_files):
+            raise ValueError(
+                f"Found {len(mapped_files)} mapped arrays but {len(channel_files)} channel-name arrays in {self.data_path}."
+            )
 
         # Load in data from files as numpy array
         # Get medidata containing animal info into list
@@ -119,8 +124,12 @@ class array_to_dataframe():
 
         # Normalize
         total_cells = mask.sum()
-        normalized_cell_count_ipsi = raw_cell_count_ipsi / total_cells
-        normalized_cell_count_contra = raw_cell_count_contra / total_cells
+        if total_cells == 0:
+            normalized_cell_count_ipsi = 0
+            normalized_cell_count_contra = 0
+        else:
+            normalized_cell_count_ipsi = raw_cell_count_ipsi / total_cells
+            normalized_cell_count_contra = raw_cell_count_contra / total_cells
 
         # Get region name from id
         node_oh = tree_object.find_node(id_or_name=int(key))
@@ -135,6 +144,9 @@ class array_to_dataframe():
         results = Parallel(n_jobs=-1, backend="loky")(delayed(self.process_region)(key, atlas, mask, self.tree_object) for key in keys)
 
         results = [r for r in results if r is not None]
+        if not results:
+            empty = np.empty((0, 4), dtype=object)
+            return empty, empty
 
         ipsi_key_and_counts, contra_key_and_counts = zip(*results)
 
