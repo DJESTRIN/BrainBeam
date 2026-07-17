@@ -18,12 +18,13 @@ from scipy import stats
 from scipy.stats import norm
 from itertools import combinations
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+from scipy.stats import pearsonr
 
 # BrainBeam based code
 from BrainBeam.statistics.stability import slope_stability as sst 
 from BrainBeam.statistics.AtlasGraphics import AtlasGraph
 from BrainBeam.statistics.AtlasOperations import AtlasGardener
-from BrainBeam.statistics.bootstrap import quick_boot
+from BrainBeam.statistics.bootstrap import quick_boot, quick_boot_df
 from BrainBeam.statistics.NetworkSimulation import custom_naming, network
 from BrainBeam.statistics.threatcomps import plot_mPFC_vs_brain as pmvb
 
@@ -34,10 +35,11 @@ def CohensD(mean1, std1, mean2, std2):
 
 class gen:
     def __init__(self, df, ontology_dict, atlas_path, drop_directory=None, value='normalizedcount', bootstrap=False, 
-                 group1='control', group2='cort', group3='none', leveled_atlas=True, restricted_atlas=False, simulation=False, ):
+                 group1='control', group2='cort', group3='none', leveled_atlas=True, restricted_atlas=False, simulation=False, nboot=50, run_stability=True):
         self.df_original = df
         self.df = df
         self.bootstrap = bootstrap
+        self.nboot = nboot
         self.value = value
         self.drop_directory = drop_directory
         self.group1 = group1
@@ -45,6 +47,7 @@ class gen:
         self.group3 = group3
         self.simulation = simulation
         self.atlas_path = atlas_path
+        self.run_stability = run_stability
 
         # Level the atlas with atlas gardender
         if leveled_atlas:
@@ -62,30 +65,84 @@ class gen:
 
             if restricted_atlas:
                 print('A restricted atlas is being used')
-                self.df = atobj.restricted_dataframe(dataframe = self.df, current_ontology_dict = atobj.course_dict)
+                self.df = atobj.restricted_and_coarse_dataframe(dataframe=self.df)
+                self.df['rawcount'] = (self.df[self.value] /self.df.groupby('suid')[self.value].transform('sum')) * 100
             else:
                 print('Entire atlas being used')
         
         else:
             if restricted_atlas:
                 print('A restricted atlas is being used')
-                self.df = AtlasGardener.restricted_dataframe(dataframe = self.df, current_ontology_dict = ontology_dict)
+                self.df = AtlasGardener.restricted_and_coarse_dataframe(dataframe = self.df)
+                self.df['rawcount'] = (self.df[self.value] /self.df.groupby('suid')[self.value].transform('sum')) * 100
             else:
                  print('Entire atlas being used')
+        
+        if self.bootstrap:
+            self.df = quick_boot_df(self.df, n_boot=self.nboot)
 
         self.df_sum = self.df.groupby(['suid', 'group', 'regionname','lateralization'], as_index=False).agg({self.value: 'sum'})
     
     def __call__(self):
+        self.plot_group_average()
         self.plot_distribution()
         self.volcano()
         self.calculate_differences()
         self.grab_differences()
-        #self.stability()
-        self.genatlas()
+        if self.run_stability:
+            self.stability()
+        #self.genatlas()
+
+    def plot_group_average(self):
+        """
+        Compare average normalized count between control and CORT.
+        Plots mean ± SEM and prints values.
+        """
+
+        # Average per subject first (avoids pseudoreplication)
+        df_subject = (
+            self.df
+            .groupby(['suid', 'group'], as_index=False)[self.value]
+            .mean()
+        )
+
+        # Split groups
+        control = df_subject[df_subject['group'] == self.group1][self.value]
+        cort = df_subject[df_subject['group'] == self.group2][self.value]
+
+        # Stats
+        control_mean = control.mean()
+        cort_mean = cort.mean()
+        control_sem = control.std(ddof=1) / np.sqrt(len(control))
+        cort_sem = cort.std(ddof=1) / np.sqrt(len(cort))
+
+        t_stat, p_value = stats.ttest_ind(control, cort, equal_var=False)
+        n1, n2 = len(control), len(cort)
+        s1_sq, s2_sq = control.var(ddof=1), cort.var(ddof=1)
+        df = (s1_sq/n1 + s2_sq/n2)**2 / ((s1_sq**2 / (n1**2 * (n1 - 1))) + (s2_sq**2 / (n2**2 * (n2 - 1))))
+
+        print(f"t = {t_stat:.3f}, df = {df:.2f}, p = {p_value:.4f}")
+
+        # Print
+        print(f"{self.group1}: {control_mean:.3f} ± {control_sem:.3f}")
+        print(f"{self.group2}: {cort_mean:.3f} ± {cort_sem:.3f}")
+
+        # Plot
+        plt.figure(figsize=(4, 6))
+        plt.bar(
+            [self.group1, self.group2],
+            [control_mean, cort_mean],
+            yerr=[control_sem, cort_sem],
+            capsize=6
+        )
+        plt.ylabel(self.value)
+        plt.title("Average Normalized Count ± SEM")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.drop_directory, "group_average_normalizedcount.jpg"))
 
     def plot_distribution(self,filename='hist.jpg'):
         plt.figure(figsize=(10, 10))
-        sns.kdeplot(data=self.df, x="normalizedcount", hue="group", fill=True, alpha=0.4)
+        sns.kdeplot(data=self.df, x=str(self.value), hue="group", fill=True, alpha=0.4)
         plt.xlabel("Values")
         plt.ylabel("Density")
         plt.title("Overlapping KDE Plot by Group")
@@ -107,38 +164,17 @@ class gen:
             print(label)
 
             # Gather stability of all data
-            obj = sst(
-                dataframe_oh=df_pair,
-                drop_directory=self.drop_directory,
-                xaxis_label=group1,
-                yaxis_label=group2,
-                simulation=False,
-                simtrials=10000,
-                convergence_test=False,
-                graph_results=True,
-                regionvarname='regionname',
-                groupvarname='group',
-                countvarname='normalizedcount',
-                label_oh=f'stability_general_{label}'
-            )
+            obj = sst(dataframe_oh=df_pair, drop_directory=self.drop_directory, xaxis_label=group1, yaxis_label=group2,
+                simulation=False, simtrials=10000, convergence_test=False, graph_results=True, regionvarname='regionname',
+                groupvarname='group', countvarname=str(self.value), label_oh=f'stability_general_{label}')
             obj()
             self.sstobjs[label] = obj
 
             # Run simulation to determine individual brain regions contributions
             if self.simulation:
-                sim_obj = sst(
-                    dataframe_oh=df_pair,
-                    drop_directory=self.drop_directory,
-                    xaxis_label=group1,
-                    yaxis_label=group2,
-                    simulation=True,
-                    simtrials=10000,
-                    convergence_test=True,
-                    graph_results=True,
-                    regionvarname='regionname',
-                    groupvarname='group',
-                    countvarname='normalizedcount'
-                )
+                sim_obj = sst(dataframe_oh=df_pair, drop_directory=self.drop_directory, xaxis_label=group1, yaxis_label=group2,
+                    simulation=True, simtrials=10000, convergence_test=True, graph_results=True, regionvarname='regionname',
+                    groupvarname='group', countvarname=str(self.value))
                 sim_obj()
                 self.sstobjs_simulation[label] = sim_obj
 
@@ -146,20 +182,9 @@ class gen:
             regions_weak = self.volcano_df[self.volcano_df['effects'] < 0.5]['regionname']
             df_weak = df_pair[df_pair['regionname'].isin(regions_weak)].reset_index(drop=True)
             if not df_weak.empty:
-                weak_obj = sst(
-                    dataframe_oh=df_weak,
-                    drop_directory=self.drop_directory,
-                    xaxis_label=group1,
-                    yaxis_label=group2,
-                    simulation=False,
-                    simtrials=10000,
-                    convergence_test=False,
-                    graph_results=True,
-                    regionvarname='regionname',
-                    groupvarname='group',
-                    countvarname='normalizedcount',
-                    label_oh=f'weak_effects_{label}'
-                )
+                weak_obj = sst(dataframe_oh=df_weak, drop_directory=self.drop_directory, xaxis_label=group1, yaxis_label=group2,
+                    simulation=False, simtrials=10000, convergence_test=False, graph_results=True, regionvarname='regionname',
+                    groupvarname='group', countvarname=str(self.value), label_oh=f'weak_effects_{label}')
                 weak_obj()
                 self.sstobjs_weak[label] = weak_obj
 
@@ -167,20 +192,9 @@ class gen:
             regions_strong = self.volcano_df[self.volcano_df['effects'] > 0.5]['regionname']
             df_strong = df_pair[df_pair['regionname'].isin(regions_strong)].reset_index(drop=True)
             if not df_strong.empty:
-                strong_obj = sst(
-                    dataframe_oh=df_strong,
-                    drop_directory=self.drop_directory,
-                    xaxis_label=group1,
-                    yaxis_label=group2,
-                    simulation=False,
-                    simtrials=10000,
-                    convergence_test=False,
-                    graph_results=True,
-                    regionvarname='regionname',
-                    groupvarname='group',
-                    countvarname='normalizedcount',
-                    label_oh=f'strong_effects_{label}'
-                )
+                strong_obj = sst(dataframe_oh=df_strong,drop_directory=self.drop_directory,xaxis_label=group1,yaxis_label=group2,
+                    simulation=False,simtrials=10000,convergence_test=False,graph_results=True,regionvarname='regionname',
+                    groupvarname='group',countvarname=str(self.value),label_oh=f'strong_effects_{label}')
                 strong_obj()
                 self.sstobjs_strong[label] = strong_obj
 
@@ -457,43 +471,37 @@ class gen:
         plt.savefig(os.path.join(self.drop_directory, 'volcano_updated.jpg'))
   
     def genatlas(self):
-        # water vs vanilla
-        dfoh = self.volcano_df[ self.volcano_df['comparison']=='water vs vanilla']
-        self.atob = AtlasGraph(dataframe=dfoh, 
-                               atlas_path = self.atlas_path, 
-                               drop_directory=self.drop_directory,
-                               filename = 'tslices_nothreshold_water_vanilla.jpg', 
-                               default_increase_color=np.array([92, 107, 192]), # manually set colors
-                               default_decrease_color=np.array([255, 204, 102]))
-        self.atob()
+        comparisons = [
+            ('water vs vanilla', 'tslices_nothreshold_water_vanilla.jpg', 
+            np.array([92, 107, 192]), np.array([255, 204, 102])),
+            ('water vs tmt', 'tslices_nothreshold_water_tmt.jpg', 
+            np.array([92, 107, 192]), np.array([168, 50, 50])),
+            ('vanilla vs tmt', 'tslices_nothreshold_vanilla_tmt.jpg', 
+            np.array([255, 204, 102]), np.array([168, 50, 50])),
+            ('control vs cort', 'tslices_nothreshold_control_cort.jpg', 
+            np.array([0, 0, 255]), np.array([255, 0, 0]))]
 
-        # water vs tmt
-        dfoh = self.volcano_df[ self.volcano_df['comparison']=='water vs tmt']
-        self.atob = AtlasGraph(dataframe=dfoh, 
-                               atlas_path = self.atlas_path, 
-                               drop_directory=self.drop_directory,
-                               filename = 'tslices_nothreshold_water_tmt.jpg',
-                               default_increase_color=np.array([92, 107, 192]), # manually set colors
-                               default_decrease_color=np.array([168, 50, 50]))
-        self.atob()
-
-        # vanilla vs tmt
-        dfoh = self.volcano_df[ self.volcano_df['comparison']=='vanilla vs tmt']
-        self.atob = AtlasGraph(dataframe=dfoh, 
-                               atlas_path = self.atlas_path, 
-                               drop_directory=self.drop_directory,
-                               filename = 'tslices_nothreshold_vanilla_tmt.jpg',
-                               default_increase_color=np.array([255, 204, 102]), # manually set colors
-                               default_decrease_color=np.array([168, 50, 50]))
-        self.atob()
-
+        for comp, filename, inc_color, dec_color in comparisons:
+            dfoh = self.volcano_df[self.volcano_df['comparison'] == comp]
+            if dfoh.empty:
+                print(f"Skipping {comp} because the dataframe is empty.")
+                continue
+            self.atob = AtlasGraph(
+                dataframe=dfoh, 
+                atlas_path=self.atlas_path, 
+                drop_directory=self.drop_directory,
+                filename=filename,
+                default_increase_color=inc_color,
+                default_decrease_color=dec_color
+            )
+            self.atob()
 
 if __name__=='__main__':
     # ================================
     # FosTRAP2 Statistics
     # ================================
 
-    # User defined inputs
+    # # User defined inputs
     data_path = r'C:\Users\listo\example_registration_data\test_registration_communal_drop'
     group1_df_path =  r'C:\Users\listo\communal_registration_logcal_drop\salience_experiment\water\df_tall.csv'
     group2_df_path = r'C:\Users\listo\communal_registration_logcal_drop\salience_experiment\vanilla\df_tall.csv'
@@ -504,7 +512,7 @@ if __name__=='__main__':
     output_dir = r'C:\Users\listo\communal_registration_logcal_drop\salience_experiment\results'
     atlas_path = r'C:\Users\listo\communal_registration_logcal_drop\salience_experiment\water'
     keep_channel = ['channel0', 647]  # Keeping channel0 aka channel 647
-    restrict_the_atlas = False
+    restrict_the_atlas = True
 
     # Get atlas ontology
     drop_atlas_path = os.path.join(data_path,"communal_atlas_drop/")
@@ -528,38 +536,38 @@ if __name__=='__main__':
     df = df.reset_index(drop=True)
 
     # Run data frames through stats
-    genobj_fostrap = gen(df=df, ontology_dict=ontology_dict, atlas_path=atlas_path, value='normalizedcount', drop_directory=output_dir,
-                 bootstrap=False, group1=group1_name, group2=group2_name, group3=group3_name, restricted_atlas=restrict_the_atlas,leveled_atlas=False, simulation=True)
+    genobj_fostrap = gen(df=df, ontology_dict=ontology_dict, atlas_path=atlas_path, value='rawcount', drop_directory=output_dir,
+                 bootstrap=False, group1=group1_name, group2=group2_name, group3=group3_name, restricted_atlas=restrict_the_atlas,leveled_atlas=False, simulation=False)
     genobj_fostrap()
 
     # Generate threat graph
-    pmvb(df = genobj_fostrap.df, directory=output_dir)
+    # pmvb(df = genobj_fostrap.df, counttype='rawcount', directory=output_dir)
 
-    threat_dict = {
-        "Amygdala": ["amygdala"],
-        "Hypothalamus": ["hypothalamus"],
-        "BNST": ["bed nucleus of the stria terminalis", "bed nucl"],
-        "PAG": ["periaqueductal gray", "periaqueductal"],
-        "Insula": ["insula"],
-        "Thalamus": ["thalamus"],
-        "Hippocampus": ["hippo"],
-        "Superior Temporal Sulcus": ["superior temporal sulcus"],
-        "Parietal Cortex": ["parietal cortex", "superior parietal lobule"],
-        "Cerebellum": ["cerebellum"],
-        "Lateral Habenula": ["lateral habenula"],
-        "Dorsal Premammillary Nucleus": ["dorsal premammillary nucleus"]}
+    # threat_dict = {
+    #     "Amygdala": ["amygdala"],
+    #     "Hypothalamus": ["hypothalamus"],
+    #     "BNST": ["bed nucleus of the stria terminalis", "bed nucl"],
+    #     "PAG": ["periaqueductal gray", "periaqueductal"],
+    #     "Insula": ["insula"],
+    #     "Thalamus": ["thalamus"],
+    #     "Hippocampus": ["hippo"],
+    #     "Superior Temporal Sulcus": ["superior temporal sulcus"],
+    #     "Parietal Cortex": ["parietal cortex", "superior parietal lobule"],
+    #     "Cerebellum": ["cerebellum"],
+    #     "Lateral Habenula": ["lateral habenula"],
+    #     "Dorsal Premammillary Nucleus": ["dorsal premammillary nucleus"]}
 
-    custom_groups = {
-        "Somatosensory": ["somatosensory"],
-        "Visual": ["visual"],
-        "Auditory": ["auditory"],
-        "Motor": ["motor"],
-        "Orbital": ["orbital"]}
+    # custom_groups = {
+    #     "Somatosensory": ["somatosensory"],
+    #     "Visual": ["visual"],
+    #     "Auditory": ["auditory"],
+    #     "Motor": ["motor"],
+    #     "Orbital": ["orbital"]}
     
-    network_object = network(dataframe=genobj_fostrap.df, threat_dict=threat_dict, custom_grouping_dict=custom_groups, 
-            origin=None, origin_name = 'mPFC', groups=['water','vanilla','tmt'], 
-            correlation_threshold=0.2, top_n=100)
-    network_object()
+    # network_object = network(dataframe=genobj_fostrap.df, threat_dict=threat_dict, custom_grouping_dict=custom_groups, 
+    #        origin=None, origin_name = 'mPFC', groups=['water','vanilla','tmt'], 
+    #        correlation_threshold=0.2, top_n=100)
+    # network_object()
 
 
     # ================================
@@ -567,75 +575,101 @@ if __name__=='__main__':
     # ================================
 
     # User defined inputs
-    # data_path = r'C:\Users\listo\example_registration_data\test_registration_communal_drop'
-    # group1_df_path =  r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\control\df_tall.csv'
-    # group2_df_path = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\experimental\df_tall.csv'
-    # group1_name = 'control'
-    # group2_name = 'cort'
-    # output_dir = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\results'
-    # atlas_path = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\experimental'
-    # keep_channel = [647]
-    # restrict_the_atlas = True
+    data_path = r'C:\Users\listo\example_registration_data\test_registration_communal_drop'
+    group1_df_path =  r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\control\df_tall.csv'
+    group2_df_path = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\experimental\df_tall.csv'
+    group1_name = 'control'
+    group2_name = 'cort'
+    output_dir = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\results2'
+    atlas_path = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\experimental'
+    keep_channel = [647]
+    restrict_the_atlas = True
 
-    # # Get atlas ontology
-    # drop_atlas_path = os.path.join(data_path,"communal_atlas_drop/")
-    # atlas_json_file = os.path.join(drop_atlas_path,'structures.json')
-    # with open(atlas_json_file,'r') as infile:
-    #     ontology_dict = json.load(infile)
+    # Get atlas ontology
+    drop_atlas_path = os.path.join(data_path,"communal_atlas_drop/")
+    atlas_json_file = os.path.join(drop_atlas_path,'structures.json')
+    with open(atlas_json_file,'r') as infile:
+        ontology_dict = json.load(infile)
 
-    # # Read in dataframes and concat them
-    # df = pd.read_csv(group1_df_path)
-    # df2 = pd.read_csv(group2_df_path)
-    # df2['group'] = group2_name
-    # df = pd.concat([df,df2])
-    # df['normalizedcount'] = df['normalizedcount']*100
+    # Read in dataframes and concat them
+    df = pd.read_csv(group1_df_path)
+    df2 = pd.read_csv(group2_df_path)
+    df2['group'] = group2_name
+    df = pd.concat([df,df2])
+    df['normalizedcount'] = df['normalizedcount']*100
 
-    # # Eliminate unnecessary channels
-    # if keep_channel:
-    #     df = df[df['channel'] == keep_channel[0]]
+    # Eliminate unnecessary channels
+    if keep_channel:
+        df = df[df['channel'] == keep_channel[0]]
 
-    # # Run data frames through stats
-    # genobj_rabies = gen(df=df, ontology_dict=ontology_dict, atlas_path=atlas_path, value='normalizedcount', drop_directory=output_dir,
-    #              bootstrap=False, group1=group1_name, group2=group2_name, restricted_atlas=restrict_the_atlas,leveled_atlas=False, simulation=True)
-    # genobj_rabies()
-    # ipdb.set_trace()
+    # Run data frames through stats
+    genobj_rabies = gen(df=df, ontology_dict=ontology_dict, atlas_path=atlas_path, value='rawcount', drop_directory=output_dir,
+                 bootstrap=False, group1=group1_name, group2=group2_name, restricted_atlas=restrict_the_atlas,leveled_atlas=False, simulation=False, run_stability=False)
+    genobj_rabies()
+
+    # output_dir = r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\results_boot'
+    # os.makedirs(output_dir, exist_ok=True)
+    # all_dfs = []
+    # df0 = genobj_rabies.volcano_df.copy()
+    # df0["nboot"] = 0
+    # all_dfs.append(df0)
+    # for nboot in [20, 50, 100, 500, 1000, 5000]:
+    #     nboot_dir = os.path.join(output_dir, f"nboot_{nboot}")
+    #     os.makedirs(nboot_dir, exist_ok=True)
+    #     genobj_rabies = gen(df=df, ontology_dict=ontology_dict, atlas_path=atlas_path,
+    #                         value='rawcount', drop_directory=nboot_dir,
+    #                         bootstrap=True, group1=group1_name, group2=group2_name,
+    #                         restricted_atlas=restrict_the_atlas, leveled_atlas=False,
+    #                         simulation=True, nboot=nboot, run_stability=False)
+    #     genobj_rabies()
+    #     local_volcanod_df = genobj_rabies.volcano_df.copy()
+    #     local_volcanod_df["nboot"] = nboot
+    #     all_dfs.append(local_volcanod_df)
+    # final_df = pd.concat(all_dfs, ignore_index=True)
+    # final_df.to_csv(os.path.join(output_dir, "volcano_all_bootstraps.csv"), index=False)
 
     # ================================
     # Rabies and FosTRAP2 Statistics
     # ================================
-    # merged_df = pd.merge(
-    #     genobj_rabies.volcano_df[['regionname', 't_value']].rename(columns={'t_value': 't_value_rabies'}),
-    #     genobj_fostrap.volcano_df[['regionname', 't_value', 'comparison']].rename(columns={'t_value': 't_value_fostrap'}),
-    #     on='regionname').dropna()
+    merged_df = pd.merge(
+        genobj_rabies.volcano_df[['regionname', 'lateralization', 't_value']].rename(columns={'t_value': 't_value_rabies'}),
+        genobj_fostrap.volcano_df[['regionname', 'lateralization', 't_value', 'comparison']].rename(columns={'t_value': 't_value_fostrap'}),
+        on=['regionname', 'lateralization']).dropna()
     
-    # merged_df = merged_df[merged_df['t_value_rabies'].abs() > 2]
+    # merged_df = merged_df[merged_df['t_value_rabies'].abs() > 2.13]
 
-    # def compare_correlations(r1, n1, r2, n2):
-    #     if abs(r1) == 1 or abs(r2) == 1:  # Prevent division by zero
-    #         return np.nan, np.nan
-    #     z1 = np.arctanh(r1)
-    #     z2 = np.arctanh(r2)
-    #     se = np.sqrt(1 / (n1 - 3) + 1 / (n2 - 3))
-    #     z = (z1 - z2) / se
-    #     p = 2 * (1 - norm.cdf(abs(z)))
-    #     return z, p
+    def compare_correlations(r1, n1, r2, n2):
+        if abs(r1) == 1 or abs(r2) == 1:  # Prevent division by zero
+            return np.nan, np.nan
+        z1 = np.arctanh(r1)
+        z2 = np.arctanh(r2)
+        se = np.sqrt(1 / (n1 - 3) + 1 / (n2 - 3))
+        z = (z1 - z2) / se
+        p = 2 * (1 - norm.cdf(abs(z)))
+        return z, p
 
-    # reference_comp = 'vanilla vs tmt'
-    # ref_df = merged_df[merged_df['comparison'] == reference_comp].dropna(subset=['t_value_rabies', 't_value_fostrap'])
-    # r_ref = ref_df['t_value_rabies'].corr(ref_df['t_value_fostrap'], method='pearson')
-    # n_ref = len(ref_df)
+    reference_comp = 'vanilla vs tmt'
+    ref_df = merged_df[merged_df['comparison'] == reference_comp].dropna(subset=['t_value_rabies', 't_value_fostrap'])
+    r_ref = ref_df['t_value_rabies'].corr(ref_df['t_value_fostrap'], method='pearson')
+    n_ref = len(ref_df)
 
-    # for comp in merged_df['comparison'].unique():
-    #     df_filtered = merged_df[merged_df['comparison'] == comp].dropna(subset=['t_value_rabies', 't_value_fostrap'])
-    #     n = len(df_filtered)
-    #     r_pearson = df_filtered['t_value_rabies'].corr(df_filtered['t_value_fostrap'], method='pearson')
-    #     r_spearman = df_filtered['t_value_rabies'].corr(df_filtered['t_value_fostrap'], method='spearman')
-    #     if comp != reference_comp:
-    #         z, p = compare_correlations(r_ref, n_ref, r_pearson, n)
-    #         print(f"Comparison: {comp} — Pearson r = {r_pearson:.3f}, Spearman ρ = {r_spearman:.3f}, n = {n}, z = {z:.3f}, p = {p:.4f}")
-    #     else:
-    #         print(f"Comparison: {comp} — Pearson r = {r_pearson:.3f}, Spearman ρ = {r_spearman:.3f}, n = {n} (reference)")
+    for comp in merged_df['comparison'].unique():
+        df_filtered = merged_df[merged_df['comparison'] == comp].dropna(subset=['t_value_rabies', 't_value_fostrap'])
+        n = len(df_filtered)
+        r_pearson = df_filtered['t_value_rabies'].corr(df_filtered['t_value_fostrap'], method='pearson')
+        r_spearman = df_filtered['t_value_rabies'].corr(df_filtered['t_value_fostrap'], method='spearman')
+        if comp != reference_comp:
+            z, p = compare_correlations(r_ref, n_ref, r_pearson, n)
+            print(f"Comparison: {comp} — Pearson r = {r_pearson:.3f}, Spearman ρ = {r_spearman:.3f}, n = {n}, z = {z:.3f}, p = {p:.4f}")
+        else:
+            print(f"Comparison: {comp} — Pearson r = {r_pearson:.3f}, Spearman ρ = {r_spearman:.3f}, n = {n} (reference)")
 
-
-
-
+    vt_df = merged_df[merged_df['comparison'] == 'vanilla vs tmt'].dropna(subset=['t_value_rabies', 't_value_fostrap'])
+    r, p = pearsonr(vt_df['t_value_rabies'], vt_df['t_value_fostrap'])
+    r2 = r**2
+    r_spearman = merged_df['t_value_rabies'].corr(merged_df['t_value_fostrap'], method='spearman')
+    print(f"Pearson R = {r:.3f}")
+    print(f"R² = {r2:.3f}")
+    print(f"p-value = {p:.4e}")
+    print(f"Spearman R = {r_spearman:.3f}")
+    vt_df.to_csv('FosTrapRabiesCorrelations.csv',index=False)
