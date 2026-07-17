@@ -10,6 +10,7 @@
 
 # Input directory
 INPUT_DIR="$1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #Check if the input directory is provided
 if [ -z "$INPUT_DIR" ]; then
@@ -19,16 +20,9 @@ fi
 
 # Find .tar.gz files and submit them for decompression
 find "$INPUT_DIR" -type d | while read -r dir; do
-    # Find all .tar.gz files in the directory
-    tar_files=($(find "$dir" -maxdepth 1 -type f -name "*.tar.gz"))
-    
-    # Check if there are any .tar.gz files
-    if [ ${#tar_files[@]} -gt 0 ]; then
-        for tar_file in "${tar_files[@]}"; do
-            sbatch --export=TAR_FILE="$tar_file" $PWD/decompress_single_dir.sh
-        done
-    fi
+    find "$dir" -maxdepth 1 -type f -name "*.tar.gz" -print0 | while IFS= read -r -d '' tar_file; do
+        sbatch --export=TAR_FILE="$tar_file" "$SCRIPT_DIR/decompress_single_dir.sh"
+    done
 done
-
 
 

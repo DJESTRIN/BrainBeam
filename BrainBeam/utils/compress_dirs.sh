@@ -10,6 +10,7 @@
 
 # Input directory
 INPUT_DIR="$1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #Check if the input directory is provided
 if [ -z "$INPUT_DIR" ]; then
@@ -32,9 +33,8 @@ find "$INPUT_DIR" -type d | while read -r dir; do
         
         # Submit a job if not all files are .tar.gz
         if ! $all_tar_gz; then
-            sbatch --export=DIR="$dir" $PWD/compress_single_dir.sh
+            sbatch --export=DIR="$dir" "$SCRIPT_DIR/compress_single_dir.sh"
         fi
     fi
 done
-
 
