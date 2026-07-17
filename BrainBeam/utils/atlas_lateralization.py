@@ -12,12 +12,10 @@ import os, glob
 import numpy as np
 from skimage.io import imread
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import argparse
 import tqdm
 from joblib import Parallel, delayed
 import pickle
-import ipdb
 
 def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     """ Find mindline plane -- This method utalizes a few key brain regions to 
@@ -27,7 +25,7 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     The default key brain regions are: (1) Caudoputamen, (2) Hippocampus, and (3) Ventral Tegmental Area"""
     
     if len(default_region_keys)<3:
-        raise("The default number of regions needed to find a plane is 3. Please check number of default region keys")
+        raise ValueError("The default number of regions needed to find a plane is 3. Please check number of default region keys")
 
     # Find plane coordinates:
     # Loop over atlas images and find all pixels associated with region of interest
@@ -78,8 +76,14 @@ def find_midline_plane(atlas_path, default_region_keys=[672,749,1089]):
     filtered_list = [item for item in plane_coordinates if item is not None]
     filtered_list = np.asarray(filtered_list)
 
+    if filtered_list.size == 0:
+        raise ValueError("Unable to find any atlas coordinates for the requested midline regions.")
+
     # Extract the unique values in the 4th column
     unique_values = np.unique(filtered_list[:, 3])
+
+    if unique_values.size < 3:
+        raise ValueError("Unable to find at least three unique atlas regions to define a midline plane.")
 
     # Compute the average of columns 1-3 for each unique value in column 4
     averages = []
@@ -225,32 +229,13 @@ def visualize_atlas_plane(atlas_image_directory, OutputDir, coeffs_oh, skip_fact
     # Get all average points
     points=np.asarray(get_all_points(atlas_stack=atlas_ds_new))
 
-    # Calculate the centroid of the points
-    centroid = np.mean(points, axis=0)
-
-    # Center the points around the centroid
-    centered_points = points - centroid
-
-    # Perform Singular Value Decomposition
-    _, _, vh = np.linalg.svd(centered_points)
-
-    # The normal vector of the plane is the last row of vh (right singular vectors)
-    normal = vh[-1]
-
-    # vector1 = hippo - caud
-    # vector2 = vent - caud
-    # normal = np.cross(vector1, vector2)
-    a,b,c = normal
-    d = -np.dot(normal,centroid)
-    coeffs_oh=[a,b,c,d]
-
     # Plot Image stack
     print('Plotting Image Stack ...')
     fig_oh, ax_oh = plot_stack(atlas_array=atlas_ds_new)
 
     # Plot Plane
     print('Plotting Image Stack with Midline plane ...')
-    ax_oh = plot_plane(ax=ax_oh, coeffs=coeffs_oh, atlas_shape=atlas_ds_new.shape, points_oh=points, skip_factor=50)
+    ax_oh = plot_plane(ax=ax_oh, coeffs=coeffs_oh, atlas_shape=atlas_ds_new.shape, points_oh=points, skip_factor=skip_factor_oh)
     
     # Save the Figure as jpg and fig file
     print('Saving figure in jpg and pkl formats...')
@@ -309,8 +294,8 @@ def cli_parser():
     return args
 
 def load_fig(fig):
-    with open(r"C:\Users\listo\tempdrop\AtlasWithPlane.pkl") as f: 
-        loaded_fig=pickle.load(f) 
+    with open(fig, "rb") as f:
+        return pickle.load(f)
 
 if __name__=='__main__':
     args=cli_parser()
