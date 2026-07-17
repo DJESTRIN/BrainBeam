@@ -53,3 +53,24 @@ Portions of this library utalize code from (or are inspired by) the following re
 
 Please cite this git repository as Estrin, D.J., et al., (2025) BrainBeam: A generalized open-source pipeline and gui for analyzing light sheet brain tissue. unpublished if you use any code or intellectual property from it. Thank you!
 
+<h2> <b> Running with Docker </b> </h2>
+
+BrainBeam now includes a root-level `Dockerfile` for reproducible local/standalone execution without manually recreating the Python + system library stack.
+
+Build the image from the repository root:
+
+```bash
+docker build -t brainbeam .
+```
+
+Run the container with a host directory mounted for your raw data and outputs. Keep large lightsheet datasets on the host filesystem rather than copying them into the image:
+
+```bash
+docker run --rm -it -v /path/to/lightsheet-data:/data brainbeam
+```
+
+Inside the container, the BrainBeam source lives at `/opt/brainbeam` and your mounted dataset is available at `/data`. The container intentionally drops you into a shell in the fully provisioned environment because the repository currently contains multiple stage-specific entry scripts rather than one container-safe universal launcher. From that shell you can launch the Python pipeline components you need against the mounted volume.
+
+The Docker image is intentionally focused on the Python image-processing pipeline. The `BrainBeam/statistics` folder contains R / R Markdown analyses, but those are better treated as optional post-processing in a separate R-based environment or companion image rather than bundled into the main runtime image.
+
+Important: the SLURM submission/orchestration scripts (for example the various `*_spinup.sh` files and `pipeline_spinup.sh`) are intended for direct HPC cluster use and are **not** meant to run inside this container. Use the container for the local/standalone execution path, and continue to use the native cluster environment for SLURM-based workflows.
