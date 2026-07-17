@@ -16,12 +16,11 @@ class generate_train_data(object):
     def __init__(self, input_path, output_path,*args):
         #input path contains all channels for a single sample
         #output path should be a folder in storage. 
-        self.input_path=input_path
-        self.output_path=output_path
+        self.input_path=os.path.abspath(input_path)
+        self.output_path=os.path.abspath(output_path)
         
         #Get image list
-        os.chdir(self.input_path)
-        self.image_log=glob.glob('*.tif*')
+        self.image_log=glob.glob(os.path.join(self.input_path,'*.tif*'))
         self.image_log=sorted(self.image_log,key=self.custom_sort)
         
         #Get image properties
@@ -31,13 +30,13 @@ class generate_train_data(object):
         if not args:
             self.forward()
         else:
-            self.forward(list(args))
+            self.forward(*args)
         
     def forward(self,*args):
         if not args:
             self.get_cubes()
         else:
-            self.get_cubes(list(args))
+            self.get_cubes(*args)
         self.make_output_dirs()
         self.grab_cube()
         
@@ -53,22 +52,24 @@ class generate_train_data(object):
             self.cubes=cubes
             
         else:
-            cubes=[]
-            for u in args:
-                cube_oh=u
-                cubes.append(cube_oh)
-                
-            self.cubes=list(cubes)
-            self.cubes=list(self.cubes[0][0][0])
-            print(self.cubes)
+            cubes=list(args)
+            if (
+                len(cubes)==1
+                and isinstance(cubes[0], (list, tuple, np.ndarray))
+                and cubes[0]
+                and isinstance(cubes[0][0], (list, tuple, np.ndarray))
+            ):
+                cubes=list(cubes[0])
+
+            self.cubes=[list(cube_oh) for cube_oh in cubes]
         return
     
     def make_output_dirs(self):
         #Generates a new path for each cube
-        for u in range(15):
-            output_sub=self.output_path+str(u)+"/"
-            if not os.path.exists(output_sub):
-                os.mkdir(output_sub)
+        os.makedirs(self.output_path, exist_ok=True)
+        for u in range(len(self.cubes)):
+            output_sub=os.path.join(self.output_path, str(u))
+            os.makedirs(output_sub, exist_ok=True)
         
     def custom_sort(self,x):
         return int(re.sub(r'[^0-9]','',(os.path.basename(x))))
@@ -77,10 +78,10 @@ class generate_train_data(object):
         filename=x[0]
         cube=x[1]
         output_num=x[2][0]
-        output_path=self.output_path+str(output_num)+"/"
+        output_path=os.path.join(self.output_path, str(output_num))
         image_oh=imread(filename)
         crop_image_oh=image_oh[cube[0]:cube[1],cube[2]:cube[3]]
-        imsave(output_path+filename,crop_image_oh)
+        imsave(os.path.join(output_path, os.path.basename(filename)),crop_image_oh)
         return
 
     def grab_cube(self):

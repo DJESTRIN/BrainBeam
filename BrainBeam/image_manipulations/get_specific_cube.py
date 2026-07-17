@@ -12,18 +12,16 @@ import warnings
 import random
 import argparse
 warnings.filterwarnings("ignore")
-import ipdb
 
 class generate_train_data(object):
     def __init__(self, input_path, output_path,*args):
         #input path contains all channels for a single sample
         #output path should be a folder in storage. 
-        self.input_path=input_path
-        self.output_path=output_path
+        self.input_path=os.path.abspath(input_path)
+        self.output_path=os.path.abspath(output_path)
         
         #Get image list
-        os.chdir(self.input_path)
-        self.image_log=glob.glob('*.tif*')
+        self.image_log=glob.glob(os.path.join(self.input_path,'*.tif*'))
         self.image_log=sorted(self.image_log,key=self.custom_sort)
         
         
@@ -37,7 +35,7 @@ class generate_train_data(object):
         if not args:
             self.get_cubes()
         else:
-            self.get_cubes(list(args))
+            self.get_cubes(*args)
         self.make_output_dirs()
         self.grab_cube()
         
@@ -53,22 +51,24 @@ class generate_train_data(object):
             self.cubes=cubes
             
         else:
-            cubes=[]
-            for u in range(0,len(args)):
-                cube_oh=args[u]
-                cubes.append(cube_oh)
-              
-            self.cubes=list(cubes)
-            self.cubes=list(self.cubes[0][0])
-            print(self.cubes)
+            cubes=list(args)
+            if (
+                len(cubes)==1
+                and isinstance(cubes[0], (list, tuple, np.ndarray))
+                and cubes[0]
+                and isinstance(cubes[0][0], (list, tuple, np.ndarray))
+            ):
+                cubes=list(cubes[0])
+
+            self.cubes=[list(cube_oh) for cube_oh in cubes]
         return
     
     def make_output_dirs(self):
         #Generates a new path for each cube
-        for u in range(15):
-            output_sub=self.output_path+str(u)+"/"
-            if not os.path.exists(output_sub):
-                os.mkdir(output_sub)
+        os.makedirs(self.output_path, exist_ok=True)
+        for u in range(len(self.cubes)):
+            output_sub=os.path.join(self.output_path, str(u))
+            os.makedirs(output_sub, exist_ok=True)
         
     def custom_sort(self,x):
         return int(re.sub(r'[^0-9]','',(os.path.basename(x))))
@@ -77,10 +77,10 @@ class generate_train_data(object):
         filename=x[0]
         cube=x[1]
         output_num=x[2][0]
-        output_path=self.output_path+str(output_num)+"/"
+        output_path=os.path.join(self.output_path, str(output_num))
         image_oh=imread(filename)
         crop_image_oh=image_oh[cube[0]:cube[1],cube[2]:cube[3]]
-        imsave(output_path+filename,crop_image_oh)
+        imsave(os.path.join(output_path, os.path.basename(filename)),crop_image_oh)
         return
 
     def grab_cube(self):
@@ -105,7 +105,7 @@ class generate_train_data(object):
         output_path=x[1]
         image_oh=np.array(imread(filename))
         ds_image_oh=zoom(image_oh,(0.08,0.08))
-        imsave(output_path+str(x[2])+".tif",ds_image_oh)
+        imsave(os.path.join(output_path,f"{x[2]}.tif"),ds_image_oh)
         return
     
     def custom_sort_ds(self,x):
@@ -121,8 +121,7 @@ class generate_train_data(object):
             p.map(self.parrallel_downsample,inputs)
         
         # Load in semi final image stack
-        os.chdir(self.output_path)
-        self.output_image_log=glob.glob('*.tif*')
+        self.output_image_log=glob.glob(os.path.join(self.output_path,'*.tif*'))
         self.output_image_log=sorted(self.output_image_log,key=self.custom_sort_ds)
         self.image_stack=[]
         for image in self.output_image_log:
@@ -138,27 +137,19 @@ class generate_train_data(object):
         
         #Write image stack to outputpath
         for i,filename in enumerate(self.output_image_log):
-            imsave(self.output_path+str(i)+'.tif',self.image_stack[i])
+            imsave(os.path.join(self.output_path,f'{i}.tif'),self.image_stack[i])
             if (i+1)==self.image_stack.shape[0]:
                 break
             
         return
     
-    
-if __name__=="__main__":
-    input_path='/athena/listonlab/scratch/dje4001/rabies_cort_experimental/lightsheet/stitched/20220926_17_49_34_CAGE4094795_ANIMAL01_VIRUSRABIES_CORTEXPERIMENTAL/Ex_647_Em_680/'
-    output_path='/athena/listonlab/scratch/dje4001/rabies_cort_experimental/lightsheet/christine_poster/20220926_17_49_34_CAGE4094795_ANIMAL01_VIRUSRABIES_CORTEXPERIMENTAL/'
-    ### Double check x and y is correct. ImageJ x equals this script's y.
-    data=generate_train_data(input_path,output_path,[7300,7600,632,7104,0,4080])
-    data.forward([7300,7600,632,7104,0,4080])
-
-
-# parser=argparse.ArgumentParser()
-# parser.add_argument("--input_path",type=str,required=True)
-# parser.add_argument("--output_path",type=str,required=True)
+parser=argparse.ArgumentParser()
+parser.add_argument("--input_path",type=str,required=True)
+parser.add_argument("--output_path",type=str,required=True)
+parser.add_argument("--cube", type=int, nargs=6, action='append', required=True,
+                    metavar=('X_START', 'X_STOP', 'Y_START', 'Y_STOP', 'Z_START', 'Z_STOP'))
    
-# if __name__=="__main__":
-#     args=parser.parse_args()
-#     generate_train_data(args.input_path,args.output_path)
-   # thresh2 = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-    #                                      cv2.THRESH_BINARY, 199, 5)
+if __name__=="__main__":
+    args=parser.parse_args()
+    data=generate_train_data(args.input_path,args.output_path)
+    data.forward(*args.cube)
