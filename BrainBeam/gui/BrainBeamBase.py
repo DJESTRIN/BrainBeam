@@ -12,11 +12,33 @@ import json
 from BrainBeamCLI import API, PipelineError
 
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
+ctk.set_appearance_mode("System")
+
+# Shared style constants for a consistent, professional look across all tabs.
+FONT_TITLE = ("Segoe UI", 22, "bold")
+FONT_SECTION = ("Segoe UI", 16, "bold")
+FONT_BODY = ("Segoe UI", 13)
+FONT_BUTTON = ("Segoe UI", 13, "bold")
+FONT_STATUS = ("Segoe UI", 12)
+COLOR_SUCCESS = "#2FA84F"
+COLOR_ERROR = "#D64545"
+COLOR_RUNNING = "#E0972F"
+COLOR_MUTED = "gray55"
+SECONDARY_BUTTON = {"fg_color": "gray35", "hover_color": "gray25"}
 
 class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
-        self.root.geometry("1250x900+500+100")
+        self.root.title("BrainBeam Pipeline Manager")
+        self._set_initial_geometry()
+        self.root.minsize(1000, 650)
+        gui_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(gui_dir, "images", "brain.ico")
+        if os.path.exists(icon_path) and os.path.getsize(icon_path) > 0:
+            try:
+                self.root.iconbitmap(icon_path)
+            except tk.TclError:
+                pass
         self.wd=os.getcwd()
         self.index=0
         #self.root.overrideredirect(True)
@@ -26,13 +48,15 @@ class BrainBeamGuiBase():
         self.sidebar_frame = ctk.CTkFrame(self.root, width=180, height=1000, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_title = ctk.CTkLabel(self.sidebar_frame, text="BrainBeam", font=FONT_TITLE)
+        self.sidebar_title.place(relx=0.5, rely=0.12, anchor='n')
         #self.copybutton=ctk.CTkButton(master=self.sidebar_frame,text="Start by Adding \n Lightsheet Data", width = 20,font=('Arial',15,'bold'),command=self.copydata).place(relx=0.85,rely=0.25,anchor='e')
     
         #Set up radio buttons
         self.set_up_radio_buttons()
         
         # Set up Tab page
-        self.tabview = ctk.CTkTabview(self.root, width=1000,height=800)
+        self.tabview = ctk.CTkTabview(self.root, width=self.tab_width,height=self.tab_height)
         self.tabview.place(relx=0.57, rely=0.49, anchor=tk.CENTER)
         self.tabview.add("Overview")
         self.tabview.add("Copy, Move & Compress")
@@ -52,6 +76,22 @@ class BrainBeamGuiBase():
         self.set_up_registration()
         self.set_up_segmentation()
 
+    def _set_initial_geometry(self):
+        #Size the window to fit comfortably on the current screen (falls back to a
+        #sensible default on very small displays) instead of always opening at a fixed
+        #1250x900, which could be too large for laptop screens or off-center on others.
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        width = min(1250, int(screen_w * 0.9))
+        height = min(900, int(screen_h * 0.9))
+        x = max(0, (screen_w - width) // 2)
+        y = max(0, (screen_h - height) // 2)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        # Reserve room for the sidebar so the tabview itself scales with the window
+        # instead of always requesting a fixed 1000x800, which would clip on smaller screens.
+        self.tab_width = max(700, width - 220)
+        self.tab_height = max(500, height - 80)
+
     def get_project_file_path(self):
         if self.projectfiledir.endswith('.json'):
             return self.projectfiledir
@@ -59,11 +99,11 @@ class BrainBeamGuiBase():
 
     def set_up_overview(self):
         #Set log image
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Create Project",font=("Arial",15,'bold'),command=self.set_up_project)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Create Project",font=FONT_BUTTON,command=self.set_up_project)
         self.webbtn.place(relx=0.01,rely=0.01)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Open Project",font=("Arial",15,'bold'),command=self.open_project)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Open Project",font=FONT_BUTTON,command=self.open_project)
         self.webbtn.place(relx=0.17,rely=0.01)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Import New Data to Project",font=("Arial",15,'bold'),command=self.AddNewData)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Overview"),text="Import New Data to Project",font=FONT_BUTTON,command=self.AddNewData)
         self.webbtn.place(relx=0.33,rely=0.01)
 
     def open_project(self):
@@ -144,43 +184,60 @@ class BrainBeamGuiBase():
         except AttributeError:
             self.all_overview_images=[]
 
+        # Load status icons (falls back to colored text symbols if an icon asset is missing,
+        # so the overview table never crashes even if images are unavailable).
+        gui_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_files={'pending':'pending.png','complete':'complete.png','error':'error.png','running':'running.png'}
+        status_icons={}
+        for status,filename in icon_files.items():
+            icon_path=os.path.join(gui_dir,"images",filename)
+            status_icons[status]=ctk.CTkImage(Image.open(icon_path),size=(20,20)) if os.path.exists(icon_path) else None
+        nextstep_path=os.path.join(gui_dir,"images","nextstep.png")
+        nextstep_icon=ctk.CTkImage(Image.open(nextstep_path),size=(15,7)) if os.path.exists(nextstep_path) else None
+        status_symbols={'pending':('\u25cb',COLOR_MUTED),'complete':('\u2714',COLOR_SUCCESS),'error':('\u2716',COLOR_ERROR),'running':('\u25f4',COLOR_RUNNING)}
+
         row_oh=1
-        status_symbols={'pending':('\u25cb','gray60'),'complete':('\u2714','green'),'error':('\u2716','red'),'running':('\u25f4','orange')}
         for sample in self.overviewdict:
             dict_oh=self.overviewdict[sample]
             for key,value in dict_oh.items():
-                #Determine display symbol/color for this status value
-                symbol,color=status_symbols.get(value,('?','gray60'))
+                #Determine display icon (or fallback symbol/color) for this status value
+                icon=status_icons.get(value)
+                symbol,color=status_symbols.get(value,('?',COLOR_MUTED))
+
+                def make_status_label(icon=icon,symbol=symbol,color=color):
+                    if icon is not None:
+                        return ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=icon)
+                    return ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10)
 
                 #generate status label
+                label=None
                 if key=='samplename':
-                    label=ctk.CTkLabel(self.overview_frame, text=value, font=('Arial',10,'bold')).grid(row=row_oh,column=1)
+                    label=ctk.CTkLabel(self.overview_frame, text=value, font=('Arial',10,'bold'))
+                    label.grid(row=row_oh,column=1)
                 if key=='Imported':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=3)
+                    label=make_status_label(); label.grid(row=row_oh,column=3)
                 if key=='Copied':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=5)
+                    label=make_status_label(); label.grid(row=row_oh,column=5)
                 if key=='Moved':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=7)
+                    label=make_status_label(); label.grid(row=row_oh,column=7)
                 if key=='Compressed':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=9)
+                    label=make_status_label(); label.grid(row=row_oh,column=9)
                 if key=='Converted':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=11)
+                    label=make_status_label(); label.grid(row=row_oh,column=11)
                 if key=='Denoise':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=13)
+                    label=make_status_label(); label.grid(row=row_oh,column=13)
                 if key=='Stitch':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=15)
+                    label=make_status_label(); label.grid(row=row_oh,column=15)
                 if key=='Registration':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=17)
+                    label=make_status_label(); label.grid(row=row_oh,column=17)
                 if key=='Segmentation':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=19)
+                    label=make_status_label(); label.grid(row=row_oh,column=19)
                 if key=='Custom Script':
-                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=21)
+                    label=make_status_label(); label.grid(row=row_oh,column=21)
 
                 #Put labels in a common list
-                try:
+                if label is not None:
                     self.all_overview_images.append(label)
-                except:
-                    continue
             row_oh+=1
 
         for row_oh in range(len(self.overviewdict)):
@@ -188,8 +245,12 @@ class BrainBeamGuiBase():
                 if ( i % 2 ) == 0: 
                     if i==0 or i==2:
                         continue
-                    self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="\u2192", height=10, width=10).grid(row=row_oh+1,column=i)
-     
+                    if nextstep_icon is not None:
+                        arrow_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=nextstep_icon)
+                    else:
+                        arrow_label = ctk.CTkLabel(self.overview_frame, text="\u2192", height=10, width=10)
+                    arrow_label.grid(row=row_oh+1,column=i)
+
 
     def set_up_overview_headers(self):
         if hasattr(self, 'overview_frame'):
@@ -258,21 +319,21 @@ class BrainBeamGuiBase():
     def run_backend_action(self,status_label,action_name,action,target_path=None):
         #Runs a BrainBeamCLI.API call on a background thread so the GUI does not freeze,
         #then marshals the status label update and overview sync back onto the Tkinter main thread.
-        def update_label(text):
-            self.root.after(0,lambda: status_label.configure(text=text))
+        def update_label(text,color):
+            self.root.after(0,lambda: status_label.configure(text=text,text_color=color))
         def sync_status(status):
             if target_path:
                 self.root.after(0,lambda: self.update_sample_status(target_path,action_name,status))
         def worker():
-            update_label(f"{action_name}: running...")
+            update_label(f"{action_name}: running...",COLOR_RUNNING)
             sync_status('running')
             try:
                 api=API(self.get_computertype())
                 action(api)
-                update_label(f"{action_name}: complete.")
+                update_label(f"{action_name}: complete.",COLOR_SUCCESS)
                 sync_status('complete')
             except (PipelineError, NotImplementedError, ValueError, FileNotFoundError) as e:
-                update_label(f"{action_name} failed: {e}")
+                update_label(f"{action_name} failed: {e}",COLOR_ERROR)
                 sync_status('error')
         threading.Thread(target=worker,daemon=True).start()
 
@@ -290,14 +351,14 @@ class BrainBeamGuiBase():
         self.copy_input_entry.place(relx=0.01,rely=0.15)
         self.copy_output_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Output folder where Input folder's data will be copied to.")
         self.copy_output_entry.place(relx=0.01,rely=0.2)
-        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Copy Data to Another Folder",font=("Arial",15,'bold')).place(relx=0.01,rely=0.11)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.copy_input_entry,'Select folder to copy'))
+        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Copy Data to Another Folder",font=FONT_SECTION,text_color=("gray10","gray90")).place(relx=0.01,rely=0.11)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.copy_input_entry,'Select folder to copy'))
         self.webbtn.place(relx=0.65,rely=0.15)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.copy_output_entry,'Select destination folder'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.copy_output_entry,'Select destination folder'))
         self.webbtn.place(relx=0.65,rely=0.2)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Copying",font=("Arial",15,'bold'),command=self.start_copy)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Copying",font=FONT_BUTTON,command=self.start_copy)
         self.webbtn.place(relx=0.82,rely=0.15)
-        self.copy_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.copy_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=FONT_STATUS)
         self.copy_status_label.place(relx=0.01,rely=0.24)
 
         #Move Data
@@ -305,40 +366,40 @@ class BrainBeamGuiBase():
         self.move_input_entry.place(relx=0.01,rely=0.3)
         self.move_output_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Output folder where Input folder's data will be Moved to.")
         self.move_output_entry.place(relx=0.01,rely=0.35)
-        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Move Data to Another Folder",font=("Arial",15,'bold')).place(relx=0.01,rely=0.26)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.move_input_entry,'Select folder to move'))
+        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Move Data to Another Folder",font=FONT_SECTION,text_color=("gray10","gray90")).place(relx=0.01,rely=0.26)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.move_input_entry,'Select folder to move'))
         self.webbtn.place(relx=0.65,rely=0.3)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.move_output_entry,'Select destination folder'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.move_output_entry,'Select destination folder'))
         self.webbtn.place(relx=0.65,rely=0.35)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Moving",font=("Arial",15,'bold'),command=self.start_move)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Moving",font=FONT_BUTTON,command=self.start_move)
         self.webbtn.place(relx=0.82,rely=0.3)
-        self.move_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.move_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=FONT_STATUS)
         self.move_status_label.place(relx=0.01,rely=0.39)
 
         #compress data
         self.compress_input_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be Compressed.")
         self.compress_input_entry.place(relx=0.01,rely=0.45)
-        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Compress Folder to tar.gz format",font=("Arial",15,'bold')).place(relx=0.01,rely=0.41)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.compress_input_entry,'Select folder to compress'))
+        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Compress Folder to tar.gz format",font=FONT_SECTION,text_color=("gray10","gray90")).place(relx=0.01,rely=0.41)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.compress_input_entry,'Select folder to compress'))
         self.webbtn.place(relx=0.65,rely=0.45)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Compressing",font=("Arial",15,'bold'),command=self.start_compress)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Compressing",font=FONT_BUTTON,command=self.start_compress)
         self.webbtn.place(relx=0.82,rely=0.45)
-        self.compress_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.compress_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=FONT_STATUS)
         self.compress_status_label.place(relx=0.01,rely=0.49)
 
         #Decompress data
         self.decompress_input_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing .tar.gz archives which will be Decompressed")
         self.decompress_input_entry.place(relx=0.01,rely=0.55)
-        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Decompress tar.gz archives",font=("Arial",15,'bold')).place(relx=0.01,rely=0.51)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.decompress_input_entry,'Select folder containing .tar.gz archives'))
+        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Decompress tar.gz archives",font=FONT_SECTION,text_color=("gray10","gray90")).place(relx=0.01,rely=0.51)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.decompress_input_entry,'Select folder containing .tar.gz archives'))
         self.webbtn.place(relx=0.65,rely=0.55)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Decompressing",font=("Arial",15,'bold'),command=self.start_decompress)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Decompressing",font=FONT_BUTTON,command=self.start_decompress)
         self.webbtn.place(relx=0.82,rely=0.55)
-        self.decompress_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.decompress_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=FONT_STATUS)
         self.decompress_status_label.place(relx=0.01,rely=0.59)
 
         #Check processes
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Check status of code",font=("Arial",15,'bold'),command=self.select_folder,state=tk.DISABLED)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Check status of code",font=FONT_BUTTON,command=self.select_folder,state=tk.DISABLED)
         self.webbtn.place(relx=0.4,rely=0.75)
 
     def start_copy(self):
@@ -379,11 +440,11 @@ class BrainBeamGuiBase():
         self.textbox_denoise.place(relx=0.0005,rely=0.01)
         self.denoise_scratch_entry = ctk.CTkEntry(self.tabview.tab("Denoise"), width=600, placeholder_text="Scratch directory containing lightsheet/raw/<sample> folders.")
         self.denoise_scratch_entry.place(relx=0.01,rely=0.25)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Denoise"),text="Find Scratch Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.denoise_scratch_entry,'Select scratch directory'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Denoise"),text="Find Scratch Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.denoise_scratch_entry,'Select scratch directory'))
         self.webbtn.place(relx=0.65,rely=0.25)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Denoise"),text="Start Denoising",font=("Arial",15,'bold'),command=self.start_denoise)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Denoise"),text="Start Denoising",font=FONT_BUTTON,command=self.start_denoise)
         self.webbtn.place(relx=0.4,rely=0.35)
-        self.denoise_status_label = ctk.CTkLabel(self.tabview.tab("Denoise"),text="",font=("Arial",11))
+        self.denoise_status_label = ctk.CTkLabel(self.tabview.tab("Denoise"),text="",font=FONT_STATUS)
         self.denoise_status_label.place(relx=0.01,rely=0.42)
 
     def start_denoise(self):
@@ -401,14 +462,14 @@ class BrainBeamGuiBase():
         self.textbox_stitch.place(relx=0.0005,rely=0.01)
         self.stitch_scratch_entry = ctk.CTkEntry(self.tabview.tab("Stitch"), width=600, placeholder_text="Scratch directory containing lightsheet/destriped/<sample> folders.")
         self.stitch_scratch_entry.place(relx=0.01,rely=0.25)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Stitch"),text="Find Scratch Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.stitch_scratch_entry,'Select scratch directory'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Stitch"),text="Find Scratch Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.stitch_scratch_entry,'Select scratch directory'))
         self.webbtn.place(relx=0.65,rely=0.25)
         self.stitch_chain_var = tk.BooleanVar(value=False)
         self.stitch_chain_checkbox = ctk.CTkCheckBox(self.tabview.tab("Stitch"),text="Auto-chain to next stage (SLURM only)",variable=self.stitch_chain_var)
         self.stitch_chain_checkbox.place(relx=0.01,rely=0.32)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Stitch"),text="Start Stitching",font=("Arial",15,'bold'),command=self.start_stitch)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Stitch"),text="Start Stitching",font=FONT_BUTTON,command=self.start_stitch)
         self.webbtn.place(relx=0.4,rely=0.4)
-        self.stitch_status_label = ctk.CTkLabel(self.tabview.tab("Stitch"),text="",font=("Arial",11))
+        self.stitch_status_label = ctk.CTkLabel(self.tabview.tab("Stitch"),text="",font=FONT_STATUS)
         self.stitch_status_label.place(relx=0.01,rely=0.47)
 
     def start_stitch(self):
@@ -427,25 +488,25 @@ class BrainBeamGuiBase():
         self.textbox_registration.place(relx=0.0005,rely=0.01)
         self.registration_image_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Path to stitched image (LOCAL) or parent image folder (SLURM).")
         self.registration_image_entry.place(relx=0.01,rely=0.2)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Image Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_image_entry,'Select image path'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Image Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.registration_image_entry,'Select image path'))
         self.webbtn.place(relx=0.65,rely=0.2)
         self.registration_output_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Output path for registration results.")
         self.registration_output_entry.place(relx=0.01,rely=0.28)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Output Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_output_entry,'Select output path'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Output Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.registration_output_entry,'Select output path'))
         self.webbtn.place(relx=0.65,rely=0.28)
         self.registration_atlas_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Atlas path (LOCAL, optional - default atlas used if left empty).")
         self.registration_atlas_entry.place(relx=0.01,rely=0.36)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Atlas Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_atlas_entry,'Select atlas path'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Atlas Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.registration_atlas_entry,'Select atlas path'))
         self.webbtn.place(relx=0.65,rely=0.36)
         self.registration_segmentation_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Parent segmentation path (required for SLURM batch registration).")
         self.registration_segmentation_entry.place(relx=0.01,rely=0.44)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Segmentation Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_segmentation_entry,'Select parent segmentation path'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Segmentation Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.registration_segmentation_entry,'Select parent segmentation path'))
         self.webbtn.place(relx=0.65,rely=0.44)
         self.registration_conda_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Conda environment name (required for SLURM batch registration).")
         self.registration_conda_entry.place(relx=0.01,rely=0.52)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Start Registering",font=("Arial",15,'bold'),command=self.start_register)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Start Registering",font=FONT_BUTTON,command=self.start_register)
         self.webbtn.place(relx=0.4,rely=0.6)
-        self.registration_status_label = ctk.CTkLabel(self.tabview.tab("Registration"),text="",font=("Arial",11))
+        self.registration_status_label = ctk.CTkLabel(self.tabview.tab("Registration"),text="",font=FONT_STATUS)
         self.registration_status_label.place(relx=0.01,rely=0.67)
 
     def start_register(self):
@@ -472,15 +533,15 @@ class BrainBeamGuiBase():
         self.textbox_segmentation.place(relx=0.0005,rely=0.01)
         self.segmentation_scratch_entry = ctk.CTkEntry(self.tabview.tab("Segmentation"), width=600, placeholder_text="Scratch directory containing lightsheet/stitched/<sample> folders.")
         self.segmentation_scratch_entry.place(relx=0.01,rely=0.25)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Find Scratch Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.segmentation_scratch_entry,'Select scratch directory'))
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Find Scratch Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.segmentation_scratch_entry,'Select scratch directory'))
         self.webbtn.place(relx=0.65,rely=0.25)
         self.segmentation_ilastik_entry = ctk.CTkEntry(self.tabview.tab("Segmentation"), width=600, placeholder_text="Ilastik project file (.ilp) - required for LOCAL.")
         self.segmentation_ilastik_entry.place(relx=0.01,rely=0.33)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Find .ilp File",font=("Arial",15,'bold'),command=self.select_ilastik_file)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Find .ilp File",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=self.select_ilastik_file)
         self.webbtn.place(relx=0.65,rely=0.33)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Start Segmenting",font=("Arial",15,'bold'),command=self.start_segment)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Start Segmenting",font=FONT_BUTTON,command=self.start_segment)
         self.webbtn.place(relx=0.4,rely=0.43)
-        self.segmentation_status_label = ctk.CTkLabel(self.tabview.tab("Segmentation"),text="",font=("Arial",11))
+        self.segmentation_status_label = ctk.CTkLabel(self.tabview.tab("Segmentation"),text="",font=FONT_STATUS)
         self.segmentation_status_label.place(relx=0.01,rely=0.5)
 
     def select_ilastik_file(self):
@@ -521,7 +582,7 @@ class BrainBeamGuiBase():
         self.runbutton.place(relx=0.6,rely=0.91)
         self.registerbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Register Custom Script to Overview",width =8,command=self.register_custom_script)
         self.registerbutton.place(relx=0.2,rely=0.91)
-        self.custom_status_label = ctk.CTkLabel(self.tabview.tab("Custom Script"),text="",font=("Arial",11))
+        self.custom_status_label = ctk.CTkLabel(self.tabview.tab("Custom Script"),text="",font=FONT_STATUS)
         self.custom_status_label.place(relx=0.2,rely=0.96)
 
     def start_custom_script(self):
@@ -555,17 +616,19 @@ class BrainBeamGuiBase():
         self.radio_button_3.place(relx=0.68,rely=0.27,anchor='e')
     
     def call_logo(self):
-        #Set log image. Path is computed relative to this file so the GUI works
-        #regardless of the directory it was launched from.
+        #Set logo image. Path is computed relative to this file so the GUI works
+        #regardless of the directory it was launched from. Falls back gracefully if the
+        #image asset is ever missing, rather than crashing the whole GUI on startup.
         gui_dir = os.path.dirname(os.path.abspath(__file__))
-        image_path = os.path.join(gui_dir, "images", "logo2.PNG")
-        self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
-
+        image_path = os.path.join(gui_dir, "images", "BBlogoV1.png")
         self.navigation_frame = ctk.CTkFrame(self.root, corner_radius=0,width=180,height=95)
         self.navigation_frame.place(relx=0,rely=0.05)
         self.navigation_frame.grid_rowconfigure(4, weight=1)
-
-        self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="", height=10,width=100, image=self.logo_image)
+        if os.path.exists(image_path):
+            self.logo_image = ctk.CTkImage(Image.open(image_path), size=(160, 90))
+            self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="", height=10,width=100, image=self.logo_image)
+        else:
+            self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="BrainBeam", font=FONT_SECTION)
         self.navigation_frame_label.place(relx=0,rely=0.05)
 
     def __call__(self):

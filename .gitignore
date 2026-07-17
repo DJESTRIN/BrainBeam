@@ -15,3 +15,7 @@ BrainBeam.egg-info/
 *.jpeg
 *.png
 *.pdf
+# Allow GUI application image assets (logo, icons, status indicators) even though
+# generated output figures elsewhere in the repo (e.g. statistics plots) are ignored above.
+!BrainBeam/gui/images/*.png
+!BrainBeam/gui/images/*.PNG
