@@ -1,8 +1,14 @@
 #!/bin/bash
-source=$1
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <source> <project> <destination>"
+    exit 1
+fi
+
+source_path=$1
 project=$2
 destination=$3
 
 drop=$destination/$project
 
-rsync -var $source $drop
+mkdir -p "$drop"
+rsync -var -- "$source_path" "$drop"
