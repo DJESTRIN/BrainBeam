@@ -13,8 +13,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import ttest_ind
+import ipdb
 
-def plot_mPFC_vs_brain(df, directory):
+def plot_mPFC_vs_brain(df, counttype, directory):
+    df = df.copy()
     # --- Define region categories ---
     mpfc_substrings = ["cingulate", "prelimbic", "infralimbic"]
 
@@ -27,11 +29,24 @@ def plot_mPFC_vs_brain(df, directory):
     ]
 
     canonical_threat = {
-        "Amygdala": ["amyg"],
-        "PAG": ["periaqueduct"],
-        "Hypothalamus": ["hypothal"],
-        "BNST": ["bed nucl"]
-    }
+    "Amygdala": ["amyg"],
+    "Hypothalamus": ["hypothal"], 
+    "BNST": ["bed nucl"],
+    "PAG": ["periaqueduct"],
+    "Superior Colliculus": ["collic"],
+    "Thalamus": ["thalamus"], 
+    "Septum": ["sept"],
+    "Insula": ["insula"],
+    "Stria Terminalis": ["stria term"],
+    "Hippocampus": ["hippocamp"],
+    "Entorhinal Cortex": ["entorhin"],
+    "Olfactory Regions": ["olfact"],
+    "Nucleus Accumbens": ["accumb"],
+    "Habenula": ["haben"],
+    "Raphe Nuclei": ["raphe"],
+    "Locus Coeruleus": ["locus coer"],
+    "Ventral Tegmental Area": ["ventral tegmental", "VTA"],
+    "Parabrachial Nucleus": ["parabrach"]}
 
     # Identify mPFC and threat-associated regions
     df['is_mPFC'] = df['regionname'].str.lower().apply(
@@ -50,17 +65,17 @@ def plot_mPFC_vs_brain(df, directory):
         sub_df = df[mask & (df['group'] == 'tmt')]
         if sub_df.empty:
             return np.nan, np.nan
-        sub_sum = sub_df.groupby('suid')['normalizedcount'].sum().reset_index()
-        return mean_sem(sub_sum['normalizedcount'])
+        sub_sum = sub_df.groupby('suid')[counttype].sum().reset_index()
+        return mean_sem(sub_sum[counttype])
 
     def subject_region_avg(df, mask):
         """Aggregate per subject (average across regions), then compute mean ± SEM."""
         sub_df = df[mask & (df['group'] == 'tmt')]
         if sub_df.empty:
             return np.nan, np.nan
-        subj_means = sub_df.groupby(['suid', 'regionname'])['normalizedcount'].mean().reset_index()
-        subj_avg = subj_means.groupby('suid')['normalizedcount'].mean().reset_index()
-        return mean_sem(subj_avg['normalizedcount'])
+        subj_means = sub_df.groupby(['suid', 'regionname'])[counttype].mean().reset_index()
+        subj_avg = subj_means.groupby('suid')[counttype].mean().reset_index()
+        return mean_sem(subj_avg[counttype])
 
     # --- mPFC (sum of subregions) ---
     mpfc_mean, mpfc_sem = subject_sum(df, df['is_mPFC'])
@@ -72,8 +87,8 @@ def plot_mPFC_vs_brain(df, directory):
     sig_regions = []
     for region in df['regionname'].unique():
         region_data = df[df['regionname'] == region]
-        tmt_vals = region_data[region_data['group'] == 'tmt']['normalizedcount']
-        water_vals = region_data[region_data['group'] == 'water']['normalizedcount']
+        tmt_vals = region_data[region_data['group'] == 'tmt'][counttype]
+        water_vals = region_data[region_data['group'] == 'water'][counttype]
         if len(tmt_vals) > 1 and len(water_vals) > 1:
             _, p_val = ttest_ind(tmt_vals, water_vals, equal_var=False)
             if p_val < 0.05:
@@ -91,47 +106,75 @@ def plot_mPFC_vs_brain(df, directory):
         canonical_means.append(m)
         canonical_sems.append(s)
 
-    # --- Combine into plotting dataframe ---
-    plot_data = pd.DataFrame({
-        'Category': [
-            'mPFC TMT',
-            'All Other Regions TMT',
-            'Significant Other Regions TMT',
-            'Threat-Associated Regions TMT'
-        ] + list(canonical_threat.keys()),
-        'Mean': [
-            mpfc_mean,
-            all_other_mean,
-            sig_other_mean,
-            threat_mean
-        ] + canonical_means,
-        'SEM': [
-            mpfc_sem,
-            all_other_sem,
-            sig_other_sem,
-            threat_sem
-        ] + canonical_sems
+    # --- Build canonical-only dataframe ---
+    canonical_df = pd.DataFrame({
+        'Region': list(canonical_threat.keys()),
+        'Mean': canonical_means,
+        'SEM': canonical_sems
     })
 
-    # Save plotting data as csv file
-    csvfilename = os.path.join(directory,'mPFCvsBrain.csv')
-    plot_data.to_csv(csvfilename)
+    # Add mPFC to this table
+    mpfc_row = pd.DataFrame({
+        'Region': ['mPFC'],
+        'Mean': [mpfc_mean],
+        'SEM': [mpfc_sem]
+    })
 
-    # --- Plot ---
-    plt.figure(figsize=(12,6))
+    canonical_with_mpfc = pd.concat([mpfc_row, canonical_df], ignore_index=True)
+
+
+    # ============================
+    #  Plot 1: mPFC vs Threat-Associated Average
+    # ============================
+
+    plot1_df = pd.DataFrame({
+        'Category': ['mPFC', 'Threat-Associated (Avg)'],
+        'Mean': [mpfc_mean, threat_mean],
+        'SEM': [mpfc_sem, threat_sem]
+    })
+
+    # Sort high → low mean
+    plot1_df = plot1_df.sort_values('Mean', ascending=False)
+
+    plt.figure(figsize=(6,5))
     plt.bar(
-        x=np.arange(len(plot_data)),
-        height=plot_data['Mean'],
-        yerr=plot_data['SEM'],
+        x=np.arange(len(plot1_df)),
+        height=plot1_df['Mean'],
+        yerr=plot1_df['SEM'],
         capsize=5,
-        color=sns.color_palette("muted", len(plot_data)),
+        color=sns.color_palette("muted", len(plot1_df)),
         edgecolor='black'
     )
-    plt.xticks(np.arange(len(plot_data)), plot_data['Category'], rotation=30, ha='right')
+    plt.xticks(np.arange(len(plot1_df)), plot1_df['Category'], rotation=20, ha='right')
     plt.ylabel('Normalized Cell Count')
-    plt.title('mPFC vs Other Brain Regions: TMT Response')
+    plt.title('TMT Activation: mPFC vs Threat-Associated Average (Rank Ordered)')
     plt.tight_layout()
-    plt.savefig('amygthreateval_with_canonical.jpg')
+    plt.savefig(os.path.join(directory, 'Plot1_mPFC_vs_ThreatAverage.jpg'))
     plt.close()
 
-    return plot_data
+
+    # ============================
+    #  Plot 2: mPFC vs Canonical Threat Regions (rank ordered)
+    # ============================
+
+    # Sort high → low mean
+    plot2_df = canonical_with_mpfc.sort_values('Mean', ascending=False)
+
+    plt.figure(figsize=(10,6))
+    plt.bar(
+        x=np.arange(len(plot2_df)),
+        height=plot2_df['Mean'],
+        yerr=plot2_df['SEM'],
+        capsize=5,
+        color=sns.color_palette("muted", len(plot2_df)),
+        edgecolor='black'
+    )
+    plt.xticks(np.arange(len(plot2_df)), plot2_df['Region'], rotation=30, ha='right')
+    plt.ylabel('Normalized Cell Count')
+    plt.title('TMT Activation: mPFC vs Individual Threat-Associated Regions (Rank Ordered)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(directory, 'Plot2_mPFC_vs_CanonicalThreatRegions.jpg'))
+    plt.close()
+
+
+    return 
