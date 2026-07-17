@@ -12,14 +12,11 @@ code_dir=$1
 ilastik_input_dir=$2
 
 # Go to code directory
-cd $code_dir
+cd "$code_dir"
 
 # Get all slice folders in dir
-slicesdirs=$( find $ilastik_input_dir -type d -name '*slice*' )
-
-# Loop over slice folders and pass to ilastik bash script
-for slicefolder in $slicesdirs; do
-    echo $slicefolder
+while IFS= read -r -d '' slicefolder; do
+    echo "$slicefolder"
     sbatch --job-name=compress_ilastik \
         --mem=10G \
         --ntasks=1 \
@@ -27,7 +24,6 @@ for slicefolder in $slicesdirs; do
         --mail-type=BEGIN,END,FAIL \
         --mail-user=dje4001@med.cornell.edu \
         --wrap="bash ./compress_ilastik.sh '$code_dir' '$slicefolder'"
-
-done
+done < <(find "$ilastik_input_dir" -type d -name '*slice*' -print0)
 
 exit 

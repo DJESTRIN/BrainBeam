@@ -1,23 +1,25 @@
 #!/bin/bash
 project_file=$1
 inputdir=$2
-cd $inputdir
-subdirs=$( find $PWD -type d -name '*_*' )
+cd "$inputdir"
 
-for sd in $subdirs; do
-	npfile=$( find $sd -type f -name '*npy*' )
+while IFS= read -r -d '' sd; do
+	npfile=$(find "$sd" -type f \( -name '*.npy' -o -name '*.npz' \) -print -quit)
 
 	if [ -z "${npfile}" ]; then
-		string="/image*.tiff"
-		found_stack="$sd$string"
-		echo "$found_stack"
+		mapfile -d '' stack_files < <(find "$sd" -maxdepth 1 -type f -name 'image*.tiff' -print0 | sort -z)
+		if [ "${#stack_files[@]}" -eq 0 ]; then
+			echo "No TIFF stack found in $sd"
+			continue
+		fi
+		echo "Processing ${#stack_files[@]} TIFF files from $sd"
 		cd ~/Downloads/ilastik-1.4.0-Linux/
 
-		./run_ilastik.sh --headless --project=$project_file --output_format=numpy --stack_along="z" "$found_stack"
+		./run_ilastik.sh --headless --project="$project_file" --output_format=numpy --stack_along="z" "${stack_files[@]}"
 	else
 		echo "This path had a numpy file"
-		echo $sd
+		echo "$sd"
 	fi
-done
+done < <(find "$PWD" -type d -name '*_*' -print0)
 
 exit
