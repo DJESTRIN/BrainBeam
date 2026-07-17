@@ -530,6 +530,7 @@ if __name__ == '__main__':
         "Motor": ["motor"],
         "Orbital": ["orbital"]}
     
-    network(dataframe, threat_dict, custom_grouping_dict=custom_groups, 
-            origin=None, origin_name = 'mPFC', groups=['water','vanilla','tmt'], 
-            correlation_threshold=0.2, top_n=100)
+    raise SystemExit(
+        "This example block is incomplete: load a dataframe and instantiate "
+        "network(...) from another script or notebook."
+    )
