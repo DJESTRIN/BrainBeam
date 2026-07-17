@@ -4,9 +4,12 @@ The purpose of this script is to set up the basic classes and subsquent GUIs to 
 import tkinter as tk
 import customtkinter as ctk
 import os, glob
+import threading
 from PIL import Image
 from tkinter import filedialog
 import json
+
+from BrainBeamCLI import API, PipelineError
 
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
@@ -218,12 +221,39 @@ class BrainBeamGuiBase():
 
     def select_folder(self,label='Open Folder'):
         return filedialog.askdirectory(title=label,initialdir=self.wd)
- 
+
+    def select_folder_into_entry(self,entry,label='Open Folder'):
+        folder=self.select_folder(label=label)
+        if folder:
+            entry.delete(0,tk.END)
+            entry.insert(0,folder)
+        return folder
+
     def throw_error(self,message):
         self.error=ctk.CTk()
         self.error.geometry("500x100")
         self.errmessage=ctk.CTkLabel(self.error,text=message).pack()
         self.error.mainloop()
+
+    def get_computertype(self):
+        #Radio button values: 0=Local, 1=SLURM HPC, 2=AWS
+        mapping={'0':'local','1':'slurm','2':'aws'}
+        return mapping.get(str(self.radio_var.get()),'local')
+
+    def run_backend_action(self,status_label,action_name,action):
+        #Runs a BrainBeamCLI.API call on a background thread so the GUI does not freeze,
+        #then marshals the status label update back onto the Tkinter main thread.
+        def update_label(text):
+            self.root.after(0,lambda: status_label.configure(text=text))
+        def worker():
+            update_label(f"{action_name}: running...")
+            try:
+                api=API(self.get_computertype())
+                action(api)
+                update_label(f"{action_name}: complete.")
+            except (PipelineError, NotImplementedError, ValueError, FileNotFoundError) as e:
+                update_label(f"{action_name} failed: {e}")
+        threading.Thread(target=worker,daemon=True).start()
 
     def set_up_copy(self):
         #Set up the copy/move/compress tab
@@ -235,52 +265,90 @@ class BrainBeamGuiBase():
         self.textbox2.place(relx=0.0005,rely=0.01)
 
         #Copy Data
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be copied.")
-        self.entry2.place(relx=0.01,rely=0.15)
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Output folder where Input folder's data will be copied to.")
-        self.entry2.place(relx=0.01,rely=0.2)
+        self.copy_input_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be copied.")
+        self.copy_input_entry.place(relx=0.01,rely=0.15)
+        self.copy_output_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Output folder where Input folder's data will be copied to.")
+        self.copy_output_entry.place(relx=0.01,rely=0.2)
         self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Copy Data to Another Folder",font=("Arial",15,'bold')).place(relx=0.01,rely=0.11)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.copy_input_entry,'Select folder to copy'))
         self.webbtn.place(relx=0.65,rely=0.15)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.copy_output_entry,'Select destination folder'))
         self.webbtn.place(relx=0.65,rely=0.2)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Copying",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Copying",font=("Arial",15,'bold'),command=self.start_copy)
         self.webbtn.place(relx=0.82,rely=0.15)
+        self.copy_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.copy_status_label.place(relx=0.01,rely=0.24)
 
         #Move Data
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be Moved.")
-        self.entry2.place(relx=0.01,rely=0.3)
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Output folder where Input folder's data will be Moved to.")
-        self.entry2.place(relx=0.01,rely=0.35)
+        self.move_input_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be Moved.")
+        self.move_input_entry.place(relx=0.01,rely=0.3)
+        self.move_output_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Output folder where Input folder's data will be Moved to.")
+        self.move_output_entry.place(relx=0.01,rely=0.35)
         self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Move Data to Another Folder",font=("Arial",15,'bold')).place(relx=0.01,rely=0.26)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.move_input_entry,'Select folder to move'))
         self.webbtn.place(relx=0.65,rely=0.3)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Output Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.move_output_entry,'Select destination folder'))
         self.webbtn.place(relx=0.65,rely=0.35)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Moving",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Moving",font=("Arial",15,'bold'),command=self.start_move)
         self.webbtn.place(relx=0.82,rely=0.3)
+        self.move_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.move_status_label.place(relx=0.01,rely=0.39)
 
         #compress data
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be Compressed.")
-        self.entry2.place(relx=0.01,rely=0.45)
+        self.compress_input_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing data that will be Compressed.")
+        self.compress_input_entry.place(relx=0.01,rely=0.45)
         self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Compress Folder to tar.gz format",font=("Arial",15,'bold')).place(relx=0.01,rely=0.41)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.compress_input_entry,'Select folder to compress'))
         self.webbtn.place(relx=0.65,rely=0.45)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Compressing",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Compressing",font=("Arial",15,'bold'),command=self.start_compress)
         self.webbtn.place(relx=0.82,rely=0.45)
+        self.compress_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.compress_status_label.place(relx=0.01,rely=0.49)
 
         #Decompress data
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input tar.gz file which will be Decompressed")
-        self.entry2.place(relx=0.01,rely=0.55)
-        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Decompress tar.gz file",font=("Arial",15,'bold')).place(relx=0.01,rely=0.51)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find tar.gz file",font=("Arial",15,'bold'),command=self.select_folder)
+        self.decompress_input_entry = ctk.CTkEntry(self.tabview.tab("Copy, Move & Compress"), width=600, placeholder_text="Input folder containing .tar.gz archives which will be Decompressed")
+        self.decompress_input_entry.place(relx=0.01,rely=0.55)
+        self.labelcpy=ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="Decompress tar.gz archives",font=("Arial",15,'bold')).place(relx=0.01,rely=0.51)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Find Input Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.decompress_input_entry,'Select folder containing .tar.gz archives'))
         self.webbtn.place(relx=0.65,rely=0.55)
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Decompressing",font=("Arial",15,'bold'),command=self.select_folder)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Start Decompressing",font=("Arial",15,'bold'),command=self.start_decompress)
         self.webbtn.place(relx=0.82,rely=0.55)
+        self.decompress_status_label = ctk.CTkLabel(self.tabview.tab("Copy, Move & Compress"),text="",font=("Arial",11))
+        self.decompress_status_label.place(relx=0.01,rely=0.59)
 
         #Check processes
         self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Check status of code",font=("Arial",15,'bold'),command=self.select_folder,state=tk.DISABLED)
         self.webbtn.place(relx=0.4,rely=0.75)
+
+    def start_copy(self):
+        input_dir=self.copy_input_entry.get().strip()
+        output_dir=self.copy_output_entry.get().strip()
+        if not input_dir or not output_dir:
+            self.throw_error('Please select both an input and output folder before copying.')
+            return
+        self.run_backend_action(self.copy_status_label,'Copy',lambda api: api.copy(input_dir,output_dir))
+
+    def start_move(self):
+        input_dir=self.move_input_entry.get().strip()
+        output_dir=self.move_output_entry.get().strip()
+        if not input_dir or not output_dir:
+            self.throw_error('Please select both an input and output folder before moving.')
+            return
+        self.run_backend_action(self.move_status_label,'Move',lambda api: api.move(input_dir,output_dir))
+
+    def start_compress(self):
+        input_dir=self.compress_input_entry.get().strip()
+        if not input_dir:
+            self.throw_error('Please select a folder to compress.')
+            return
+        self.run_backend_action(self.compress_status_label,'Compress',lambda api: api.compress(input_dir))
+
+    def start_decompress(self):
+        input_dir=self.decompress_input_entry.get().strip()
+        if not input_dir:
+            self.throw_error('Please select a folder containing .tar.gz archives to decompress.')
+            return
+        self.run_backend_action(self.decompress_status_label,'Decompress',lambda api: api.decompress(input_dir))
 
     def set_up_custom_script(self):
         self.textbox = ctk.CTkTextbox(self.tabview.tab("Custom Script"), width=1000,height=300)
