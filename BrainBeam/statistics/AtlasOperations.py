@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import ipdb
+from difflib import get_close_matches
 
 
 class AtlasGardener:
@@ -160,24 +161,103 @@ class AtlasGardener:
             if coarsened_region:
                 return coarsened_region[1]  # Return the coarsened region's name
         return None  # If not found, return None
-    
-    @staticmethod
-    def restricted_dataframe(dataframe, current_ontology_dict,colname='regionname'):
-        if isinstance(current_ontology_dict, list):
-            current_ontology_dict = {entry['id']: (entry['acronym'], entry['name']) for entry in current_ontology_dict}
 
-        restricted_list = [ r'cingulate', r'nucleus accumbens', r'agranular', r'insular', r'olfactory',
-                       r'auditory', r'hippocamp', r'Claustrum', r'Central linear nucleus',
-                       r'Diagonal band nucleus', r'raphe', r'polor', r'limbic', r'thalamus', 
-                       r'thala', r'amygdala', r'cortex', r'orbital', r'preoptic', r'Nucleus incertus', 
-                       r'periaqueduct', r'parietal', r'brachial', r'Pedunculopontine tegmental nucleus', 
-                       r'perirhinal', r'retrosplenial', r'nigra', r'somatosensory', r'subiculum', 
-                       r'supramammillary', r'tecta', r'tegmental']
-        pattern = re.compile("|".join(restricted_list), re.IGNORECASE) 
-        matching_regions = [region for region, (value, name) in current_ontology_dict.items() if pattern.search(name)]
-        valid_regions = {current_ontology_dict[region][1] for region in matching_regions}
-        dataframe_filtered = dataframe[dataframe[colname].isin(valid_regions)].reset_index(drop=True)
-        return dataframe_filtered
+    @staticmethod
+    def restricted_and_coarse_dataframe(
+            dataframe, 
+            ontology_file=r'C:\Users\listo\BrainBeam\BrainBeam\statistics\datasets\ara_ontology.json',
+            colname='regionname',
+            excluded_file='excluded_regions.csv',
+            n_parents_up=2
+        ):
+        """
+        Restrict dataframe to selected substrings and climb thalamus/hypothalamus regions up the ontology tree.
+        Handles duplicate rows by aggregating raw counts.
+        """
+
+        # --- Flatten ontology tree with parent tracking ---
+        def flatten_tree_with_parents(ontology_tree):
+            flat_dict = {}
+
+            def _recurse(node, parent_name):
+                if not isinstance(node, dict):
+                    return
+                flat_dict[node['name']] = {
+                    'id': node['id'],
+                    'acronym': node.get('acronym', ''),
+                    'name': node['name'],
+                    'parent': parent_name
+                }
+                for child in node.get('children', []):
+                    _recurse(child, node['name'])
+
+            if isinstance(ontology_tree, list):
+                for entry in ontology_tree:
+                    _recurse(entry, parent_name=None)
+            elif isinstance(ontology_tree, dict):
+                _recurse(ontology_tree, parent_name=None)
+            else:
+                raise ValueError("Unexpected JSON structure")
+
+            return flat_dict
+
+        # Load ontology JSON
+        with open(ontology_file, 'r') as f:
+            ontology_json = json.load(f)
+
+        ontology_dict = flatten_tree_with_parents(ontology_json)
+
+        # --- Restricted substrings ---
+        restricted_list = [
+            r'cingulate', r'nucleus accumbens', r'agranular', r'insular', r'olfactory',
+            r'auditory', r'hippocamp', r'Claustrum', r'Central linear nucleus',
+            r'Diagonal band nucleus', r'raphe', r'polor', r'limbic', r'thalamus',
+            r'thala', r'amygdala', r'cortex', r'orbital', r'preoptic', r'Nucleus incertus',
+            r'periaqueduct', r'parietal', r'brachial', r'Pedunculopontine tegmental nucleus',
+            r'perirhinal', r'retrosplenial', r'nigra', r'somatosensory', r'subiculum',
+            r'supramammillary', r'tecta', r'tegmental',
+            r'pallidum', r'substantia innominata', r'bed nucleus of stria terminalis', r'BNST',
+            r'hypothalamus'
+        ]
+
+        # --- Step 1: Restrict dataframe ---
+        def matches_substring(region_name):
+            region_name_lower = region_name.lower()
+            for substring in restricted_list:
+                if substring.lower() in region_name_lower:
+                    return True
+            return False
+
+        df_filtered = dataframe[dataframe[colname].apply(matches_substring)].copy()
+
+        # --- Step 2: Climb parents for thalamus/hypothalamus ---
+        def climb_parents_if_thal_hypo(region_name):
+            if 'thal' in region_name.lower() or 'hypothalamus' in region_name.lower():
+                current = region_name
+                for _ in range(n_parents_up):
+                    parent = ontology_dict.get(current, {}).get('parent')
+                    if parent is None:
+                        break
+                    current = parent
+                return current
+            return region_name
+
+        df_filtered[colname] = df_filtered[colname].apply(climb_parents_if_thal_hypo)
+
+        # --- Step 3: Aggregate duplicate rows ---
+        agg_cols = [c for c in df_filtered.columns if c != colname and c != 'rawcount']
+        if 'rawcount' in df_filtered.columns:
+            df_filtered = df_filtered.groupby(agg_cols + [colname], as_index=False)['rawcount'].sum()
+        else:
+            df_filtered = df_filtered.drop_duplicates(subset=agg_cols + [colname])
+
+        # --- Step 4: Save excluded regions ---
+        excluded_regions = dataframe[~dataframe.index.isin(df_filtered.index)][colname].unique()
+        pd.DataFrame({'excluded_regions': excluded_regions}).to_csv(excluded_file, index=False)
+
+        return df_filtered
+
+
 
 
 if __name__ == "__main__":
@@ -196,7 +276,7 @@ if __name__ == "__main__":
     df['normalizedcount'] = df['normalizedcount']*100
 
     # Create gardener class
-    atobj = AtlasGardener(ontology_dict)
+    atobj = AtlasGardener(ontology_dict=ontology_dict, drop_directory=data_path)
     atobj()
 
     # Set dataframe brain regions to coarser names for simplicity
@@ -205,4 +285,4 @@ if __name__ == "__main__":
     df['regionname'] = df_regionnames
 
     # Restrict dataframe names to relevance list
-    df_restricted = atobj.restricted_dataframe(dataframe = df, current_ontology_dict = atobj.course_dict)
+    df_restricted = atobj.restricted_and_coarse_dataframe(dataframe=df)
