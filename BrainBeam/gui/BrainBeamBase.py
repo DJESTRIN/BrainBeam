@@ -230,19 +230,50 @@ class BrainBeamGuiBase():
         mapping={'0':'local','1':'slurm','2':'aws'}
         return mapping.get(str(self.radio_var.get()),'local')
 
-    def run_backend_action(self,status_label,action_name,action):
+    ACTION_TO_OVERVIEW_KEY={'Copy':'Copied','Move':'Moved','Compress':'Compressed','Denoise':'Denoise',
+                            'Stitch':'Stitch','Register':'Registration','Segment':'Segmentation','Custom':'Custom Script'}
+
+    def update_sample_status(self,target_path,action_name,status):
+        #Best-effort sync of a sample's stage status in the overview table/project file.
+        #Matches samples whose stored rawpath is a prefix/substring of the given target_path.
+        overview_key=self.ACTION_TO_OVERVIEW_KEY.get(action_name)
+        if not overview_key or not target_path or not hasattr(self,'overviewdict') or not self.overviewdict:
+            return
+        target_path=os.path.normpath(target_path)
+        changed=False
+        for dict_oh in self.overviewdict.values():
+            rawpath=dict_oh.get('rawpath')
+            if rawpath and (os.path.normpath(rawpath) in target_path or target_path in os.path.normpath(rawpath)):
+                dict_oh[overview_key]=status
+                changed=True
+        if not changed:
+            return
+        try:
+            with open(self.get_project_file_path(),'w') as outfile:
+                json.dump(self.overviewdict,outfile,indent=4)
+        except AttributeError:
+            pass
+        self.updateoverview()
+
+    def run_backend_action(self,status_label,action_name,action,target_path=None):
         #Runs a BrainBeamCLI.API call on a background thread so the GUI does not freeze,
-        #then marshals the status label update back onto the Tkinter main thread.
+        #then marshals the status label update and overview sync back onto the Tkinter main thread.
         def update_label(text):
             self.root.after(0,lambda: status_label.configure(text=text))
+        def sync_status(status):
+            if target_path:
+                self.root.after(0,lambda: self.update_sample_status(target_path,action_name,status))
         def worker():
             update_label(f"{action_name}: running...")
+            sync_status('running')
             try:
                 api=API(self.get_computertype())
                 action(api)
                 update_label(f"{action_name}: complete.")
+                sync_status('complete')
             except (PipelineError, NotImplementedError, ValueError, FileNotFoundError) as e:
                 update_label(f"{action_name} failed: {e}")
+                sync_status('error')
         threading.Thread(target=worker,daemon=True).start()
 
     def set_up_copy(self):
@@ -316,7 +347,7 @@ class BrainBeamGuiBase():
         if not input_dir or not output_dir:
             self.throw_error('Please select both an input and output folder before copying.')
             return
-        self.run_backend_action(self.copy_status_label,'Copy',lambda api: api.copy(input_dir,output_dir))
+        self.run_backend_action(self.copy_status_label,'Copy',lambda api: api.copy(input_dir,output_dir),target_path=input_dir)
 
     def start_move(self):
         input_dir=self.move_input_entry.get().strip()
@@ -324,14 +355,14 @@ class BrainBeamGuiBase():
         if not input_dir or not output_dir:
             self.throw_error('Please select both an input and output folder before moving.')
             return
-        self.run_backend_action(self.move_status_label,'Move',lambda api: api.move(input_dir,output_dir))
+        self.run_backend_action(self.move_status_label,'Move',lambda api: api.move(input_dir,output_dir),target_path=input_dir)
 
     def start_compress(self):
         input_dir=self.compress_input_entry.get().strip()
         if not input_dir:
             self.throw_error('Please select a folder to compress.')
             return
-        self.run_backend_action(self.compress_status_label,'Compress',lambda api: api.compress(input_dir))
+        self.run_backend_action(self.compress_status_label,'Compress',lambda api: api.compress(input_dir),target_path=input_dir)
 
     def start_decompress(self):
         input_dir=self.decompress_input_entry.get().strip()
@@ -360,7 +391,7 @@ class BrainBeamGuiBase():
         if not scratch_dir:
             self.throw_error('Please select a scratch directory before denoising.')
             return
-        self.run_backend_action(self.denoise_status_label,'Denoise',lambda api: api.denoise(scratch_dir))
+        self.run_backend_action(self.denoise_status_label,'Denoise',lambda api: api.denoise(scratch_dir),target_path=scratch_dir)
 
     def set_up_stitch(self):
         #Set up the Stitch tab
@@ -386,7 +417,7 @@ class BrainBeamGuiBase():
             self.throw_error('Please select a scratch directory before stitching.')
             return
         chain_next_stage=bool(self.stitch_chain_var.get())
-        self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage))
+        self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage),target_path=scratch_dir)
 
     def set_up_registration(self):
         #Set up the Registration tab
@@ -431,7 +462,7 @@ class BrainBeamGuiBase():
             return
         self.run_backend_action(self.registration_status_label,'Register',lambda api: api.register(
             image_path,output_path=output_path,atlas_path=atlas_path,
-            parent_segmentation_path=segmentation_path,conda_environment_name=conda_env))
+            parent_segmentation_path=segmentation_path,conda_environment_name=conda_env),target_path=image_path)
 
     def set_up_segmentation(self):
         #Set up the Segmentation tab
@@ -467,7 +498,7 @@ class BrainBeamGuiBase():
         if self.get_computertype()=='local' and not ilastik_file:
             self.throw_error('Local segmentation requires an ilastik project (.ilp) file.')
             return
-        self.run_backend_action(self.segmentation_status_label,'Segment',lambda api: api.segment(scratch_dir,ilastik_project_file=ilastik_file))
+        self.run_backend_action(self.segmentation_status_label,'Segment',lambda api: api.segment(scratch_dir,ilastik_project_file=ilastik_file),target_path=scratch_dir)
 
     def set_up_custom_script(self):
         self.textbox = ctk.CTkTextbox(self.tabview.tab("Custom Script"), width=1000,height=300)
@@ -480,14 +511,36 @@ class BrainBeamGuiBase():
         self.textbox.place(relx=0.0005,rely=0.01)
         self.optionmenu_1 = ctk.CTkOptionMenu(self.tabview.tab("Custom Script"), width=5,values=["Perform on Single Sample", "Perform on Batch of samples"])
         self.optionmenu_1.place(relx=0.35,rely=0.51)
-        self.entry2 = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text="Full path to single sample's data or directory of samples. Please see our instructions for data org.")
-        self.entry2.place(relx=0.2,rely=0.61)
-        self.entry3 = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Full path to python script. Ex. C:\Users\mypython.py ")
-        self.entry3.place(relx=0.2,rely=0.71)
-        self.entry = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Set cubic volume size. Ex. '200' means stitched volume will be applied to 200x200x200 chunks.")
-        self.entry.place(relx=0.2,rely=0.81)
-        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Run Custom Script",width =8,state=tk.DISABLED,command=self.copydata).place(relx=0.6,rely=0.91)
-        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Register Custom Script to Overview",width =8,state=tk.DISABLED,command=self.copydata).place(relx=0.2,rely=0.91)
+        self.custom_target_entry = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text="Full path to single sample's data or directory of samples. Please see our instructions for data org.")
+        self.custom_target_entry.place(relx=0.2,rely=0.61)
+        self.custom_script_entry = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Full path to python script. Ex. C:\Users\mypython.py ")
+        self.custom_script_entry.place(relx=0.2,rely=0.71)
+        self.custom_chunk_entry = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Set cubic volume size. Ex. '200' means stitched volume will be applied to 200x200x200 chunks.")
+        self.custom_chunk_entry.place(relx=0.2,rely=0.81)
+        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Run Custom Script",width =8,command=self.start_custom_script)
+        self.runbutton.place(relx=0.6,rely=0.91)
+        self.registerbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Register Custom Script to Overview",width =8,command=self.register_custom_script)
+        self.registerbutton.place(relx=0.2,rely=0.91)
+        self.custom_status_label = ctk.CTkLabel(self.tabview.tab("Custom Script"),text="",font=("Arial",11))
+        self.custom_status_label.place(relx=0.2,rely=0.96)
+
+    def start_custom_script(self):
+        target_path=self.custom_target_entry.get().strip()
+        script_path=self.custom_script_entry.get().strip()
+        if not target_path or not script_path:
+            self.throw_error('Please provide both a data path and a custom script path.')
+            return
+        self.run_backend_action(self.custom_status_label,'Custom',lambda api: api.custom(script_path,target_path),target_path=target_path)
+
+    def register_custom_script(self):
+        #Marks the Custom Script stage as complete in the overview for the given sample/batch
+        #without re-running it, e.g. for scripts that were already run outside the GUI.
+        target_path=self.custom_target_entry.get().strip()
+        if not target_path:
+            self.throw_error('Please provide the data path to register before adding it to the overview.')
+            return
+        self.update_sample_status(target_path,'Custom','complete')
+        self.custom_status_label.configure(text='Custom Script: registered to overview.')
 
     def set_up_radio_buttons(self):
         # create radiobutton frame
