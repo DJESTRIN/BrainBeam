@@ -662,7 +662,7 @@ class AtlasGraph:
         global_pfc_center = pfc_coords.mean(axis=0)
 
         shape = self.atlas.shape
-        midline = shape[0] // 2
+        midline = shape[2] // 2
 
         # Precompute valid voxels and t-values
         all_coords = np.array(np.nonzero(self.atlas)).T
@@ -681,8 +681,8 @@ class AtlasGraph:
                 return None
 
             coords = np.argwhere(region_mask)
-            left = coords[coords[:, 0] < midline]
-            right = coords[coords[:, 0] >= midline]
+            left = coords[coords[:, 2] < midline]
+            right = coords[coords[:, 2] >= midline]
 
             voxel_groups = []
             if left.shape[0] > min_voxels_per_side and right.shape[0] > min_voxels_per_side:
@@ -993,7 +993,6 @@ class AtlasGraph:
         plt.tight_layout(rect=[0, 0, 0.9, 1])
         plt.savefig(os.path.join(self.drop_directory, filename), dpi=300)
         plt.close(fig)
-
 
 
 
