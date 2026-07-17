@@ -26,7 +26,7 @@ if [ $? -eq 0 ]; then
     echo "Decompression successful: $TAR_FILE"
     
     # Remove the tar.gz file
-    rm -f "$TAR_FILE"
+    rm -f -- "$TAR_FILE"
     
     if [ $? -eq 0 ]; then
         echo "Original tar.gz file deleted: $TAR_FILE"

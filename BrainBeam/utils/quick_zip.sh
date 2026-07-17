@@ -22,7 +22,7 @@ for dir in "$DIRECTORY"/*/; do
   # Remove trailing slash
   dir=${dir%/}
 
-  echo $dir
+  echo "$dir"
   
   # Get the directory name
   dir_name=$(basename "$dir")
@@ -32,11 +32,10 @@ for dir in "$DIRECTORY"/*/; do
   
   # Remove the original directory after successful compression
   if [ $? -eq 0 ]; then
-    rm -rf "$dir"
+    rm -rf -- "$dir"
   else
     echo "Error compressing $dir_name"
   fi
 done
 
 echo "Compression completed."
-

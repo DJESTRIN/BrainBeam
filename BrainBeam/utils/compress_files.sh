@@ -9,6 +9,11 @@
 #SBATCH --mem=100G
 
 # Specify the directory containing the files to compress
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <directory>"
+    exit 1
+fi
+
 DIRECTORY=$1
 
 # Change to the specified directory
@@ -17,13 +22,13 @@ cd "$DIRECTORY" || exit
 # Loop through each file in the directory
 for FILE in *; do
     # Check if it is a regular file (not a directory or other type of file)
-    if [ -f "$FILE" ]; then
+    if [ -f "$FILE" ] && [[ "$FILE" != *.tar.gz ]]; then
         # Tar and gzip the file
-        tar -czf "$FILE.tar.gz" "$FILE" --use-compress-program="gzip -9"
+        tar --use-compress-program="gzip -9" -czf "$FILE.tar.gz" -- "$FILE"
      
         if [ $? -eq 0 ]; then
             # Remove the original file
-            rm "$FILE"
+            rm -- "$FILE"
         else
             echo "Failed to create $FILE.tar.gz"
         fi

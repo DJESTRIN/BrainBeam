@@ -19,14 +19,14 @@ fi
 
 # Compress the directory
 echo "Compressing directory: $DIR"
-tar -czf "${DIR}.tar.gz" -C "$(dirname "$DIR")" "$(basename "$DIR")"
+tar -czf "${DIR}.tar.gz" -C "$(dirname "$DIR")" -- "$(basename "$DIR")"
 
 # Check if the compression was successful
 if [ $? -eq 0 ]; then
     echo "Compression successful: ${DIR}.tar.gz"
     
     # Remove the original directory
-    rm -rf "$DIR"
+    rm -rf -- "$DIR"
     
     if [ $? -eq 0 ]; then
         echo "Original directory deleted: $DIR"
@@ -36,4 +36,3 @@ if [ $? -eq 0 ]; then
 else
     echo "Compression failed: $DIR"
 fi
-

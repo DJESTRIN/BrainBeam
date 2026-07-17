@@ -18,7 +18,7 @@ def seek_and_destroy(path):
        #print(images_in_stack)
        for image in images_in_stack:
            if os.stat(image).st_size==0:
-              new_image=np.zeros((2000,1600))
+              new_image=np.zeros((2000,1600), dtype=np.uint8)
               new_empty_image=Image.fromarray(new_image)
               new_empty_image.save(image)
 
