@@ -57,7 +57,7 @@ lower_ci <- 0.69519 * x_vals + 0.00709
 upper_ci <- 0.8394 * x_vals + 0.00709
 
 # Create data frame
-df <- data.frame(
+slope_summary <- data.frame(
   group = factor(c("All Regions", "Regions with Weak Effects", "Regions with Strong Effects"),
                  levels = c("All Regions", "Regions with Weak Effects", "Regions with Strong Effects")),
   mean = c(0.767, 1.0012765843164158, 0.7473318508789027),
@@ -66,7 +66,7 @@ df <- data.frame(
 )
 
 
-p <- ggplot(df, aes(x = group, y = mean)) +
+p <- ggplot(slope_summary, aes(x = group, y = mean)) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "black", linewidth = 0.8) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1, linewidth = 1.5, color = "#8e7cc3") +
   geom_point(shape = 21, fill = "white", color = "#8e7cc3", size = 5, stroke = 3) +
