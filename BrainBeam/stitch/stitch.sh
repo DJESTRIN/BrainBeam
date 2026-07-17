@@ -19,39 +19,48 @@ pip install --no-cache-dir mpi4py
 # Set up paths and directories
 terastitcher_dir=/home/fs01/dje4001/Downloads/TeraStitcher-portable-1.11.10-Linux/
 parastitcher=/home/fs01/dje4001/Downloads/TeraStitcher-portable-1.11.10-Linux/parastitcher.py
-base_name=$(basename ${SEARCHPATH})
+base_name=$(basename "$SEARCHPATH")
 starting_directory=$PWD
 
 # Set up input and output directories
+scratch_root="${scratch_directory%/}/"
 tag1="lightsheet/destriped/"
-input_base="${scratch_directory}${tag1}${base_name}/"
+input_base="${scratch_root}${tag1}${base_name}/"
 tag2="lightsheet/stitched/"
-output="${scratch_directory}${tag2}${base_name}/"
-mkdir -p $output
+output="${scratch_root}${tag2}${base_name}/"
+mkdir -p "$output"
 echo "This is the input directory: $input_base"
 echo "This is the output directory: $output"
 
 # Change to input directory
-cd $input_base
+cd "$input_base" || exit 1
 first_directory=true
+files_to_copy=()
+shopt -s nullglob
+sub_folders=("${input_base}"*/)
+
+if [ ${#sub_folders[@]} -eq 0 ]; then
+    echo "No subfolders found in $input_base"
+    exit 1
+fi
 
 # Stich all sub folders in main folder
-for sub_folder in ${input_base}*/; do
-    cd $terastitcher_dir
+for sub_folder in "${sub_folders[@]}"; do
+    cd "$terastitcher_dir" || exit 1
     echo "This is the input directory: ${sub_folder}"
 
     # Copy files from first folder to remaining folders
     if [ "$first_directory" = false ]; then
         # Copy files over from first subdirectory
-        for file in $files_to_copy; do
+        for file in "${files_to_copy[@]}"; do
             cp "$file" "$sub_folder"
         done
 
         #Change contents inside file 
-        files_to_edit=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
-        current_basename=$(basename $sub_folder) 
-        for file in $files_to_edit; do
-            sed -i "s/$first_basename/$current_basename/g" $file
+        mapfile -d '' -t files_to_edit < <(find "$sub_folder" -maxdepth 1 -type f -name "*.xml" -print0)
+        current_basename=$(basename "$sub_folder")
+        for file in "${files_to_edit[@]}"; do
+            sed -i "s/$first_basename/$current_basename/g" "$file"
         done
     fi
 
@@ -92,9 +101,9 @@ for sub_folder in ${input_base}*/; do
     # Copy all files to remaining folders
     if [ "$first_directory" = true ]; then
         find "$sub_folder" -maxdepth 1 -type f -name "*.xml" -exec chmod -R o+rwx {} \; # Change permissions on these files
-        files_to_copy=$(find "$sub_folder" -maxdepth 1 -type f -name "*.xml")
+        mapfile -d '' -t files_to_copy < <(find "$sub_folder" -maxdepth 1 -type f -name "*.xml" -print0)
         first_directory=false # set this to false for remaining directories
-        first_basename=$(basename $sub_folder) 
+        first_basename=$(basename "$sub_folder")
     fi
 
     # Determine if displproj file was created 
@@ -119,12 +128,12 @@ for sub_folder in ${input_base}*/; do
     fi
 
     # Output tiles to tiff stack
-    sf_basename=$(basename $sub_folder) 
-    mkdir -p "$output$sf_basename" # Create output folder
+    sf_basename=$(basename "$sub_folder")
+    mkdir -p "${output}${sf_basename}" # Create output folder
     convert_images=false
-    if [[ -d "$output$sf_basename" && "$manual_override" != "true" ]]; then
+    if [[ -d "${output}${sf_basename}" && "$manual_override" != "true" ]]; then
         # Check if the directory contains files
-        if [[ $(find "$output$sf_basename" -type f | wc -l) -gt 0 ]]; then
+        if [[ $(find "${output}${sf_basename}" -type f | wc -l) -gt 0 ]]; then
             echo "Output folder already exists and contains files. Therefore, we are skipping"
         else
             convert_images=true
@@ -143,7 +152,7 @@ for sub_folder in ${input_base}*/; do
             --mpi=pmi2 python "$parastitcher" \
             -6 \
             --projin="${sub_folder}xml_placetiles.xml" \
-            --volout="$output$sf_basename" \
+            --volout="${output}${sf_basename}" \
             --volout_plugin="TiledXY|2Dseries" \
             --slicewidth=100000 \
             --sliceheight=150000
@@ -157,10 +166,8 @@ for sub_folder in ${input_base}*/; do
     fi 
 
     # Move images from subdirectories to main output folder
-    find "$output$sf_basename" -type f -name "*.tif*" -exec mv {} "$output$sf_basename" \;
-    find "$output$sf_basename" -mindepth 1 -maxdepth 1 -type d -exec rm -rfv {} \;
+    find "${output}${sf_basename}" -type f -name "*.tif*" -exec mv {} "${output}${sf_basename}" \;
+    find "${output}${sf_basename}" -mindepth 1 -maxdepth 1 -type d -exec rm -rfv {} \;
 done
 
 exit
-
-

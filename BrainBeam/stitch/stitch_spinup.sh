@@ -14,17 +14,27 @@ run_dependencies=${3:-true} # recalculate all files
 run_one=${4:-false} #
 
 # Create folder for terastitcher output
-scratch_stitch="${scratch_directory}lightsheet/stitched/"
-scratch_destriped="${scratch_directory}lightsheet/destriped/"
+scratch_root="${scratch_directory%/}/"
+scratch_stitch="${scratch_root}lightsheet/stitched/"
+scratch_destriped="${scratch_root}lightsheet/destriped/"
 mkdir -p "$scratch_stitch"
 
 # Update sample list (in the case of any issues)
-cd "$code_directory"
+cd "$code_directory" || exit 1
+shopt -s nullglob
+stitch_inputs=("${scratch_destriped}"*/)
+stitch_job_ids=()
+
+if [ ${#stitch_inputs[@]} -eq 0 ]; then
+       echo "No destriped sample directories found in $scratch_destriped"
+       exit 1
+fi
 
 # Submit jobs to process images using terastitcher
-for i in ${scratch_destriped}*/; do
+for i in "${stitch_inputs[@]}"; do
        TMP=$(echo "$i")
-       sbatch --job-name=stitch_files \
+       submitted_job_id=$(sbatch --parsable \
+              --job-name=stitch_files \
               --mem=200G \
               --partition=scu-gpu \
               --gres=gpu:2\
@@ -32,7 +42,8 @@ for i in ${scratch_destriped}*/; do
               --cpus-per-task=4 \
               --mail-type=BEGIN,END,FAIL \
               --mail-user=dje4001@med.cornell.edu \
-              --wrap="bash ./stitch.sh '$TMP' '$scratch_directory'"
+              --wrap="bash ./stitch.sh '$TMP' '$scratch_root'") || exit 1
+       stitch_job_ids+=("$submitted_job_id")
        
        # Run a single folder and then break
        if [ "$run_one" = true ]; then
@@ -41,26 +52,28 @@ for i in ${scratch_destriped}*/; do
 done
 
 if [ "$run_dependencies" = false ]; then 
+       stitch_dependency="afterok:$(IFS=:; echo "${stitch_job_ids[*]}")"
+
        # Submit jobs for neuroglancer/cloudreg processing
        sbatch --mem=5G \
               --partition=scu-cpu \
-              --dependency=singleton \
+              --dependency="$stitch_dependency" \
               --job-name=cloudreg_processing \
-              --wrap="bash cloudreg_spinup.sh '$code_directory' '$scratch_directory'"
+              --wrap="bash cloudreg_spinup.sh '$code_directory' '$scratch_root'"
 
        # Submit jobs for generating cubes for validation analysis
        sbatch --mem=5G \
               --partition=scu-cpu \
-              --dependency=singleton \
+              --dependency="$stitch_dependency" \
               --job-name=cube_generation \
-              --wrap="bash traindata_spinup.sh '$code_directory' '$scratch_directory'"
+              --wrap="bash traindata_spinup.sh '$code_directory' '$scratch_root'"
 
        # Submit jobs for segmenting cells
        sbatch --mem=5G \
               --partition=scu-cpu \
-              --dependency=singleton \
+              --dependency="$stitch_dependency" \
               --job-name=segmentation \
-              --wrap="bash segmentation_spinup.sh '$code_directory' '$scratch_directory'"
+              --wrap="bash segmentation_spinup.sh '$code_directory' '$scratch_root'"
 
        exit
 fi
