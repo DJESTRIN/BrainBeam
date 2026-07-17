@@ -44,10 +44,6 @@ class API(DigestData):
 #         if self.dirflag=='batch':
 #             coh=f'bash {self.wd}/stitch/stitch_spinup.sh {self.wd} {}'
 
-#     def neuroglancer(self):
-
-#     def serve_to_neuroglancer(self):
-
 #     def register(self):
 
 #     def segmentation(self):

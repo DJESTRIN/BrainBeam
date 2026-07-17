@@ -4,7 +4,6 @@ The purpose of this script is to set up the basic classes and subsquent GUIs to 
 import tkinter as tk
 import customtkinter as ctk
 import os, glob
-import webview 
 from PIL import Image
 from tkinter import filedialog
 import json
@@ -36,16 +35,10 @@ class BrainBeamGuiBase():
         self.tabview.add("Copy, Move & Compress")
         self.tabview.add("Denoise")
         self.tabview.add("Stitch")
-        self.tabview.add("Neuroglancer conversion")
         self.tabview.add("Registration")
         self.tabview.add("Segmentation")
         self.tabview.add("Custom Script")
         self.tabview.tab("Overview").grid_columnconfigure(0, weight=1)  # configure grid of individual tabs
-
-        # create textbox
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Neuroglancer conversion"),text="View in Neuroglancer",command=self.openneuroglancer)
-        self.webbtn.place(relx=0.75,rely=0.1)
-        #self.webbtn.configure(state=DISABLED)
 
         self.set_up_custom_script()
         self.call_logo()
@@ -109,14 +102,14 @@ class BrainBeamGuiBase():
                 samplename=os.path.basename(sample)
                 foldername = os.path.basename(directory)    # Get directory name
                 dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
-                         'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
+                         'Denoise':'pending','Stitch':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
                 self.overviewdict[self.index]=dict_oh
                 self.index+=1
         elif 'ex' in os.path.basename(directory).lower(): #When selecting a simple folder for with one sample
             samplename=os.path.basename(directory)
             foldername=None
             dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
-                         'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':directory}
+                         'Denoise':'pending','Stitch':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':directory}
             self.overviewdict[self.index]=dict_oh
             self.index+=1
         else: #Input folder does not fit our format
@@ -183,14 +176,12 @@ class BrainBeamGuiBase():
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=13)
                 if key=='Stitch':
                     label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=15)
-                if key=='Neuroglancer conversion':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=17)
                 if key=='Registration':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=19)
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=17)
                 if key=='Segmentation':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=21)
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=19)
                 if key=='Custom Script':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=23)
+                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=21)
 
                 #Put labels in a common list
                 try:
@@ -200,7 +191,7 @@ class BrainBeamGuiBase():
             row_oh+=1
 
         for row_oh in range(len(self.overviewdict)):
-            for i in range(23):
+            for i in range(21):
                 if ( i % 2 ) == 0: 
                     if i==0 or i==2:
                         continue
@@ -213,7 +204,7 @@ class BrainBeamGuiBase():
         self.overview_frame = ctk.CTkFrame(self.tabview.tab("Overview"), corner_radius=0,width=350,height=500)
         self.overview_frame.place(relx=0.01, rely=0.05)
         self.overview_frame.grid_rowconfigure(len(self.overviewdict)+2, weight=1)
-        self.overview_frame.grid_columnconfigure(23, weight=1)
+        self.overview_frame.grid_columnconfigure(21, weight=1)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Imported",font=('Arial',12,'bold')).grid(row=0, column=3, padx=5, pady=5)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Copied",font=('Arial',12,'bold')).grid(row=0, column=5, padx=5, pady=5)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Moved",font=('Arial',12,'bold')).grid(row=0, column=7, padx=5, pady=5)
@@ -221,10 +212,9 @@ class BrainBeamGuiBase():
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Converted",font=('Arial',12,'bold')).grid(row=0, column=11, padx=5, pady=5)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Denoised",font=('Arial',12,'bold')).grid(row=0, column=13, padx=5, pady=5)
         self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Stitched",font=('Arial',12,'bold')).grid(row=0, column=15, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Precomputed",font=('Arial',12,'bold')).grid(row=0, column=17, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Registered",font=('Arial',12,'bold')).grid(row=0, column=19, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Segmented",font=('Arial',12,'bold')).grid(row=0, column=21, padx=5, pady=5)
-        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Custom",font=('Arial',12,'bold')).grid(row=0, column=23, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Registered",font=('Arial',12,'bold')).grid(row=0, column=17, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Segmented",font=('Arial',12,'bold')).grid(row=0, column=19, padx=5, pady=5)
+        self.samplelabel=ctk.CTkLabel( self.overview_frame,text="Custom",font=('Arial',12,'bold')).grid(row=0, column=21, padx=5, pady=5)
 
     def select_folder(self,label='Open Folder'):
         return filedialog.askdirectory(title=label,initialdir=self.wd)
@@ -345,10 +335,6 @@ class BrainBeamGuiBase():
     
     def copydata(self):
         print('Copying data')
-
-    def openneuroglancer(self):
-        webview.create_window('BrainBeam', 'https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22type%22:%22new%22%2C%22source%22:%22%22%2C%22tab%22:%22source%22%2C%22name%22:%22new%20layer%22%7D%5D%2C%22selectedLayer%22:%7B%22visible%22:true%2C%22layer%22:%22new%20layer%22%7D%2C%22layout%22:%224panel%22%7D')
-        webview.start()
 
 
 if __name__=='__main__':
