@@ -1,7 +1,6 @@
 import numpy as np 
 import nrrd 
 import argparse
-import ipdb
 from PIL import Image
 import os
 
@@ -12,6 +11,7 @@ def convert(full_path_nrrd,full_path_outputfolder):
     R2=readdata+1
     R2=np.log(R2)
     R2=(R2-R2.min())/(R2.max()-R2.min())*255
+    os.makedirs(full_path_outputfolder, exist_ok=True)
     counter=0
     for image in R2:
         im=Image.fromarray(image)

@@ -4,8 +4,7 @@ import argparse
 from skimage.util import view_as_windows
 import numpy as np
 from PIL import Image
-import numpy as np
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from skimage import io
 
 def adjust_contrast(img, alpha=1.5, beta=10):
     """Adjusts the contrast of an image.
@@ -19,9 +18,6 @@ def adjust_contrast(img, alpha=1.5, beta=10):
     img = img.astype(np.uint8)
     img = Image.fromarray(img)
     return img
-
-import numpy as np
-from skimage import io
 
 def tile_image(image_path, tile_size, stride):
     """
@@ -50,7 +46,6 @@ def tile_image(image_path, tile_size, stride):
             tiles.append(tile)
 
     return tiles
-import numpy as np
 
 def reconstruct_image(tiles, tile_size, image_size):
     """
@@ -91,13 +86,15 @@ def enhance_image(image, window_size, stride):
     contrast_enhanced = (windows - means[..., np.newaxis, np.newaxis]) / stds[..., np.newaxis, np.newaxis]
 
     # Reconstruct the image from the contrast-enhanced windows
-    reconstructed = np.zeros_like(image)
-    count = np.zeros_like(image)
-    for i in range(0, image.shape[0] - window_size[0], stride):
-        for j in range(0, image.shape[1] - window_size[1], stride):
-            reconstructed[i:i + window_size[0], j:j + window_size[1]] += contrast_enhanced[i // stride, j // stride]
+    reconstructed = np.zeros_like(image, dtype=np.float32)
+    count = np.zeros_like(image, dtype=np.float32)
+    for row in range(windows.shape[0]):
+        i = row * stride
+        for col in range(windows.shape[1]):
+            j = col * stride
+            reconstructed[i:i + window_size[0], j:j + window_size[1]] += contrast_enhanced[row, col]
             count[i:i + window_size[0], j:j + window_size[1]] += 1
-    reconstructed /= count
+    reconstructed = np.divide(reconstructed, count, out=np.zeros_like(reconstructed), where=count > 0)
     return reconstructed
 
 if __name__=='__main__':
