@@ -17,11 +17,16 @@ def extract_path_info(path_oh):
     """ Copied from mulinoderegistration managepaths class
     Needed to copy due to circular import """
     # Get the subfolder
-    parts = path_oh.strip('/').split('/')
+    normalized_path = str(path_oh).replace('\\', '/')
+    parts = normalized_path.strip('/').split('/')
+    important_part = None
     for part in parts:
         if "cage" in part.lower() and "animal" in part.lower():
             important_part = part
             break
+
+    if important_part is None:
+        raise ValueError(f"Could not find cage/animal segment in path: {path_oh}")
 
     # Find the cage and subject information
     parts = important_part.strip('_').split('_')
@@ -42,7 +47,7 @@ def monitor(common_drop_directory, directory_file = "running_directories.pkl", c
         if os.path.isfile(os.path.join(common_drop_directory, directory_file)):
             # Find directory file and open it
             print("Opening up the running output directories")
-            with open(os.path.join(common_drop_directory,"running_directories.pkl"),"rb") as f:
+            with open(os.path.join(common_drop_directory, directory_file),"rb") as f:
                 directories_list = pickle.load(f)
 
             # Double check path is real and exists

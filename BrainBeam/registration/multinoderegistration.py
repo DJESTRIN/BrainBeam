@@ -15,6 +15,8 @@ import argparse
 import pickle
 import shutil
 import time
+import shlex
+import getpass
 import ipdb
 from BrainBeam.registration.monitorprocess import monitor
 from BrainBeam.registration.monitorprocess import extract_path_info as epi
@@ -61,7 +63,7 @@ class managepaths():
         """ Given a base image path, find all subfolders """
         self.image_folders = set()
         # Loop over all images found and add parent dirs to the set
-        for file in glob.iglob(f"{self.base_stitched_image_path}/**/*.tif*", recursive=True):
+        for file in glob.iglob(os.path.join(self.base_stitched_image_path, "**", "*.tif*"), recursive=True):
             subfolder = os.path.dirname(file)
 
             if subfolder not in self.image_folders:
@@ -72,7 +74,7 @@ class managepaths():
         """ Given a base cell count path, find all cell count files """
         self.cell_count_files = set()
         # Loop over all images found and add csv files to the set
-        for file in glob.iglob(f"{self.base_cell_count_path}/**/*cell_count*.csv*", recursive=True):
+        for file in glob.iglob(os.path.join(self.base_cell_count_path, "**", "*cell_count*.csv*"), recursive=True):
             if file not in self.cell_count_files:
                 self.cell_count_files.add(file)
                 print(f"New file added: {file}")
@@ -290,10 +292,10 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
 
     # Cancel all previous jobs I am running
     if delete_contents_of_output_folders:
-        my_first_command = f"scancel -n custom_registration"
-        first_command_result = subprocess.run([my_first_command], shell=True, capture_output=True, text=True)
+        subprocess.run(["scancel", "-n", "custom_registration"], capture_output=True, text=True)
 
     jids = []
+    runregistr_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runregistr.py")
     for subject, variables in managepathobj.manage_paths.items():
         # Pull data from dictionary via get
         communal_slurm_log_directory = variables.get('communal_slurm_log_directory', '')
@@ -318,27 +320,44 @@ def submit_jobs(managepathobj, conda_environment_name, partition_oh = 'scu-cpu',
         align_flag = "--align_binary_mask" if align_binary_mask else ""
         crop_border_noise_bool_flag = "--crop_border_noise_bool" if crop_border_noise_bool else ""
 
-        my_command = f"sbatch --job-name=custom_registration \
-                --mem={memory_per_job}G \
-                --ntasks={tasks_per_job} \
-                --cpus-per-task={cpus_per_task} \
-                --partition={partition_oh} \
-                --mail-type=BEGIN,END,FAIL \
-                --mail-user={email} \
-                --output={communal_slurm_log_directory}/%x-%j.out \
-                --error={communal_slurm_error_directory}/%x-%j.err \
-                --wrap='source ~/.bashrc && conda activate {conda_environment_name} && python ./runregistr.py \
-                --image_path {image_folder} \
-                --atlas_path {atlas_drop_path} \
-                --output_path {registration_drop_path} \
-                --full_output_path \
-                {align_flag} \
-                {crop_border_noise_bool_flag} \
-                --force_orientation {force_orientations} \
-                --force_flips {force_flips}'"
+        wrap_args = [
+            "python",
+            runregistr_script,
+            "--image_path", image_folder,
+            "--atlas_path", atlas_drop_path,
+            "--output_path", registration_drop_path,
+            "--full_output_path",
+        ]
+        if align_flag:
+            wrap_args.append(align_flag)
+        if crop_border_noise_bool_flag:
+            wrap_args.append(crop_border_noise_bool_flag)
+        if force_orientations:
+            wrap_args.extend(["--force_orientation", *force_orientations.split()])
+        if force_flips:
+            wrap_args.extend(["--force_flips", *force_flips.split()])
 
-        # Run subprocess on command and pull out result. 
-        result = subprocess.run([my_command], shell=True, capture_output=True, text=True)
+        quoted_wrap_args = " ".join(shlex.quote(arg) for arg in wrap_args)
+        wrap_command = f"source ~/.bashrc && conda activate {shlex.quote(conda_environment_name)} && {quoted_wrap_args}"
+
+        sbatch_command = [
+            "sbatch",
+            "--job-name=custom_registration",
+            f"--mem={memory_per_job}G",
+            f"--ntasks={tasks_per_job}",
+            f"--cpus-per-task={cpus_per_task}",
+            f"--partition={partition_oh}",
+            "--mail-type=BEGIN,END,FAIL",
+            f"--mail-user={email}",
+            f"--output={communal_slurm_log_directory}/%x-%j.out",
+            f"--error={communal_slurm_error_directory}/%x-%j.err",
+            f"--wrap={wrap_command}",
+        ]
+
+        # Run subprocess on command and pull out result.
+        result = subprocess.run(sbatch_command, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"sbatch submission failed for {subject}: {result.stderr.strip() or result.stdout.strip()}")
         
         # Append job id to list for monitoring
         idoh = result.stdout.strip().split(" ")[-1]
@@ -354,6 +373,7 @@ def cli_parser():
     parser.add_argument('--conda_environment_name', type=str, required=True, help='Conda environment needed for registration')
     parser.add_argument('--partition', type=str, default='scu-cpu', help='slurm partition to use')
     parser.add_argument('--user_email', type=str, default='dje4001@med.cornell.edu', help='Email to use for slurm' )
+    parser.add_argument('--username', type=str, default=getpass.getuser(), help='Username to monitor in squeue')
     parser.add_argument('--memory', type=str, default='128', help='Memory in Gb to be used for each node')
     parser.add_argument('--tasks', type=str, default='8', help='Number of tasks per node')
     parser.add_argument('--cpus_per_task', type=str, default='4', help='Number of cpus per task')
@@ -407,7 +427,7 @@ if __name__=='__main__':
     pathobj()
 
     if args.monitor_only:
-        squeue_result_oh = subprocess.run(f"squeue --noheader -u dje4001 --format=%A", shell=True, capture_output=True, text=True)
+        squeue_result_oh = subprocess.run(f"squeue --noheader -u {args.username} --format=%A", shell=True, capture_output=True, text=True)
         current_ids = squeue_result_oh.stdout.split()
         joblist = [job for job in current_ids]
 
@@ -416,7 +436,7 @@ if __name__=='__main__':
 
         # Monitor jobs if succesful. 
         monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
-                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+                    file_extensions_oh=['jpg','gif'], username=args.username, sleep = 60)
 
     else:
         # Send all data to sbatch
@@ -435,7 +455,7 @@ if __name__=='__main__':
 
         # Monitor jobs if succesful. 
         monitor_jobs(communal_drop_folder, joblist, directory_file_oh  = "running_directories.pkl", 
-                    file_extensions_oh=['jpg','gif'], username='dje4001', sleep = 60)
+                    file_extensions_oh=['jpg','gif'], username=args.username, sleep = 60)
 
     """
     Note regarding usage:
