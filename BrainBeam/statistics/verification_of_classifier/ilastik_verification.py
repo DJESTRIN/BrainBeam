@@ -32,15 +32,16 @@ Thresholds=[i/100 for i in range(1,100,5)]
 F_ALL=[]
 for root,dirs,files in os.walk(data_path[0]):
     for file in files:
-        if "npy" in file:
+        if file.endswith(".npy"):
             
             #Get ground truth file
-            for file2 in files:
-                if "txt" in file2:
-                    gt_path=root+"/"+file2
+            gt_files=[file2 for file2 in files if file2.endswith(".txt")]
+            if len(gt_files) != 1:
+                raise FileNotFoundError(f"Expected exactly one ground truth .txt file in {root}, found {len(gt_files)}.")
+            gt_path=os.path.join(root,gt_files[0])
 
             #load in segmentation and ground truth
-            largemat=np.load(root+"/"+file)
+            largemat=np.load(os.path.join(root,file))
             gt=np.loadtxt(gt_path)
             cellbodies=np.squeeze(largemat[:,:,:,0])
             cellbodies_copy=np.copy(cellbodies)
@@ -83,5 +84,4 @@ for root,dirs,files in os.walk(data_path[0]):
                 
                 
         
-
 
