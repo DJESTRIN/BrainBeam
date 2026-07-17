@@ -3,7 +3,6 @@ from rich.table import Table
 from rich.console import Console
 import pandas as pd
 import os
-import ipdb
 
 class ProjectStatus():
     """ Project Status:
@@ -61,11 +60,10 @@ class ProjectStatus():
 class jobstatus():
     def __init__(self,*argv):
         self.files=argv
+        self.outputs={}
         for f in self.files:
-            out_file = open(f)
-            lines = out_file.readlines()
-            ipdb.set_trace()
-            out_file.close()
+            with open(f) as out_file:
+                self.outputs[f] = out_file.readlines()
 
 
 if __name__=='__main__':
@@ -73,6 +71,4 @@ if __name__=='__main__':
     projoh = ProjectStatus(exproj)
     projoh()
     jobstatus(r"C:\\Users\\listo\\BrainBeam\\gui\\slurm-123106.out")
-
-
 

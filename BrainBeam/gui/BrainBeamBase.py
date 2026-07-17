@@ -1,17 +1,12 @@
 """ BrainBeamBase
 The purpose of this script is to set up the basic classes and subsquent GUIs to run BrainBeam
 """
-#import tkinter as tk
-from tkinter import *
 import tkinter as tk
 import customtkinter as ctk
-import subprocess, os, glob
-from threading import Thread
-import subprocess
+import os, glob
 import webview 
 from PIL import Image
 from tkinter import filedialog
-import ipdb
 import json
 
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
@@ -36,7 +31,7 @@ class BrainBeamGuiBase():
         
         # Set up Tab page
         self.tabview = ctk.CTkTabview(self.root, width=1000,height=800)
-        self.tabview.place(relx=0.57, rely=0.49, anchor=CENTER)
+        self.tabview.place(relx=0.57, rely=0.49, anchor=tk.CENTER)
         self.tabview.add("Overview")
         self.tabview.add("Copy, Move & Compress")
         self.tabview.add("Denoise")
@@ -56,6 +51,11 @@ class BrainBeamGuiBase():
         self.call_logo()
         self.set_up_overview()
         self.set_up_copy()
+
+    def get_project_file_path(self):
+        if self.projectfiledir.endswith('.json'):
+            return self.projectfiledir
+        return f'{self.projectfiledir}.json'
 
     def set_up_overview(self):
         #Set log image
@@ -112,11 +112,11 @@ class BrainBeamGuiBase():
                          'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
                 self.overviewdict[self.index]=dict_oh
                 self.index+=1
-        elif os.path.exists(os.path.join(directory,'Ex*')): #When selecting a simple folder for with one sample
+        elif 'ex' in os.path.basename(directory).lower(): #When selecting a simple folder for with one sample
             samplename=os.path.basename(directory)
             foldername=None
             dict_oh={'parentfoldername':foldername,'samplename':samplename,'Imported':'complete','Copied':'pending', 'Moved':'pending','Compressed':'pending','Converted':'pending',
-                         'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':sample}
+                         'Denoise':'pending','Stitch':'pending','Neuroglancer conversion':'pending','Registration':'pending','Segmentation':'pending','Custom Script':'pending','rawpath':directory}
             self.overviewdict[self.index]=dict_oh
             self.index+=1
         else: #Input folder does not fit our format
@@ -126,10 +126,10 @@ class BrainBeamGuiBase():
         try:
             #Write json into a file
             self.overviewdict=json.dumps(self.overviewdict,indent=4)
-            with open(self.projectfiledir+'.json', "w") as outfile:
+            with open(self.get_project_file_path(), "w") as outfile:
                 outfile.write(self.overviewdict)
             
-            with open(self.projectfiledir+'.json', 'r') as openfile:
+            with open(self.get_project_file_path(), 'r') as openfile:
                 self.overviewdict = json.load(openfile)
         except AttributeError:
             self.throw_error('The Project file was not created')
@@ -138,7 +138,7 @@ class BrainBeamGuiBase():
         self.set_up_overview_headers()
 
         #Set up gui images path
-        image_path = os.path.join(self.wd, r"\BrainBeam\gui\images")
+        image_path = os.path.join(self.wd, "BrainBeam", "gui", "images")
         self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
         self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
         self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
@@ -208,6 +208,8 @@ class BrainBeamGuiBase():
      
 
     def set_up_overview_headers(self):
+        if hasattr(self, 'overview_frame'):
+            self.overview_frame.destroy()
         self.overview_frame = ctk.CTkFrame(self.tabview.tab("Overview"), corner_radius=0,width=350,height=500)
         self.overview_frame.place(relx=0.01, rely=0.05)
         self.overview_frame.grid_rowconfigure(len(self.overviewdict)+2, weight=1)
@@ -287,7 +289,7 @@ class BrainBeamGuiBase():
         self.webbtn.place(relx=0.82,rely=0.55)
 
         #Check processes
-        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Check status of code",font=("Arial",15,'bold'),command=self.select_folder,state=DISABLED)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Copy, Move & Compress"),text="Check status of code",font=("Arial",15,'bold'),command=self.select_folder,state=tk.DISABLED)
         self.webbtn.place(relx=0.4,rely=0.75)
 
     def set_up_custom_script(self):
@@ -307,8 +309,8 @@ class BrainBeamGuiBase():
         self.entry3.place(relx=0.2,rely=0.71)
         self.entry = ctk.CTkEntry(self.tabview.tab("Custom Script"), width=600, placeholder_text=r"Set cubic volume size. Ex. '200' means stitched volume will be applied to 200x200x200 chunks.")
         self.entry.place(relx=0.2,rely=0.81)
-        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Run Custom Script",width =8,state=DISABLED,command=self.copydata).place(relx=0.6,rely=0.91)
-        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Register Custom Script to Overview",width =8,state=DISABLED,command=self.copydata).place(relx=0.2,rely=0.91)
+        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Run Custom Script",width =8,state=tk.DISABLED,command=self.copydata).place(relx=0.6,rely=0.91)
+        self.runbutton=ctk.CTkButton(master=self.tabview.tab("Custom Script"),text="Register Custom Script to Overview",width =8,state=tk.DISABLED,command=self.copydata).place(relx=0.2,rely=0.91)
 
     def set_up_radio_buttons(self):
         # create radiobutton frame

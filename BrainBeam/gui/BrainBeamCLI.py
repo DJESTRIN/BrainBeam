@@ -2,9 +2,7 @@
 The purpose of this script is to allow users to interface with back-end software via a simple programming interface. 
 Designating --headless will trigger the API instead of the GUI. 
 """
-import subprocess as sp
 import os
-
 
 class DigestData():
     def __init__(self):
@@ -22,6 +20,11 @@ class DigestData():
         #self.compflag='aws'
 
     def show_progress(self):
+        pass
+
+
+class API(DigestData):
+    pass
 
 
 # class CLI(DigestData):
