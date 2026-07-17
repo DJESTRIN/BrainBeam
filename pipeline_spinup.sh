@@ -1,44 +1,67 @@
 #!/bin/bash
-# Get the directory where the script is located
-code_directory="$(pwd)"
+set -euo pipefail
+
+script_directory="$(cd "$(dirname "$0")" && pwd)"
+code_directory="$script_directory"
+copy_script="$code_directory/BrainBeam/utils/copy.sh"
+convert_spinup_script="$code_directory/BrainBeam/destripe/convert_tiff_spinup.sh"
+
 echo "This is your code directory: $code_directory"
 
-# Check for the correct number of arguments
-if [ "$#" -ne 4 ]; then
+if [ "$#" -ne 3 ]; then
     echo "Usage: $0 <scratch_directory> <store_start_directory> <store_finish_directory>"
     exit 1
 fi
 
-# Assign input arguments to variables
 scratch_directory=$1
 store_start_directory=$2
 store_finish_directory=$3
 
-# Display the directories
-echo "This is your code directory: $code_directory"
 echo "This is your scratch directory: $scratch_directory"
 echo "This is your start directory: $store_start_directory"
 echo "This is your end directory: $store_finish_directory"
 
-# Make directories
+if [ ! -d "$store_start_directory" ]; then
+    echo "Error: start directory does not exist: $store_start_directory"
+    exit 1
+fi
+
+if [ ! -f "$copy_script" ]; then
+    echo "Error: copy helper script not found: $copy_script"
+    exit 1
+fi
+
+if [ ! -f "$convert_spinup_script" ]; then
+    echo "Error: TIFF conversion spinup script not found: $convert_spinup_script"
+    exit 1
+fi
+
 mkdir -p "$scratch_directory"
 mkdir -p "$scratch_directory/lightsheet"
 mkdir -p "$store_finish_directory"
 
-# Change to the code directory
-cd "$code_directory"
+copy_job_ids=()
+while IFS= read -r -d '' sample_directory; do
+    echo "$sample_directory"
+    copy_job_id=$(sbatch --parsable \
+        --job-name=copying_files \
+        --mem=300G \
+        --partition=scu-cpu \
+        --mail-type=BEGIN,END,FAIL \
+        --mail-user=dje4001@med.cornell.edu \
+        --wrap="bash '$copy_script' '$sample_directory' '$scratch_directory'") || exit 1
+    copy_job_ids+=("$copy_job_id")
+done < <(find "$store_start_directory" -maxdepth 1 -mindepth 1 -type d -print0)
 
-# Get a list of samples
-samples=$(find $store_start_directory -maxdepth 1 -mindepth 1 -type d)
+if [ ${#copy_job_ids[@]} -eq 0 ]; then
+    echo "No sample directories found in $store_start_directory"
+    exit 1
+fi
 
-# Copy all pending data to the scratch drive
-for i in $samples
-do
-    TMP=$(echo $i)
-    echo $TMP
-    sbatch --job-name=copying_files --mem=300G --partition=scu-cpu --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="bash ./misc/copy.sh '$TMP' '$scratch_directory'"
-done
-
-sbatch --mem=50G --partition=scu-cpu --dependency=singleton --job-name=copying_files --wrap="bash ./destripe/convert_tiff_spinup.sh '$code_directory' '$scratch_directory' '$store_finish_directory'"
-
-exit
+copy_dependency="afterok:$(IFS=:; echo "${copy_job_ids[*]}")"
+sbatch --parsable \
+    --mem=50G \
+    --partition=scu-cpu \
+    --dependency="$copy_dependency" \
+    --job-name=convert_png_to_tiff \
+    --wrap="bash '$convert_spinup_script' '$code_directory' '$scratch_directory' '$store_finish_directory'"
