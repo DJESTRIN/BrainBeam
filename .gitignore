@@ -1,0 +1,26 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Cluster / job logs (should live on the cluster, not in the repo)
+slurm-*.out
+*.log
+
+# Editor/OS cruft
+.DS_Store
+Thumbs.db
+
+# Pipeline run-state artifacts (sample tracking JSON etc.) generated at
+# runtime should be written to the scratch/store directories used by the
+# pipeline scripts, not committed to the repo. If one lands here by mistake,
+# ignore it instead of committing it.
+*_deleteme*

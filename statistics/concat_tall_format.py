@@ -20,4 +20,4 @@ for directory in directories:
 
 os.chdir("/athena/listonlab/scratch/dje4001/")
 combined_csv=pd.concat([pd.read_csv(f) for f in list_of_files])
-combined_csv.to_csv("pseudorabies_dataset",index=False)
+combined_csv.to_csv("pseudorabies_dataset.csv",index=False)
