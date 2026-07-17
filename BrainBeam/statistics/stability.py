@@ -50,8 +50,8 @@ class slope_stability():
                       'intercept_low':[self.intercept_data[0]],
                       'intercept_av':[self.intercept_data[1]],
                       'intercept_high':[self.intercept_data[2]]})
-        linedata.to_csv(os.path.join(self.drop_directory,'linedata.csv'))
-        self.dataframe.to_csv(os.path.join(self.drop_directory,'stabilitydataframe.csv'))
+        linedata.to_csv(os.path.join(self.drop_directory,f"{self.xaxis_label}_{self.yaxis_label}_linedata.csv"))
+        self.dataframe.to_csv(os.path.join(self.drop_directory,f'{self.xaxis_label}_{self.yaxis_label}_stabilitydataframe.csv'))
 
         if self.graph_results:
             self.plot_slope()
@@ -204,7 +204,7 @@ class slope_stability():
         self.weighted_results = self.subset_simulation_helper()
         self.df_wide['weights'] = self.weighted_results
         self.df_wide = self.df_wide.sort_values(by='weights')
-        self.df_wide.to_csv(os.path.join(self.drop_directory,'weightswide.csv'))
+        self.df_wide.to_csv(os.path.join(self.drop_directory,f'{self.xaxis_label}_{self.yaxis_label}_weightswide.csv'))
 
         # Jitter plot of weights
         plt.figure(figsize=(10,10))
@@ -245,12 +245,9 @@ if __name__=='__main__':
     if args_oh.pseudo_study:
         df = generate_pseudo_data()
     else:
-        try:
-            df = pd.read_csv(args_oh.csv_file)
-        
-        except:
-            print('Issue with reading csv file. May not have been provided. Using Pseudo data!!')
-            df = generate_pseudo_data()
+        if not args_oh.csv_file:
+            raise ValueError('--csv_file is required unless --pseudo_study is set')
+        df = pd.read_csv(args_oh.csv_file)
 
     # Set up and run stability analysis for dataset
     slopeobj = slope_stability(dataframe_oh = df, 
