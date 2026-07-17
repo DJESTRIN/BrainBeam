@@ -16,25 +16,24 @@ from tqdm import tqdm
 from collections import defaultdict
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, TimeRemainingColumn
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 import matplotlib as mpl
 mpl.use("Agg") 
 import matplotlib.pyplot as plt
-
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib import cm
 from matplotlib.patches import Circle
-
 from scipy.ndimage import gaussian_filter
 from scipy.stats import sem
 from scipy.ndimage import distance_transform_edt, binary_erosion
 import statsmodels.api as sm
-
 from BrainBeam.registration.atlastree import atlastree
 import ipdb
+from matplotlib.patches import RegularPolygon
+from matplotlib.patches import Polygon
+
 
 class AtlasGraph:
-    def __init__(self, dataframe, atlas_path, drop_directory,filename='tslices_nothreshold.jpg',
+    def __init__(self, dataframe, atlas_path, drop_directory,filename='tslices_nothreshold_updated.jpg',
                  default_decrease_color = np.array([224, 76, 92]) , default_increase_color = np.array([0, 148, 209]) ):
         self.atlas_path = atlas_path
         self.df = dataframe
@@ -51,17 +50,21 @@ class AtlasGraph:
         self.get_blank_atlas()
         self.get_ids()
         self.fill_atlas(threshold=0, filename=self.filename)
+        self.fill_atlas(threshold=2.13, filename=f'{self.filename[:-4]}_thresholded_tslices.jpg')
         self.fill_atlas(stat='neg_log_p_value', threshold=1.3010299, filename= f'{self.filename[:-4]}_pslices.jpg')
 
         # Get gradient of t-values    
-        # self.plot_avg_tvalue_along_axis(axis=0, stat='t_value', filename_prefix='binned_avg_tvalue_Anterior_Posterior', bin_size=1) # Anterior → Posterior 
-        # self.plot_avg_tvalue_along_axis(axis=1, stat='t_value', filename_prefix='binned_avg_tvalue_Dorsal_Ventral', bin_size=1) # Dorsal → Ventral
-        # self.plot_avg_tvalue_along_axis(axis=2, stat='t_value', filename_prefix='binned_avg_tvalue_Left_Right', bin_size=1) # Ipsi → Contra
-        # self.plot_avg_tvalue_medial_to_lateral(stat='t_value', filename_prefix='binned_avg_tvalue_Medial_Lateral') # Medial → Lateral
-        # self.plot_avg_tvalue_cortical_to_basal(stat='t_value', filename_prefix='binned_avg_tvalue_Cortical_Basal', bin_size=1) # Cortical → Basal
-        # self.plot_avg_tvalue_distance_from_pfc( stat='t_value', filename_prefix='binned_avg_tvalue_Proximal_Distal', bin_size=1) #Proximal →  Distal
+        self.plot_avg_tvalue_along_axis(axis=0, stat='t_value', filename_prefix=f'{self.abbreviated_filename}_Anterior_Posterior', bin_size=1) # Anterior → Posterior 
+        self.plot_avg_tvalue_along_axis(axis=1, stat='t_value', filename_prefix=f'{self.abbreviated_filename}_Dorsal_Ventral', bin_size=1) # Dorsal → Ventral
+        self.plot_avg_tvalue_along_axis(axis=2, stat='t_value', filename_prefix=f'{self.abbreviated_filename}_Left_Right', bin_size=1) # Ipsi → Contra
+        self.plot_avg_tvalue_medial_to_lateral(stat='t_value', filename_prefix=f'{self.abbreviated_filename}_Medial_Lateral') # Medial → Lateral
+        self.plot_avg_tvalue_cortical_to_basal(stat='t_value', filename_prefix=f'{self.abbreviated_filename}_Cortical_Basal', bin_size=1) # Cortical → Basal
+        self.plot_avg_tvalue_distance_from_pfc( stat='t_value', filename_prefix=f'{self.abbreviated_filename}_Proximal_Distal', bin_size=1) #Proximal →  Distal
 
         self.distancedf,self.mpfcdistancedf = self.plot_centered_avg_tvalue_by_region_normalized() 
+        self.distancedf.to_csv(os.path.join(self.drop_directory,f'{self.abbreviated_filename}_distancesdf.csv'))
+        self.mpfcdistancedf.to_csv(os.path.join(self.drop_directory,f'{self.abbreviated_filename}_mpfc_distancesdf.csv'))
+        
         self.plot_distance_profiles()
         self.plot_distance_profiles_norm()
         # self.fill_atlas_by_distance_from_pfc()
@@ -75,20 +78,35 @@ class AtlasGraph:
         ontology_dict_oh = {i: v for i, v in enumerate(ontology_dict)}
         self.tree_obj = atlastree(data=ontology_dict_oh)
 
-    def get_blank_atlas(self, annotation_path=r'C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\experimental\communal_atlas_drop\annotation\ccf_2017\annotation_50.nrrd'):
+    def get_blank_atlas(self, annotation_path=None):
+        if annotation_path is None:
+            annotation_path = os.path.join(
+                self.atlas_path,
+                'communal_atlas_drop',
+                'annotation',
+                'ccf_2017',
+                'annotation_50.nrrd'
+            )
         self.atlas, header = nrrd.read(annotation_path)
 
     def get_ids(self):
         ids = []
         for name in self.df["regionname"]:
-            ids.append(self.tree_obj.find_node(id_or_name=name)['id'])
+            try:
+                ids.append(self.tree_obj.find_node(id_or_name=name)['id'])
+            except Exception as exc:
+                raise ValueError(f'Unable to resolve atlas region ID for "{name}"') from exc
 
         self.df.insert(0, 'id', ids)
 
 
     def fill_atlas(self, stat='t_value', threshold=1, filename='tslices.jpg'):
         t_min, t_max = self.df[stat].min(), self.df[stat].max()
-        self.df['norm'] = (self.df[stat] - t_min) / (t_max - t_min)
+        stat_range = t_max - t_min
+        if stat_range == 0:
+            self.df['norm'] = 0.5
+        else:
+            self.df['norm'] = (self.df[stat] - t_min) / stat_range
 
         # Create color maps
         color_map_ipsi = {}
@@ -166,7 +184,8 @@ class AtlasGraph:
         plt.tight_layout(rect=[0, 0, 0.9, 1])
         plt.savefig(os.path.join(self.drop_directory, filename), dpi=300)
         plt.close(fig)
-        
+
+
     def plot_avg_tvalue_along_axis(self, axis=0, stat='t_value', filename_prefix='binned_avg_tvalue', bin_size=1):
         """
         Bins slices of the atlas along a given axis, computes weighted average ± SEM of `stat` per bin,
@@ -814,7 +833,9 @@ class AtlasGraph:
         ax.set_title("Distance-dependent t-value profiles")
         ax.grid(True)
         plt.tight_layout()
-        plt.savefig(f'{self.abbreviated_filename}_distance_tvals.jpg')
+
+        filename = os.path.join(self.drop_directory, f'{self.abbreviated_filename}_distance_tvals.jpg')
+        plt.savefig(filename)
 
     def plot_distance_profiles_norm(self, ax=None):
         """
@@ -887,7 +908,8 @@ class AtlasGraph:
         ax.set_title("Distance-dependent t-value profiles (zeroed at start)")
         ax.grid(True)
         plt.tight_layout()
-        plt.savefig(f'{self.abbreviated_filename}_distance_tvals_norm.jpg')
+        filename = os.path.join(self.drop_directory, f'{self.abbreviated_filename}_distance_tvals_norm.jpg')
+        plt.savefig(filename)
 
     def fill_atlas_by_distance_from_pfc(self, bin_size=10, filename='distance_fill.jpg'):
         
@@ -971,7 +993,6 @@ class AtlasGraph:
         plt.tight_layout(rect=[0, 0, 0.9, 1])
         plt.savefig(os.path.join(self.drop_directory, filename), dpi=300)
         plt.close(fig)
-
 
 
 
