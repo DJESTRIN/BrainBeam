@@ -17,7 +17,7 @@ def generate_pseudo_data(num_subjects=20,num_cages=5,groups=["CONTROL","CORT"],l
     """
     # Parameters
     num_subjects = num_subjects
-    cage_numbers = [f"C{str(i).zfill(2)}" for i in range(1, num_cages)]  # C01 to C20
+    cage_numbers = [f"C{str(i).zfill(2)}" for i in range(1, num_cages + 1)]  # C01 to C20
 
     mouse_brain_regions = [
         "Hippocampus (CA1)", "Hippocampus (CA2)", "Hippocampus (CA3)", "Dentate Gyrus",
@@ -85,8 +85,9 @@ def generate_pseudo_data(num_subjects=20,num_cages=5,groups=["CONTROL","CORT"],l
 
 def increase_pseudo_stability(X, y, percent_data=0.4):
     # Randomly change a certain percent of the data to be equal
-    for k,row in enumerate(X['CONTROL']):
+    X = X.copy()
+    for k, row in enumerate(X['CONTROL']):
         if np.random.random()<percent_data:
-            X['CONTROL'][k] = y[k]
+            X.iloc[k, X.columns.get_loc('CONTROL')] = y.iloc[k] if hasattr(y, 'iloc') else y[k]
    
     return X, y
