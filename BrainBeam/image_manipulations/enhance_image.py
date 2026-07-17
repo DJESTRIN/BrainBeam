@@ -81,6 +81,7 @@ def enhance_image(image, window_size, stride):
     # Compute the mean and standard deviation of each window
     means = np.mean(windows, axis=(-3, -2))
     stds = np.std(windows, axis=(-3, -2))
+    stds[stds == 0] = 1
 
     # Perform local contrast enhancement on each window
     contrast_enhanced = (windows - means[..., np.newaxis, np.newaxis]) / stds[..., np.newaxis, np.newaxis]
