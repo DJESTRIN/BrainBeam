@@ -47,6 +47,10 @@ class BrainBeamGuiBase():
         self.call_logo()
         self.set_up_overview()
         self.set_up_copy()
+        self.set_up_denoise()
+        self.set_up_stitch()
+        self.set_up_registration()
+        self.set_up_segmentation()
 
     def get_project_file_path(self):
         if self.projectfiledir.endswith('.json'):
@@ -133,14 +137,6 @@ class BrainBeamGuiBase():
     def updateoverview(self):
         self.set_up_overview_headers()
 
-        #Set up gui images path
-        image_path = os.path.join(self.wd, "BrainBeam", "gui", "images")
-        self.errorimg = ctk.CTkImage(Image.open(os.path.join(image_path,"error.png")), size=(20, 20))
-        self.completeimg = ctk.CTkImage(Image.open(os.path.join(image_path,"complete.png")), size=(20, 20))
-        self.nextstepimg = ctk.CTkImage(Image.open(os.path.join(image_path,"nextstep.png")), size=(15, 7))
-        self.pendingimg = ctk.CTkImage(Image.open(os.path.join(image_path,"pending.png")), size=(20, 20))
-        self.runningimg = ctk.CTkImage(Image.open(os.path.join(image_path,"running.png")), size=(20, 20))
-
         # Destroy previously made images if any
         try:
             for label in self.all_overview_images:
@@ -149,42 +145,36 @@ class BrainBeamGuiBase():
             self.all_overview_images=[]
 
         row_oh=1
+        status_symbols={'pending':('\u25cb','gray60'),'complete':('\u2714','green'),'error':('\u2716','red'),'running':('\u25f4','orange')}
         for sample in self.overviewdict:
             dict_oh=self.overviewdict[sample]
             for key,value in dict_oh.items():
-                #Determine value of the key
-                if value=='pending':
-                    image_oh=self.pendingimg
-                elif value=='complete':
-                    image_oh=self.completeimg
-                elif value=='error':
-                    image_oh=self.errorimg
-                elif value=='running':
-                    image_oh=self.runningimg
+                #Determine display symbol/color for this status value
+                symbol,color=status_symbols.get(value,('?','gray60'))
 
-                #generate image
+                #generate status label
                 if key=='samplename':
                     label=ctk.CTkLabel(self.overview_frame, text=value, font=('Arial',10,'bold')).grid(row=row_oh,column=1)
                 if key=='Imported':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=3)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=3)
                 if key=='Copied':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=5)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=5)
                 if key=='Moved':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=7)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=7)
                 if key=='Compressed':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=9)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=9)
                 if key=='Converted':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=11)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=11)
                 if key=='Denoise':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=13)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=13)
                 if key=='Stitch':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=15)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=15)
                 if key=='Registration':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=17)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=17)
                 if key=='Segmentation':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=19)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=19)
                 if key=='Custom Script':
-                    label=ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=image_oh).grid(row=row_oh,column=21)
+                    label=ctk.CTkLabel(self.overview_frame, text=symbol, text_color=color, height=10, width=10).grid(row=row_oh,column=21)
 
                 #Put labels in a common list
                 try:
@@ -198,7 +188,7 @@ class BrainBeamGuiBase():
                 if ( i % 2 ) == 0: 
                     if i==0 or i==2:
                         continue
-                    self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="", height=10, width=10, image=self.nextstepimg).grid(row=row_oh+1,column=i)
+                    self.navigation_frame_label = ctk.CTkLabel(self.overview_frame, text="\u2192", height=10, width=10).grid(row=row_oh+1,column=i)
      
 
     def set_up_overview_headers(self):
@@ -350,6 +340,135 @@ class BrainBeamGuiBase():
             return
         self.run_backend_action(self.decompress_status_label,'Decompress',lambda api: api.decompress(input_dir))
 
+    def set_up_denoise(self):
+        #Set up the Denoise tab (raw PNG -> TIFF conversion, then destriping)
+        self.textbox_denoise = ctk.CTkTextbox(self.tabview.tab("Denoise"), width=1000,height=80)
+        self.textbox_denoise.insert("0.0", "Denoise converts raw lightsheet PNG stacks to TIFF, then removes striping artifacts.\n"+
+                             "LOCAL runs each sample one at a time. SLURM submits a batch job that automatically chains conversion into destriping.")
+        self.textbox_denoise.place(relx=0.0005,rely=0.01)
+        self.denoise_scratch_entry = ctk.CTkEntry(self.tabview.tab("Denoise"), width=600, placeholder_text="Scratch directory containing lightsheet/raw/<sample> folders.")
+        self.denoise_scratch_entry.place(relx=0.01,rely=0.25)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Denoise"),text="Find Scratch Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.denoise_scratch_entry,'Select scratch directory'))
+        self.webbtn.place(relx=0.65,rely=0.25)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Denoise"),text="Start Denoising",font=("Arial",15,'bold'),command=self.start_denoise)
+        self.webbtn.place(relx=0.4,rely=0.35)
+        self.denoise_status_label = ctk.CTkLabel(self.tabview.tab("Denoise"),text="",font=("Arial",11))
+        self.denoise_status_label.place(relx=0.01,rely=0.42)
+
+    def start_denoise(self):
+        scratch_dir=self.denoise_scratch_entry.get().strip()
+        if not scratch_dir:
+            self.throw_error('Please select a scratch directory before denoising.')
+            return
+        self.run_backend_action(self.denoise_status_label,'Denoise',lambda api: api.denoise(scratch_dir))
+
+    def set_up_stitch(self):
+        #Set up the Stitch tab
+        self.textbox_stitch = ctk.CTkTextbox(self.tabview.tab("Stitch"), width=1000,height=80)
+        self.textbox_stitch.insert("0.0", "Stitch combines destriped tile images into a single volume per sample.\n"+
+                             "On SLURM, you may optionally auto-chain into the next pipeline stage once stitching finishes.")
+        self.textbox_stitch.place(relx=0.0005,rely=0.01)
+        self.stitch_scratch_entry = ctk.CTkEntry(self.tabview.tab("Stitch"), width=600, placeholder_text="Scratch directory containing lightsheet/destriped/<sample> folders.")
+        self.stitch_scratch_entry.place(relx=0.01,rely=0.25)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Stitch"),text="Find Scratch Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.stitch_scratch_entry,'Select scratch directory'))
+        self.webbtn.place(relx=0.65,rely=0.25)
+        self.stitch_chain_var = tk.BooleanVar(value=False)
+        self.stitch_chain_checkbox = ctk.CTkCheckBox(self.tabview.tab("Stitch"),text="Auto-chain to next stage (SLURM only)",variable=self.stitch_chain_var)
+        self.stitch_chain_checkbox.place(relx=0.01,rely=0.32)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Stitch"),text="Start Stitching",font=("Arial",15,'bold'),command=self.start_stitch)
+        self.webbtn.place(relx=0.4,rely=0.4)
+        self.stitch_status_label = ctk.CTkLabel(self.tabview.tab("Stitch"),text="",font=("Arial",11))
+        self.stitch_status_label.place(relx=0.01,rely=0.47)
+
+    def start_stitch(self):
+        scratch_dir=self.stitch_scratch_entry.get().strip()
+        if not scratch_dir:
+            self.throw_error('Please select a scratch directory before stitching.')
+            return
+        chain_next_stage=bool(self.stitch_chain_var.get())
+        self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage))
+
+    def set_up_registration(self):
+        #Set up the Registration tab
+        self.textbox_registration = ctk.CTkTextbox(self.tabview.tab("Registration"), width=1000,height=80)
+        self.textbox_registration.insert("0.0", "Registration aligns lightsheet data to a reference atlas.\n"+
+                             "LOCAL registers a single sample. SLURM registers a batch of samples and requires a segmentation path and conda environment name.")
+        self.textbox_registration.place(relx=0.0005,rely=0.01)
+        self.registration_image_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Path to stitched image (LOCAL) or parent image folder (SLURM).")
+        self.registration_image_entry.place(relx=0.01,rely=0.2)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Image Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_image_entry,'Select image path'))
+        self.webbtn.place(relx=0.65,rely=0.2)
+        self.registration_output_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Output path for registration results.")
+        self.registration_output_entry.place(relx=0.01,rely=0.28)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Output Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_output_entry,'Select output path'))
+        self.webbtn.place(relx=0.65,rely=0.28)
+        self.registration_atlas_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Atlas path (LOCAL, optional - default atlas used if left empty).")
+        self.registration_atlas_entry.place(relx=0.01,rely=0.36)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Atlas Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_atlas_entry,'Select atlas path'))
+        self.webbtn.place(relx=0.65,rely=0.36)
+        self.registration_segmentation_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Parent segmentation path (required for SLURM batch registration).")
+        self.registration_segmentation_entry.place(relx=0.01,rely=0.44)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Find Segmentation Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.registration_segmentation_entry,'Select parent segmentation path'))
+        self.webbtn.place(relx=0.65,rely=0.44)
+        self.registration_conda_entry = ctk.CTkEntry(self.tabview.tab("Registration"), width=600, placeholder_text="Conda environment name (required for SLURM batch registration).")
+        self.registration_conda_entry.place(relx=0.01,rely=0.52)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Registration"),text="Start Registering",font=("Arial",15,'bold'),command=self.start_register)
+        self.webbtn.place(relx=0.4,rely=0.6)
+        self.registration_status_label = ctk.CTkLabel(self.tabview.tab("Registration"),text="",font=("Arial",11))
+        self.registration_status_label.place(relx=0.01,rely=0.67)
+
+    def start_register(self):
+        image_path=self.registration_image_entry.get().strip()
+        output_path=self.registration_output_entry.get().strip() or None
+        atlas_path=self.registration_atlas_entry.get().strip() or None
+        segmentation_path=self.registration_segmentation_entry.get().strip() or None
+        conda_env=self.registration_conda_entry.get().strip() or None
+        if not image_path:
+            self.throw_error('Please select an image path before registering.')
+            return
+        if self.get_computertype()=='slurm' and (not segmentation_path or not conda_env):
+            self.throw_error('SLURM registration requires both a parent segmentation path and a conda environment name.')
+            return
+        self.run_backend_action(self.registration_status_label,'Register',lambda api: api.register(
+            image_path,output_path=output_path,atlas_path=atlas_path,
+            parent_segmentation_path=segmentation_path,conda_environment_name=conda_env))
+
+    def set_up_segmentation(self):
+        #Set up the Segmentation tab
+        self.textbox_segmentation = ctk.CTkTextbox(self.tabview.tab("Segmentation"), width=1000,height=80)
+        self.textbox_segmentation.insert("0.0", "Segmentation splits stitched volumes into cubes, runs the ilastik pixel classifier, and concatenates cell counts.\n"+
+                             "LOCAL requires an ilastik project (.ilp) file. SLURM submits the full batch pipeline.")
+        self.textbox_segmentation.place(relx=0.0005,rely=0.01)
+        self.segmentation_scratch_entry = ctk.CTkEntry(self.tabview.tab("Segmentation"), width=600, placeholder_text="Scratch directory containing lightsheet/stitched/<sample> folders.")
+        self.segmentation_scratch_entry.place(relx=0.01,rely=0.25)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Find Scratch Folder",font=("Arial",15,'bold'),command=lambda: self.select_folder_into_entry(self.segmentation_scratch_entry,'Select scratch directory'))
+        self.webbtn.place(relx=0.65,rely=0.25)
+        self.segmentation_ilastik_entry = ctk.CTkEntry(self.tabview.tab("Segmentation"), width=600, placeholder_text="Ilastik project file (.ilp) - required for LOCAL.")
+        self.segmentation_ilastik_entry.place(relx=0.01,rely=0.33)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Find .ilp File",font=("Arial",15,'bold'),command=self.select_ilastik_file)
+        self.webbtn.place(relx=0.65,rely=0.33)
+        self.webbtn = ctk.CTkButton(self.tabview.tab("Segmentation"),text="Start Segmenting",font=("Arial",15,'bold'),command=self.start_segment)
+        self.webbtn.place(relx=0.4,rely=0.43)
+        self.segmentation_status_label = ctk.CTkLabel(self.tabview.tab("Segmentation"),text="",font=("Arial",11))
+        self.segmentation_status_label.place(relx=0.01,rely=0.5)
+
+    def select_ilastik_file(self):
+        filepath = filedialog.askopenfilename(title='Select ilastik project file',initialdir=self.wd,filetypes=[('Ilastik project','*.ilp'),('All files','*.*')])
+        if filepath:
+            self.segmentation_ilastik_entry.delete(0,tk.END)
+            self.segmentation_ilastik_entry.insert(0,filepath)
+
+    def start_segment(self):
+        scratch_dir=self.segmentation_scratch_entry.get().strip()
+        ilastik_file=self.segmentation_ilastik_entry.get().strip() or None
+        if not scratch_dir:
+            self.throw_error('Please select a scratch directory before segmenting.')
+            return
+        if self.get_computertype()=='local' and not ilastik_file:
+            self.throw_error('Local segmentation requires an ilastik project (.ilp) file.')
+            return
+        self.run_backend_action(self.segmentation_status_label,'Segment',lambda api: api.segment(scratch_dir,ilastik_project_file=ilastik_file))
+
     def set_up_custom_script(self):
         self.textbox = ctk.CTkTextbox(self.tabview.tab("Custom Script"), width=1000,height=300)
         self.textbox.insert("0.0", "Implementing Custom Python Scripts in BrainBeam:\n\n" + "To run a custom python script you will need the full path to the sample or directory of samples." +
@@ -383,9 +502,10 @@ class BrainBeamGuiBase():
         self.radio_button_3.place(relx=0.68,rely=0.27,anchor='e')
     
     def call_logo(self):
-        #Set log image
-        image_path = os.path.join(self.wd, "BrainBeam/gui/images")
-        image_path = os.path.join(image_path,"BBlogoV1.png")
+        #Set log image. Path is computed relative to this file so the GUI works
+        #regardless of the directory it was launched from.
+        gui_dir = os.path.dirname(os.path.abspath(__file__))
+        image_path = os.path.join(gui_dir, "images", "logo2.PNG")
         self.logo_image = ctk.CTkImage(Image.open(image_path), size=(180, 90))
 
         self.navigation_frame = ctk.CTkFrame(self.root, corner_radius=0,width=180,height=95)
