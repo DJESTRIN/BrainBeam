@@ -57,8 +57,8 @@ def cli_parser():
     else:
         new_folder = f'current_run_{init_date_time}'
         output_path = os.path.join(args.output_path,new_folder)
-        if not os.path.exists(output_path): 
-            os.makedirs(output_path)
+
+    os.makedirs(output_path, exist_ok=True)
 
     # Append a few new arguments
     args.output_path = output_path
@@ -112,7 +112,7 @@ def main(args, logger):
     for Cell_oh in cell_count_objs:
         graphobj_cell = volume_graphics()
         alignment_object_cell = alignment(MovingImageObject=Cell_oh, TargetImageObject=target_oh, logger=logger, 
-                                          graphobjoh = graphobj, drop_path=args.output_path, align_binary_mask=args.align_binary_mask)
+                                          graphobjoh = graphobj_cell, drop_path=args.output_path, align_binary_mask=args.align_binary_mask)
         alignment_object_cell() 
         cell_alignment_objs.append(alignment_object_cell)
 

@@ -15,14 +15,24 @@ from BrainBeam.registration.padding import zero_pad_arrays
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from pathlib import Path
 
+def _normalize_to_uint8_range(volume):
+    volume = volume.astype(np.float32, copy=False)
+    min_value = volume.min()
+    max_value = volume.max()
+    if max_value == min_value:
+        return np.zeros_like(volume, dtype=np.float32)
+    return ((volume - min_value) / (max_value - min_value)) * 255
+
 def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
     """ Find high signal points and replace it using a 3D convolutional like filter """
     # normalize data if set
     if normalize:
-        volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
+        volume = _normalize_to_uint8_range(volume)
 
     # Threshold the data
     non_zero_array = volume[volume != 0]
+    if non_zero_array.size == 0:
+        return volume
     threshold_value = np.percentile(non_zero_array, threshold)
     signal_points = np.where(volume>=threshold_value)
     volume = volume.astype(np.float16)
@@ -65,7 +75,7 @@ def replace_signal(volume,threshold=99, cube_size=9,normalize=False):
     volume = volume_padded[cube_size:-cube_size,cube_size:-cube_size,cube_size:-cube_size]
 
     if normalize:
-        volume = ((volume-volume.min())/(volume.max()-volume.min()))*255
+        volume = _normalize_to_uint8_range(volume)
 
     return volume 
 
@@ -119,4 +129,3 @@ if __name__=='__main__':
     # volume_test = np.load(file)
     # desig_volume = replace_signal(volume=volume_test)
     desig_template = replace_signal(volume = template, normalize=True)
-

@@ -291,7 +291,7 @@ class alignment:
 
             best_params_mask_file = os.path.join(self.drop_path, f"rigid_transform_step1.pkl")
             best_params_mask_stretch_file = os.path.join(self.drop_path, f"rigid_stretch_transform_step2.pkl")
-            if os.path.exists(best_params_mask_file):
+            if os.path.exists(best_params_mask_file) and os.path.exists(best_params_mask_stretch_file):
                 """ If real, load in best rigid parameters """
                 self.logger.info(f"Bayes Opt file previously calculated for mask, loading file ...")
                 with open(best_params_mask_file, "rb") as f:
@@ -353,9 +353,9 @@ class alignment:
             
             try:
                 self.moving_image = zoom(self.moving_image, (self.best_params_mask_stretch_oh[0], self.best_params_mask_stretch_oh[1], self.best_params_mask_stretch_oh[2])) 
-            except:
+            except Exception as exc:
                 self.logger.error("Must change previous line if using bayes opt for stretching code")
-                raise(" Must change previous line if using bayes opt for stretching code")
+                raise RuntimeError("Must change previous line if using bayes opt for stretching code") from exc
             self.moving_image = adjust_volume_shape(volume=self.moving_image,target_shape = self.fixed_image.shape)
 
             slice_views(array1=self.moving_image,

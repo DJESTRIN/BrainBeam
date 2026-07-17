@@ -30,6 +30,14 @@ warnings.simplefilter("ignore")
 max_threads = os.cpu_count()
 sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(max_threads)
 
+def normalize_to_255(volume):
+    volume = volume.astype(np.float32, copy=False)
+    min_value = volume.min()
+    max_value = volume.max()
+    if max_value == min_value:
+        return np.zeros_like(volume, dtype=np.float32)
+    return ((volume - min_value) / (max_value - min_value)) * 255
+
 # Custom classes and functions
 class TargetImage:
     def __init__(self, target_path, logger, voxelsize=50, visualize=True):
@@ -150,8 +158,7 @@ class TargetImage:
                 frames[0].save(full_filename, save_all=True, append_images=frames[1:], duration=50, loop=0)
 
     def normalize_template_stack(self):
-        self.template = (self.template - self.template.min())/(self.template.max() - self.template.min())
-        self.template = self.template * 255
+        self.template = normalize_to_255(self.template)
 
     def __call__(self):
         self.logger.info('Generating target image from ARA. Downloading now if not already downloaded.')
@@ -205,8 +212,9 @@ class MovingImage:
         self.logger.info('Determine MI orientation!')
         self.downsampled_volume = self.determine_orientation()
 
-        self.logger.info('Cropping border of image')
-        self.downsampled_volume = self.crop_border_noise(stack_oh = self.downsampled_volume, distance_threshold=10, artificial_padding=5)
+        if self.crop_border_noise_bool:
+            self.logger.info('Cropping border of image')
+            self.downsampled_volume = self.crop_border_noise(stack_oh = self.downsampled_volume, distance_threshold=10, artificial_padding=5)
 
         self.logger.info('Clipping high signal')
         self.downsampled_volume = self.clip_high_signal(stack_oh = self.downsampled_volume)
@@ -308,13 +316,14 @@ class MovingImage:
             # Reioreint axes to R->L, S->I, A->P formattiong
             self.downsampled_volume_transposed = np.transpose(self.downsampled_volume, (int(mirror_dim[0][0]), int(leftover_dim), int(longest_dim[0][0]))) 
             self.force_orientations = [int(mirror_dim[0][0]), int(leftover_dim), int(longest_dim[0][0])]
+            self.force_flips = [1, 1, 1]
 
             if SP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, ::-1, :]  # Flip the second axis (A)
-                self.force_flips = [1, -1, 1]
+                self.force_flips[1] = -1
             if AP_flip == -1:
                 self.downsampled_volume_transposed = self.downsampled_volume_transposed[:, :, ::-1]  # Flip the third axis (R)
-                self.force_flips = [1, 1, -1]
+                self.force_flips[2] = -1
             self.logger.info('If force flips or force orientation is on, this should not be printing right now...')
         return self.downsampled_volume_transposed
 
@@ -336,8 +345,7 @@ class MovingImage:
             self.downsampled_volume = tiff.imread(output_filename)
     
     def normalize_image_stack(self):
-        self.downsampled_volume = (self.downsampled_volume - self.downsampled_volume.min())/(self.downsampled_volume.max() - self.downsampled_volume.min())
-        self.downsampled_volume = self.downsampled_volume * 255
+        self.downsampled_volume = normalize_to_255(self.downsampled_volume)
 
     def adjust_brightness(self, stack_oh, factor=10):
         """Increase brightness by scaling pixel values."""
@@ -351,8 +359,7 @@ class MovingImage:
         stack_oh = np.clip(stack_oh, a_min = 0, a_max = threshold)
 
         # Re-normalize to 0 -> 255 range
-        stack_oh = (stack_oh - stack_oh.min())/(stack_oh.max() - stack_oh.min())
-        stack_oh = stack_oh * 255
+        stack_oh = normalize_to_255(stack_oh)
         return stack_oh
     
     def crop_border_noise(self, stack_oh, distance_threshold=10,artificial_padding=5):
@@ -449,9 +456,10 @@ class CellImage():
     def generate_mask_image(self):
         """ Convert cell counts into a 3D image """
         self.coordinate_mask = np.zeros((self.MIO.new_z_dim,self.MIO.new_x_dim,self.MIO.new_y_dim), dtype=int)
+        max_indices = np.array(self.coordinate_mask.shape) - 1
 
         for cell in self.counts_oh:
-            x, y, z = cell.astype(np.int32)   
+            x, y, z = np.clip(np.round(cell).astype(np.int32), 0, max_indices)
             self.coordinate_mask[x, y, z] += 1
         
         return self.coordinate_mask
