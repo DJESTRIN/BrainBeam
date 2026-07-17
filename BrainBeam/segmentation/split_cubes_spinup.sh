@@ -6,17 +6,18 @@ code_directory=$1
 scratch_directory=$2
 
 # Create folder for terastitcher output
-scratch_stitch=${scratch_directory}"lightsheet/stitched/"
-scratch_ilastik=${scratch_directory}"lightsheet/ilastik/"
-mkdir -p $scratch_ilastik
+scratch_root="${scratch_directory%/}/"
+scratch_stitch="${scratch_root}lightsheet/stitched/"
+scratch_ilastik="${scratch_root}lightsheet/ilastik/"
+mkdir -p "$scratch_ilastik"
 
 #Update sample list (in the case of any issues)
-cd $code_directory
+cd "$code_directory"
 
 # Stitch images using terastitcher
-for i in $scratch_stitch*/; do
-    TMP=$(echo $i)
-    echo $TMP
+for i in "$scratch_stitch"*/; do
+    TMP=$(echo "$i")
+    echo "$TMP"
     sbatch --job-name=split_up_cubes \
         --mem=200G \
         --partition=scu-cpu  \

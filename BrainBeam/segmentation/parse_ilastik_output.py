@@ -1,13 +1,24 @@
 #Package dependencies
-import ipdb
 import numpy as np
-import os, glob
+from pathlib import PurePath
 from skimage.measure import regionprops as rp
 from skimage.measure import label
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 import argparse
 import pandas as pd
+
+def parse_offsets(path):
+    normalized_parts = PurePath(str(path).replace('\\', '/')).parts
+    slice_name = next(part for part in normalized_parts if part.startswith('slice'))
+    slice_index = normalized_parts.index(slice_name)
+
+    if slice_index + 1 >= len(normalized_parts):
+        raise ValueError(f'Could not determine cube directory from path: {path}')
+
+    cube_name = normalized_parts[slice_index + 1]
+    y_start, x_start = cube_name.split('_')
+    z_start = slice_name.replace('slice', '', 1)
+    return int(z_start), int(y_start), int(x_start)
+
 
 def get_coordinates(path,threshold=0.92):
     """
@@ -39,20 +50,15 @@ def get_coordinates(path,threshold=0.92):
 
     points=np.asarray(points)
 
-    # Parse path name to update coordinate data
-    _,newpath=path.split('slice')
-    newpath,_=newpath.split('/image')
-    z_start,xy_start=newpath.split('/')
-    y_start,x_start=xy_start.split('_')
-    
     #rescale coordinates
     if points.size==0:
         return
     else:
-        points[:,0]+=int(x_start)
-        points[:,1]+=int(y_start)
-        points[:,2]+=int(z_start)
-        doh=pd.DataFrame({'x':points[:,0],'y':points[:,1],'z':points[:,2]})
+        z_start, y_start, x_start = parse_offsets(path)
+        points[:,0]+=z_start
+        points[:,1]+=y_start
+        points[:,2]+=x_start
+        doh=pd.DataFrame({'x':points[:,2],'y':points[:,1],'z':points[:,0]})
     
         #Set up the output file
         outfile,_=path.split('.')

@@ -10,12 +10,16 @@ import os, glob
 import argparse
 
 def find_csv(path):
-    pathsearch = path + '/*/*/*ities.csv'
-    local_csvfiles = glob.glob(pathsearch, recursive=True)
-    output_file = path + '/cell_counts.csv'
+    pathsearch = os.path.join(path, '*', '*', '*.csv')
+    local_csvfiles = glob.glob(pathsearch)
+    output_file = os.path.join(path, 'cell_counts.csv')
     return local_csvfiles, output_file
 
 def concat_csv(files, outputfilename):
+    if not files:
+        pd.DataFrame(columns=['x', 'y', 'z']).to_csv(outputfilename, index=False)
+        return
+
     csvfiles = []
     
     for filename in files:

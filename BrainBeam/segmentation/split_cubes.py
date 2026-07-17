@@ -8,42 +8,32 @@ import os,glob
 import argparse
 from PIL import Image
 from itertools import product
-import ipdb
 from tqdm import tqdm
 
 def tile(image_path, slice_folder, block_size,z):
-    img = Image.open(image_path)
-    w, h = img.size
-    grid = product(range(0, h-h%block_size, block_size), range(0, w-w%block_size, block_size))
-    for i, j in grid:
-        drop_path = slice_folder + str(i) + '_' + str(j) +"/"
-        box = (j, i, j+block_size, i+block_size)
-        
-        # Create subfolder if not created and save image to it
-        if os.path.exists(drop_path):
-            out = drop_path+"image"+str(z)+".tiff"
-            img.crop(box).save(out)
-        else:
-            os.mkdir(drop_path)
-            out = drop_path+"image"+str(z)+".tiff"
+    with Image.open(image_path) as img:
+        w, h = img.size
+        grid = product(range(0, h-h%block_size, block_size), range(0, w-w%block_size, block_size))
+        for i, j in grid:
+            drop_path = os.path.join(slice_folder, f'{i}_{j}')
+            box = (j, i, j+block_size, i+block_size)
+
+            os.makedirs(drop_path, exist_ok=True)
+            out = os.path.join(drop_path, f'image{z:06d}.tiff')
             img.crop(box).save(out)
         
 
 def divide_image_stack(stitched_input,output_parent,block_size):
-    image_search=stitched_input+'*.tif*'
+    image_search=os.path.join(stitched_input, '*.tif*')
     images=glob.glob(image_search) #Does glob sort the files correctly??
     images=sorted(images)
-    if len(images)<3500:
-        ipdb.set_trace()
  
-    slices=range(0,len(images)-len(images)%block_size,block_size)
-    for slice_start,slice_stop in zip(slices[:-1],slices[1:]):
+    for slice_start in range(0, len(images), block_size):
+        slice_stop = min(slice_start + block_size, len(images))
         print(f'This is the start: {slice_start}, this is the stop: {slice_stop}')
         # Create subfolder based on slice
-        front,back=output_parent.split('Ex_')
-        slice_folder=front+"/Ex_"+back+"/slice"+str(slice_start)+"/"
-        if not os.path.exists(slice_folder):
-            os.mkdir(slice_folder)
+        slice_folder=os.path.join(output_parent, f'slice{slice_start}')
+        os.makedirs(slice_folder, exist_ok=True)
         
         # Loop through images in the current slice and tile them
         for z in tqdm(range(slice_start,slice_stop)):
@@ -60,12 +50,10 @@ if __name__=='__main__':
                         help="output_directory")
     args = parser.parse_args()
     
-    if not os.path.exists(args.output_dir):
-        os.mkdir(args.output_dir)
+    os.makedirs(args.output_dir, exist_ok=True)
         
     # Divide the image
     divide_image_stack(args.input_dir,args.output_dir,500)
-
 
 
 
