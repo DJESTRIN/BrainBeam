@@ -253,17 +253,27 @@ class API(DigestData):
     # ------------------------------------------------------------------
     # Stitch
     # ------------------------------------------------------------------
-    def stitch(self, scratch_directory, chain_next_stage=False, after_job_id=None):
+    def stitch(self, scratch_directory, chain_next_stage=False, after_job_id=None, ilastik_project_file=None):
         """ Stitch destriped tile images into a single volume per sample.
-        chain_next_stage=True (SLURM only) lets the submitted job automatically
-        continue on to whatever stage comes after stitching once it finishes. """
+
+        On SLURM, the submitted driver job blocks (see stitch_spinup.sh) until every
+        per-sample stitch job reaches a terminal state, so its own job id can safely
+        be used to gate a following stage. chain_next_stage=True (SLURM only, as
+        labeled in the GUI) additionally submits Segmentation right away with
+        --dependency=afterok on this stitch job, so Segmentation only actually starts
+        once every sample has truly finished stitching - real one-click auto-chaining
+        that keeps working even if the GUI is closed while jobs are still queued. """
         self._require_not_aws('stitch')
         if self.computertype == 'slurm':
             script = self._script('stitch', 'stitch_spinup.sh')
-            run_dependencies = 'true' if chain_next_stage else 'false'
             command = (f'sbatch {self._sbatch_flags(after_job_id)} --job-name=gui_stitch --mem=50G --partition=scu-cpu '
-                       f'--wrap="bash \'{script}\' \'{BRAINBEAM_DIR}\' \'{scratch_directory}\' {run_dependencies}"')
-            return self._run(command)
+                       f'--wrap="bash \'{script}\' \'{BRAINBEAM_DIR}\' \'{scratch_directory}\'"')
+            stitch_result = self._run(command)
+            if chain_next_stage:
+                segment_results = self.segment(scratch_directory, ilastik_project_file=ilastik_project_file,
+                                                after_job_id=stitch_result.job_id)
+                return [stitch_result] + segment_results
+            return stitch_result
         script = self._script('stitch', 'stitch.sh')
         results = []
         for sample_dir in self._find_samples(os.path.join(scratch_directory, 'lightsheet', 'destriped')):

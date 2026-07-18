@@ -793,14 +793,15 @@ class BrainBeamGuiBase():
         #Set up the Stitch tab
         self.textbox_stitch = ctk.CTkTextbox(self.pages["Stitch"], width=1000,height=80)
         self.textbox_stitch.insert("0.0", "Stitch combines destriped tile images into a single volume per sample.\n"+
-                             "On SLURM, you may optionally auto-chain into the next pipeline stage once stitching finishes.")
+                             "On SLURM, the submitted job waits for every sample to actually finish stitching before it "+
+                             "reports done, so you may optionally auto-chain straight into Segmentation once it does.")
         self.textbox_stitch.place(relx=0.0005,rely=0.01)
         self.stitch_scratch_entry = ctk.CTkEntry(self.pages["Stitch"], width=600, placeholder_text="Scratch directory containing lightsheet/destriped/<sample> folders.")
         self.stitch_scratch_entry.place(relx=0.01,rely=0.25)
         self.webbtn = ctk.CTkButton(self.pages["Stitch"],text="Find Scratch Folder",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=lambda: self.select_folder_into_entry(self.stitch_scratch_entry,'Select scratch directory'))
         self.webbtn.place(relx=0.65,rely=0.25)
         self.stitch_chain_var = tk.BooleanVar(value=False)
-        self.stitch_chain_checkbox = ctk.CTkCheckBox(self.pages["Stitch"],text="Auto-chain to next stage (SLURM only)",variable=self.stitch_chain_var)
+        self.stitch_chain_checkbox = ctk.CTkCheckBox(self.pages["Stitch"],text="Auto-chain into Segmentation once Stitch finishes (SLURM only)",variable=self.stitch_chain_var)
         self.stitch_chain_checkbox.place(relx=0.01,rely=0.32)
         self.webbtn = ctk.CTkButton(self.pages["Stitch"],text="Start Stitching",font=FONT_BUTTON,command=self.start_stitch)
         self.webbtn.place(relx=0.4,rely=0.4)
@@ -826,6 +827,9 @@ class BrainBeamGuiBase():
         if not self._check_stage_prerequisite('Stitch',scratch_dir):
             return
         chain_next_stage=bool(self.stitch_chain_var.get())
+        if chain_next_stage and self.get_computertype()!='slurm':
+            self.throw_error('Auto-chain into Segmentation is only available for SLURM - stitching will run without chaining.')
+            chain_next_stage=False
         self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage),target_path=scratch_dir,on_complete=self.refresh_stitch_preview)
 
     def set_up_registration(self):
