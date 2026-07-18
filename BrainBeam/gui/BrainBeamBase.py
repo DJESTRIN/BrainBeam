@@ -512,6 +512,41 @@ class BrainBeamGuiBase():
     ACTION_TO_OVERVIEW_KEY={'Copy':'Copied','Move':'Moved','Compress':'Compressed','Denoise':'Denoise',
                             'Stitch':'Stitch','Register':'Registration','Segment':'Segmentation','Custom':'Custom Script'}
 
+    # Which prior overview stage must already be 'complete' before a given stage can
+    # safely be started, so a mistake surfaces immediately in the GUI instead of the
+    # backend failing deep inside the pipeline (e.g. Stitch running on a sample with
+    # no destriped data yet).
+    STAGE_PREREQUISITES={'Stitch':'Denoise','Register':'Stitch','Segment':'Stitch'}
+
+    def _check_stage_prerequisite(self,action_name,target_path):
+        #Returns True if it's safe to proceed. Only blocks when we can positively
+        #match `target_path` to sample(s) tracked in the open project's overview AND
+        #find that the required prior stage isn't 'complete' for at least one of
+        #them - if no project is open, or no sample matches, we can't verify one way
+        #or the other, so we don't block (avoids false positives on ad-hoc paths).
+        required_key=self.STAGE_PREREQUISITES.get(action_name)
+        if not required_key or not target_path or not hasattr(self,'overviewdict') or not self.overviewdict:
+            return True
+        target_path=os.path.normpath(target_path)
+        not_ready=[]
+        matched=False
+        for dict_oh in self.overviewdict.values():
+            rawpath=dict_oh.get('rawpath')
+            if not rawpath:
+                continue
+            rawpath_norm=os.path.normpath(rawpath)
+            if rawpath_norm in target_path or target_path in rawpath_norm:
+                matched=True
+                if dict_oh.get(required_key)!='complete':
+                    not_ready.append(dict_oh.get('samplename') or rawpath_norm)
+        if not matched or not not_ready:
+            return True
+        self.throw_error(
+            f"{action_name} requires {required_key} to be complete first, but it is not yet "
+            f"complete for: {', '.join(not_ready)}.\nPlease finish {required_key} for these "
+            f"samples before continuing.")
+        return False
+
     def update_sample_status(self,target_path,action_name,status):
         #Best-effort sync of a sample's stage status in the overview table/project file.
         #Matches samples whose stored rawpath is a prefix/substring of the given target_path.
@@ -748,6 +783,8 @@ class BrainBeamGuiBase():
         if not scratch_dir:
             self.throw_error('Please select a scratch directory before stitching.')
             return
+        if not self._check_stage_prerequisite('Stitch',scratch_dir):
+            return
         chain_next_stage=bool(self.stitch_chain_var.get())
         self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage),target_path=scratch_dir,on_complete=self.refresh_stitch_preview)
 
@@ -879,6 +916,8 @@ class BrainBeamGuiBase():
         if self.get_computertype()=='slurm' and (not segmentation_path or not conda_env):
             self.throw_error('SLURM registration requires both a parent segmentation path and a conda environment name.')
             return
+        if not self._check_stage_prerequisite('Register',image_path):
+            return
         try:
             force_orientation,force_flips=self._get_force_orientation_flips()
         except ValueError as e:
@@ -923,6 +962,8 @@ class BrainBeamGuiBase():
             return
         if self.get_computertype()=='local' and not ilastik_file:
             self.throw_error('Local segmentation requires an ilastik project (.ilp) file.')
+            return
+        if not self._check_stage_prerequisite('Segment',scratch_dir):
             return
         self.run_backend_action(self.segmentation_status_label,'Segment',lambda api: api.segment(scratch_dir,ilastik_project_file=ilastik_file),target_path=scratch_dir)
 
