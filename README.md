@@ -1,6 +1,16 @@
 <h1> <b> 🔦 BrainBeam 🔦 </b> </h1> 
 A generalized open-source pipeline and gui for analyzing light sheet brain tissue. 
 
+<h2> <b> Pipeline Overview </b> </h2>
+
+The pipeline consists of the following steps:
+1. Moving the data to a scratch drive.
+2. Denoising/destriping the data via Pystripe (https://github.com/chunglabmit/pystripe).
+3. Stitching the data via TeraStitcher (https://github.com/abria/TeraStitcher).
+4. Registering images to the Allen brain atlas (https://github.com/neurodata/CloudReg).
+5. Segmenting pixels and counting cells (cells, axons, etc), loosely based on brainlit (https://github.com/neurodata/brainlit) using ilastik (https://github.com/ilastik/ilastik).
+6. Calculating the number of counts per region, generating statistics and relevant figures.
+
 <h2> <b> ⚠️ Warning: This code is still under development. ⚠️ </b> </h2>
 Please kindly ignore any issues with code as well as any missing citations to others code. 
 
@@ -100,3 +110,33 @@ singularity shell --bind /path/to/scratch:/data brainbeam.sif
 ```
 
 As with the Docker image, the `*_spinup.sh`/`pipeline_spinup.sh` SLURM orchestration scripts are meant to run natively on the cluster (they call `sbatch` themselves) - use the `.sif` image to run individual pipeline stages consistently from inside an sbatch job step rather than wrapping the orchestration scripts themselves.
+
+<h2> <b> Statistics: LinReg </b> </h2>
+
+Automated statistical analysis (EDA, model-family selection, model fitting,
+diagnostics, and reporting) is delegated to
+[LinReg](https://github.com/DJESTRIN/LinReg), vendored here as a git submodule
+at `external/LinReg`. LinReg is still under active development, so it is
+pinned to a specific commit and consumed purely as a CLI subprocess (see
+`BrainBeam/statistics/linreg_bridge.py`) rather than imported as a library, keeping
+BrainBeam decoupled from LinReg's internal API.
+
+Setup:
+
+```bash
+git submodule update --init --recursive
+pip install -e external/LinReg/python
+Rscript external/LinReg/R/install_packages.R
+```
+
+Update the pinned version deliberately when LinReg stabilizes new features:
+
+```bash
+cd external/LinReg
+git fetch origin
+git checkout <new-commit-or-tag>
+cd ../..
+git add external/LinReg
+git commit -m "Bump LinReg submodule to <new-commit-or-tag>"
+```
+

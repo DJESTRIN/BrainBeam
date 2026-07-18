@@ -1,8 +1,10 @@
 Archive/
 **/__pycache__/
 *.py[cod]
+*.pyo
 **/*.out
 **/*.err
+*.log
 build/
 dist/
 htmlcov/
@@ -15,6 +17,17 @@ BrainBeam.egg-info/
 *.jpeg
 *.png
 *.pdf
+
+# Editor/OS cruft
+.DS_Store
+Thumbs.db
+
+# Pipeline run-state artifacts (sample tracking JSON etc.) generated at
+# runtime should be written to the scratch/store directories used by the
+# pipeline scripts, not committed to the repo. If one lands here by mistake,
+# ignore it instead of committing it.
+*_deleteme*
+
 # Allow GUI application image assets (logo, icons, status indicators) even though
 # generated output figures elsewhere in the repo (e.g. statistics plots) are ignored above.
 !BrainBeam/gui/images/*.png

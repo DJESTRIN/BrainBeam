@@ -1,0 +1,3 @@
+[submodule "external/LinReg"]
+	path = external/LinReg
+	url = https://github.com/DJESTRIN/LinReg
