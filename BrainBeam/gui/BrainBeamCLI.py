@@ -188,11 +188,16 @@ class API(DigestData):
     # Registration
     # ------------------------------------------------------------------
     def register(self, image_path, output_path=None, atlas_path=None, parent_segmentation_path=None,
-                 conda_environment_name=None, full_output_path=False):
+                 conda_environment_name=None, full_output_path=False,
+                 force_orientation=None, force_flips=None, preview_only=False):
         """ Register lightsheet data to the reference atlas.
         LOCAL registers a single sample directly via runregistr.py.
         SLURM submits a batch of samples via multinoderegistration.py, which
-        requires parent_segmentation_path and conda_environment_name. """
+        requires parent_segmentation_path and conda_environment_name.
+        force_orientation/force_flips (each a list of 3 ints) let the caller
+        override the automatically-detected brain orientation; preview_only=True
+        (LOCAL only) generates the orientation-check GIFs and returns immediately,
+        skipping the slow alignment step. """
         self._require_not_aws('register')
         if self.computertype == 'slurm':
             if not parent_segmentation_path:
@@ -212,6 +217,12 @@ class API(DigestData):
             command += f' --atlas_path "{atlas_path}"'
         if full_output_path:
             command += ' --full_output_path'
+        if force_orientation:
+            command += ' --force_orientation ' + ' '.join(str(int(v)) for v in force_orientation)
+        if force_flips:
+            command += ' --force_flips ' + ' '.join(str(int(v)) for v in force_flips)
+        if preview_only:
+            command += ' --preview_only'
         return self._run(command)
 
     # ------------------------------------------------------------------
