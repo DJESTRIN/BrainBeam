@@ -184,6 +184,7 @@ class BrainBeamGuiBase():
                 pass
         self.wd=os.getcwd()
         self.index=0
+        self.last_logs={}
 
         # Root layout: fixed-width sidebar on the left, content area expands to fill
         # the rest of the window so the split actually resizes with the window.
@@ -547,6 +548,37 @@ class BrainBeamGuiBase():
             f"samples before continuing.")
         return False
 
+    def _format_result_log(self,result):
+        #Builds a readable log blob from one or more subprocess.CompletedProcess-like
+        #results (stdout/stderr, plus the SLURM job id if this step was submitted via
+        #sbatch), for the "View Log" viewer.
+        results=result if isinstance(result,list) else [result]
+        parts=[]
+        for i,r in enumerate(results):
+            if r is None:
+                continue
+            stdout=(getattr(r,'stdout','') or '').strip()
+            stderr=(getattr(r,'stderr','') or '').strip()
+            job_id=getattr(r,'job_id',None)
+            header=f"--- step {i+1}{f' (SLURM job {job_id})' if job_id else ''} ---"
+            parts.append(header)
+            parts.append("[stdout]\n"+stdout if stdout else "[stdout] (empty)")
+            parts.append("[stderr]\n"+stderr if stderr else "[stderr] (empty)")
+        return "\n".join(parts) if parts else "(no output captured)"
+
+    def show_log(self,action_name):
+        #Opens a read-only window with the last run's full stdout/stderr for this
+        #stage - local subprocess output, or the sbatch submission output plus SLURM
+        #job ids for cluster runs - instead of only a truncated status label string.
+        text=getattr(self,'last_logs',{}).get(action_name,'No log available yet - run this stage first.')
+        win=ctk.CTkToplevel(self.root)
+        win.title(f"{action_name} Log")
+        win.geometry("700x500")
+        box=ctk.CTkTextbox(win,wrap="word",font=("Consolas",11))
+        box.pack(fill="both",expand=True,padx=10,pady=10)
+        box.insert("0.0",text)
+        box.configure(state="disabled")
+
     def update_sample_status(self,target_path,action_name,status):
         #Best-effort sync of a sample's stage status in the overview table/project file.
         #Matches samples whose stored rawpath is a prefix/substring of the given target_path.
@@ -579,7 +611,13 @@ class BrainBeamGuiBase():
         #api.wait_for_jobs() so the status label reflects the *real* cluster outcome
         #(complete/error/unknown) instead of just "sbatch accepted this".
         def update_label(text,color):
-            self.root.after(0,lambda: status_label.configure(text=text,text_color=color))
+            def _apply():
+                status_label.configure(text=text,text_color=color)
+                # Make the status label itself a clickable "view log" affordance -
+                # avoids needing a separate button crammed into every tab's layout.
+                status_label.configure(cursor="hand2")
+                status_label.bind("<Button-1>",lambda e: self.show_log(action_name))
+            self.root.after(0,_apply)
         def sync_status(status):
             if target_path:
                 self.root.after(0,lambda: self.update_sample_status(target_path,action_name,status))
@@ -592,32 +630,34 @@ class BrainBeamGuiBase():
             try:
                 api=API(self.get_computertype())
                 result=action(api)
+                self.last_logs[action_name]=self._format_result_log(result)
                 job_ids=extract_job_ids(result)
                 if job_ids and self.get_computertype()=='slurm':
-                    update_label(f"{action_name}: submitted, waiting on {len(job_ids)} SLURM job(s)...",COLOR_RUNNING)
+                    update_label(f"{action_name}: submitted, waiting on {len(job_ids)} SLURM job(s)... (click for log)",COLOR_RUNNING)
                     def on_poll(states):
                         done=len(states)
-                        update_label(f"{action_name}: waiting on SLURM ({done}/{len(job_ids)} finished)...",COLOR_RUNNING)
+                        update_label(f"{action_name}: waiting on SLURM ({done}/{len(job_ids)} finished)... (click for log)",COLOR_RUNNING)
                     states=api.wait_for_jobs(job_ids,on_poll=on_poll)
                     errored=[j for j,s in states.items() if s=='error']
                     unknown=[j for j,s in states.items() if s=='unknown']
                     if errored:
-                        update_label(f"{action_name} failed: SLURM job(s) {', '.join(errored)} did not complete successfully.",COLOR_ERROR)
+                        update_label(f"{action_name} failed: SLURM job(s) {', '.join(errored)} did not complete successfully. (click for log)",COLOR_ERROR)
                         sync_status('error')
                         return
                     if unknown:
-                        update_label(f"{action_name}: finished, status unknown for job(s) {', '.join(unknown)} - check SLURM logs.",COLOR_WARNING)
+                        update_label(f"{action_name}: finished, status unknown for job(s) {', '.join(unknown)} - check SLURM logs. (click for log)",COLOR_WARNING)
                         sync_status('complete')
                     else:
-                        update_label(f"{action_name}: complete.",COLOR_SUCCESS)
+                        update_label(f"{action_name}: complete. (click for log)",COLOR_SUCCESS)
                         sync_status('complete')
                 else:
-                    update_label(f"{action_name}: complete.",COLOR_SUCCESS)
+                    update_label(f"{action_name}: complete. (click for log)",COLOR_SUCCESS)
                     sync_status('complete')
                 if on_complete:
                     self.root.after(0,on_complete)
             except (PipelineError, NotImplementedError, ValueError, FileNotFoundError) as e:
-                update_label(f"{action_name} failed: {e}",COLOR_ERROR)
+                self.last_logs[action_name]=str(e)
+                update_label(f"{action_name} failed: {e} (click for log)",COLOR_ERROR)
                 sync_status('error')
         threading.Thread(target=worker,daemon=True).start()
 
