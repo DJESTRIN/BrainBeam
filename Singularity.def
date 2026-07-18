@@ -1,0 +1,87 @@
+Bootstrap: docker
+From: python:3.10-slim-bookworm
+
+%labels
+    Maintainer BrainBeam
+    Description Singularity/Apptainer build of the BrainBeam image-processing pipeline, mirroring the repository's Dockerfile for use on HPC/SLURM clusters where Docker itself is unavailable.
+
+%post
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        bash \
+        build-essential \
+        ca-certificates \
+        pkg-config \
+        libblosc-dev \
+        libblosc1 \
+        libgl1 \
+        libglib2.0-0 \
+        libhdf5-dev \
+        libjpeg62-turbo \
+        libjpeg62-turbo-dev \
+        liblz4-1 \
+        liblz4-dev \
+        libopenjp2-7 \
+        libopenjp2-7-dev \
+        libsnappy-dev \
+        libsnappy1v5 \
+        libtiff-dev \
+        libtiff6 \
+        libxml2 \
+        libxml2-dev \
+        libxslt1-dev \
+        libxslt1.1 \
+        libzstd-dev \
+        libzstd1 \
+        tk \
+        zlib1g \
+        zlib1g-dev
+    rm -rf /var/lib/apt/lists/*
+
+    mkdir -p /opt/brainbeam
+    cp -a /tmp/brainbeam_src/. /opt/brainbeam/
+    rm -rf /tmp/brainbeam_src
+    cd /opt/brainbeam
+
+    python -c "from pathlib import Path; p=Path('requirements.txt'); data=p.read_bytes(); text=data.decode('utf-16le') if b'\x00' in data[:256] else data.decode('utf-8-sig'); lines=[line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith('#')]; Path('requirements.docker.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')"
+    python -m pip install --upgrade pip setuptools wheel
+    python -m pip install -r requirements.docker.txt
+    python -m pip install customtkinter
+    python -m pip install --no-deps .
+    rm -f requirements.docker.txt
+
+%files
+    . /tmp/brainbeam_src
+
+%environment
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export PIP_NO_CACHE_DIR=1
+
+%runscript
+    exec /bin/bash "$@"
+
+%help
+    Singularity/Apptainer build of BrainBeam for use on HPC/SLURM clusters.
+
+    Build (on a machine/node where you have fakeroot or sudo access, e.g. a
+    build/login node with --fakeroot enabled, NOT typically a compute node):
+        bash build_singularity.sh
+        # or directly:
+        singularity build --fakeroot brainbeam.sif Singularity.def
+
+    Use on the cluster (no root needed to run, only to build):
+        singularity exec --bind /path/to/scratch:/data brainbeam.sif \
+            python /opt/brainbeam/BrainBeam/gui/BrainBeamCLI.py --help
+
+    Or drop into an interactive shell inside the image:
+        singularity shell --bind /path/to/scratch:/data brainbeam.sif
+
+    Note: SLURM submission/orchestration scripts (the *_spinup.sh files and
+    pipeline_spinup.sh) call sbatch directly and are meant to run natively
+    on the cluster, not inside the container. Use this image for running
+    individual pipeline stages reproducibly inside an sbatch job step, e.g.
+    by replacing a script's "python foo.py" call with
+    "singularity exec brainbeam.sif python foo.py".

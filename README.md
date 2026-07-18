@@ -74,3 +74,29 @@ Inside the container, the BrainBeam source lives at `/opt/brainbeam` and your mo
 The Docker image is intentionally focused on the Python image-processing pipeline. The `BrainBeam/statistics` folder contains R / R Markdown analyses, but those are better treated as optional post-processing in a separate R-based environment or companion image rather than bundled into the main runtime image.
 
 Important: the SLURM submission/orchestration scripts (for example the various `*_spinup.sh` files and `pipeline_spinup.sh`) are intended for direct HPC cluster use and are **not** meant to run inside this container. Use the container for the local/standalone execution path, and continue to use the native cluster environment for SLURM-based workflows.
+
+<h2> <b> Running on HPC with Singularity/Apptainer </b> </h2>
+
+Most HPC/SLURM clusters run Singularity or its drop-in successor Apptainer instead of Docker, since Docker needs a root-owned daemon that isn't available to regular cluster users. `Singularity.def` at the repository root mirrors the `Dockerfile` (same base image, same system packages, same Python install), so the same environment can be built as a `.sif` image for cluster use.
+
+Build the image (from a login/build node or your own workstation that has fakeroot/sudo access - this step usually can't run on a compute node reached via `srun`/`sbatch`):
+
+```bash
+bash build_singularity.sh          # writes brainbeam.sif next to Singularity.def
+```
+
+If `--fakeroot` isn't permitted for your account, `build_singularity.sh` prints the alternatives (asking cluster admins to enable it, building on your own machine and copying `brainbeam.sif` up, or using a remote build service).
+
+Once built, run a pipeline step reproducibly inside the image, with your scratch directory bind-mounted in:
+
+```bash
+singularity exec --bind /path/to/scratch:/data brainbeam.sif python /opt/brainbeam/BrainBeam/destripe/destripe.py --help
+```
+
+or drop into an interactive shell the same way the Docker image does:
+
+```bash
+singularity shell --bind /path/to/scratch:/data brainbeam.sif
+```
+
+As with the Docker image, the `*_spinup.sh`/`pipeline_spinup.sh` SLURM orchestration scripts are meant to run natively on the cluster (they call `sbatch` themselves) - use the `.sif` image to run individual pipeline stages consistently from inside an sbatch job step rather than wrapping the orchestration scripts themselves.
