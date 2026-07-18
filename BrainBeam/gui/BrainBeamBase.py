@@ -272,6 +272,43 @@ class BrainBeamGuiBase():
                 btn.configure(fg_color=("#007AFF","#0A84FF"), text_color=("#ffffff","#ffffff"))
             else:
                 btn.configure(fg_color="transparent", text_color=("#1d1d1f","#f5f5f7"))
+        self._autofill_page_paths(key)
+
+    def get_project_scratch_dir(self):
+        #Best-effort guess at the open project's scratch/root directory (the parent
+        #of 'lightsheet/raw/<sample>') based on any sample's stored rawpath, so stage
+        #tabs can default their directory fields instead of requiring the user to
+        #re-browse/retype the same path on every tab.
+        if not hasattr(self,'overviewdict') or not self.overviewdict:
+            return None
+        for dict_oh in self.overviewdict.values():
+            rawpath=dict_oh.get('rawpath')
+            if not rawpath:
+                continue
+            # rawpath = <scratch_root>/lightsheet/raw/<sample>
+            root=os.path.dirname(os.path.dirname(os.path.dirname(os.path.normpath(rawpath))))
+            if os.path.isdir(root):
+                return root
+        return None
+
+    def _autofill_entry(self,entry):
+        #Fill `entry` with the open project's scratch directory only if the entry is
+        #currently empty, so we never clobber a value the user already typed/browsed.
+        if entry is None or entry.get().strip():
+            return
+        scratch_dir=self.get_project_scratch_dir()
+        if scratch_dir:
+            entry.insert(0,scratch_dir)
+
+    def _autofill_page_paths(self,key):
+        #Auto-populate the directory field(s) for stage tabs that operate on the
+        #whole project's scratch directory, when a project is open.
+        if key=="Denoise" and hasattr(self,'denoise_scratch_entry'):
+            self._autofill_entry(self.denoise_scratch_entry)
+        elif key=="Stitch" and hasattr(self,'stitch_scratch_entry'):
+            self._autofill_entry(self.stitch_scratch_entry)
+        elif key=="Segmentation" and hasattr(self,'segmentation_scratch_entry'):
+            self._autofill_entry(self.segmentation_scratch_entry)
 
     def get_project_file_path(self):
         if self.projectfiledir.endswith('.json'):
