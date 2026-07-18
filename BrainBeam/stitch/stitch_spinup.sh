@@ -10,8 +10,7 @@
 # Passed variables from previous script
 code_directory=$1
 scratch_directory=$2
-run_dependencies=${3:-true} # recalculate all files
-run_one=${4:-false} #
+run_one=${3:-false} # Run a single sample folder then stop (useful for quick testing)
 
 # Create folder for terastitcher output
 scratch_root="${scratch_directory%/}/"
@@ -51,29 +50,31 @@ for i in "${stitch_inputs[@]}"; do
        fi 
 done
 
-if [ "$run_dependencies" = false ]; then 
-       stitch_dependency="afterok:$(IFS=:; echo "${stitch_job_ids[*]}")"
+# Block this driver job until every per-sample stitch job reaches a terminal SLURM
+# state, so this job's own completion reflects the real per-sample work finishing
+# instead of exiting the instant all the per-sample jobs were merely *submitted*.
+# This also lets the GUI (or another script) safely chain a --dependency=afterok on
+# THIS job's id and know that means "stitching is actually done for every sample".
+echo "Waiting on ${#stitch_job_ids[@]} per-sample stitch job(s) to finish: ${stitch_job_ids[*]}"
+pending=("${stitch_job_ids[@]}")
+failed=0
+while [ ${#pending[@]} -gt 0 ]; do
+       sleep 30
+       still_pending=()
+       for job_id in "${pending[@]}"; do
+              state=$(sacct -j "$job_id" --format=State --noheader --parsable2 2>/dev/null | head -n1 | awk '{print $1}')
+              case "$state" in
+                     COMPLETED) ;;
+                     FAILED|CANCELLED*|TIMEOUT|OUT_OF_MEMORY|NODE_FAIL) failed=1 ;;
+                     *) still_pending+=("$job_id") ;;   # still running/pending, or not visible in sacct yet
+              esac
+       done
+       pending=("${still_pending[@]}")
+done
 
-       # Submit jobs for neuroglancer/cloudreg processing
-       sbatch --mem=5G \
-              --partition=scu-cpu \
-              --dependency="$stitch_dependency" \
-              --job-name=cloudreg_processing \
-              --wrap="bash cloudreg_spinup.sh '$code_directory' '$scratch_root'"
-
-       # Submit jobs for generating cubes for validation analysis
-       sbatch --mem=5G \
-              --partition=scu-cpu \
-              --dependency="$stitch_dependency" \
-              --job-name=cube_generation \
-              --wrap="bash traindata_spinup.sh '$code_directory' '$scratch_root'"
-
-       # Submit jobs for segmenting cells
-       sbatch --mem=5G \
-              --partition=scu-cpu \
-              --dependency="$stitch_dependency" \
-              --job-name=segmentation \
-              --wrap="bash segmentation_spinup.sh '$code_directory' '$scratch_root'"
-
-       exit
+if [ "$failed" -eq 1 ]; then
+       echo "One or more per-sample stitch jobs failed - see sacct/job logs for details."
+       exit 1
 fi
+echo "All per-sample stitch jobs finished successfully."
+

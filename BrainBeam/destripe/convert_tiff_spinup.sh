@@ -13,6 +13,7 @@ scratch_root="${scratch_directory%/}"
 scratch_raw="${scratch_root}/lightsheet/raw/"
 scratch_converted="${scratch_root}/lightsheet/converted/"
 mkdir -p "$scratch_converted"
+stitch_job_ids=()
 
 # Each sample is chained through remove_empty -> convert -> destripe -> stitch
 # using --dependency=afterok on that SAME sample's previous job only. This means
@@ -31,7 +32,7 @@ for folder in "$scratch_raw"*/; do
 
         destripe_job_id=$(sbatch --parsable --dependency=afterok:"$convert_job_id" --job-name=destripe_files --mem=300G --partition=scu-cpu --mail-type=BEGIN,END,FAIL --mail-user=dje4001@med.cornell.edu --wrap="bash '$script_directory/destripe.sh' '$sample_converted' '$scratch_directory'")
 
-        sbatch --dependency=afterok:"$destripe_job_id" \
+        stitch_job_id=$(sbatch --parsable --dependency=afterok:"$destripe_job_id" \
                --job-name=stitch_files \
                --mem=200G \
                --partition=scu-gpu \
@@ -40,8 +41,38 @@ for folder in "$scratch_raw"*/; do
                --cpus-per-task=4 \
                --mail-type=BEGIN,END,FAIL \
                --mail-user=dje4001@med.cornell.edu \
-               --wrap="bash '$script_directory/../stitch/stitch.sh' '$TMP' '$scratch_directory'"
+               --wrap="bash '$script_directory/../stitch/stitch.sh' '$TMP' '$scratch_directory'")
+        stitch_job_ids+=("$stitch_job_id")
 done
+
+# Block this driver job until every sample's full remove_empty->convert->destripe->
+# stitch chain reaches a terminal SLURM state, so THIS job's own completion reflects
+# the real per-sample pipeline finishing rather than exiting the instant all the
+# per-sample chains were merely *submitted*. This also lets a caller (GUI or another
+# script) safely chain a --dependency=afterok on this job's id, knowing that means
+# "denoise + stitch are actually done for every sample", not just "jobs were queued".
+echo "Waiting on ${#stitch_job_ids[@]} per-sample pipeline chain(s) to finish: ${stitch_job_ids[*]}"
+pending=("${stitch_job_ids[@]}")
+failed=0
+while [ ${#pending[@]} -gt 0 ]; do
+        sleep 30
+        still_pending=()
+        for job_id in "${pending[@]}"; do
+                state=$(sacct -j "$job_id" --format=State --noheader --parsable2 2>/dev/null | head -n1 | awk '{print $1}')
+                case "$state" in
+                        COMPLETED) ;;
+                        FAILED|CANCELLED*|TIMEOUT|OUT_OF_MEMORY|NODE_FAIL) failed=1 ;;
+                        *) still_pending+=("$job_id") ;;   # still running/pending, or not visible in sacct yet
+                esac
+        done
+        pending=("${still_pending[@]}")
+done
+
+if [ "$failed" -eq 1 ]; then
+        echo "One or more sample pipeline chains failed - see sacct/job logs for details."
+        exit 1
+fi
+echo "All sample pipeline chains finished successfully."
 
 
 
