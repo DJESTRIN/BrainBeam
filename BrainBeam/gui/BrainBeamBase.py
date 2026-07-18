@@ -38,6 +38,136 @@ NAV_ITEMS = [
     ("Custom Script", "Custom Script", "\u2699"),
 ]
 
+# Common image file extensions produced by the pipeline stages (raw/converted PNGs,
+# destriped/stitched TIFFs). Used to find a representative slice for GUI previews.
+_PREVIEW_IMAGE_EXTS = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
+
+
+def find_first_image(folder):
+    """ Find a representative image file for a preview thumbnail: recursively
+    searches `folder` for the first (sorted) file matching a known image
+    extension. Returns None if the folder does not exist or has no matches -
+    callers must handle that gracefully rather than assuming a file was found. """
+    if not folder or not os.path.isdir(folder):
+        return None
+    matches = []
+    for ext in _PREVIEW_IMAGE_EXTS:
+        matches.extend(glob.glob(os.path.join(folder, '**', f'*{ext}'), recursive=True))
+    return sorted(matches)[0] if matches else None
+
+
+def load_thumbnail(path, max_size=(260, 220)):
+    """ Load an image file as a CTkImage thumbnail, preserving aspect ratio.
+    Returns None (rather than raising) if the file is missing or unreadable,
+    so a broken/partial pipeline output never crashes the GUI preview panel. """
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        img = Image.open(path)
+        img = img.convert('RGB')
+        img.thumbnail(max_size)
+        return ctk.CTkImage(img, size=img.size)
+    except Exception:
+        return None
+
+
+class BeforeAfterPreview(ctk.CTkFrame):
+    """ A reusable "before -> after" image preview panel: two side-by-side
+    thumbnails with captions, plus a small caption/status line. Used on the
+    Denoise and Stitch tabs so users can visually confirm a stage worked
+    instead of only seeing folder paths and status text. """
+
+    def __init__(self, master, before_caption, after_caption, **kwargs):
+        super().__init__(master, **kwargs)
+        self.grid_columnconfigure((0, 1), weight=1)
+        self._placeholder_text = "No preview yet -\nrun this stage or click Refresh Preview."
+
+        self.before_title = ctk.CTkLabel(self, text=before_caption, font=FONT_BODY)
+        self.before_title.grid(row=0, column=0, pady=(6, 2))
+        self.before_image_label = ctk.CTkLabel(self, text=self._placeholder_text, font=FONT_STATUS,
+                                                text_color=COLOR_MUTED, width=260, height=220)
+        self.before_image_label.grid(row=1, column=0, padx=10, pady=(0, 10))
+
+        self.after_title = ctk.CTkLabel(self, text=after_caption, font=FONT_BODY)
+        self.after_title.grid(row=0, column=1, pady=(6, 2))
+        self.after_image_label = ctk.CTkLabel(self, text=self._placeholder_text, font=FONT_STATUS,
+                                               text_color=COLOR_MUTED, width=260, height=220)
+        self.after_image_label.grid(row=1, column=1, padx=10, pady=(0, 10))
+
+    def update_images(self, before_path, after_path):
+        for label, path in ((self.before_image_label, before_path), (self.after_image_label, after_path)):
+            thumb = load_thumbnail(path)
+            if thumb is not None:
+                label.configure(image=thumb, text="")
+                label.image = thumb  # keep a reference so it isn't garbage-collected
+            else:
+                label.configure(image=None, text=self._placeholder_text)
+
+
+class AnimatedGifLabel(ctk.CTkLabel):
+    """ Plays a multi-frame GIF inline inside a CTkLabel (used for the registration
+    orientation-preview GIFs produced by runregistr.py). Falls back to a plain
+    text placeholder if the file is missing or not a valid animated image. """
+
+    def __init__(self, master, max_size=(260, 220), **kwargs):
+        kwargs.setdefault('text', "No preview yet.")
+        kwargs.setdefault('font', FONT_STATUS)
+        kwargs.setdefault('text_color', COLOR_MUTED)
+        kwargs.setdefault('width', max_size[0])
+        kwargs.setdefault('height', max_size[1])
+        super().__init__(master, **kwargs)
+        self.max_size = max_size
+        self._frames = []
+        self._frame_index = 0
+        self._after_id = None
+
+    def load(self, path):
+        self._stop()
+        if not path or not os.path.isfile(path):
+            self.configure(image=None, text="No preview yet.")
+            return
+        try:
+            gif = Image.open(path)
+            frames = []
+            durations = []
+            for frame_idx in range(getattr(gif, 'n_frames', 1)):
+                gif.seek(frame_idx)
+                frame = gif.convert('RGB')
+                frame.thumbnail(self.max_size)
+                frames.append(ctk.CTkImage(frame, size=frame.size))
+                durations.append(max(gif.info.get('duration', 120), 40))
+            if not frames:
+                raise ValueError("no frames")
+            self._frames = list(zip(frames, durations))
+            self._frame_index = 0
+            self.configure(text="")
+            self._animate()
+        except Exception:
+            self.configure(image=None, text="Preview unavailable\n(file missing or unreadable).")
+
+    def _animate(self):
+        if not self._frames:
+            return
+        image, duration = self._frames[self._frame_index]
+        self.configure(image=image)
+        self.image = image
+        self._frame_index = (self._frame_index + 1) % len(self._frames)
+        self._after_id = self.after(duration, self._animate)
+
+    def _stop(self):
+        if self._after_id is not None:
+            try:
+                self.after_cancel(self._after_id)
+            except Exception:
+                pass
+            self._after_id = None
+        self._frames = []
+
+    def destroy(self):
+        self._stop()
+        super().destroy()
+
+
 class BrainBeamGuiBase():
     def __init__(self):
         self.root=ctk.CTk()
@@ -366,9 +496,11 @@ class BrainBeamGuiBase():
             pass
         self.updateoverview()
 
-    def run_backend_action(self,status_label,action_name,action,target_path=None):
+    def run_backend_action(self,status_label,action_name,action,target_path=None,on_complete=None):
         #Runs a BrainBeamCLI.API call on a background thread so the GUI does not freeze,
         #then marshals the status label update and overview sync back onto the Tkinter main thread.
+        #on_complete (optional) is called on the main thread after a successful run - used to
+        #refresh before/after image previews once a stage finishes.
         def update_label(text,color):
             self.root.after(0,lambda: status_label.configure(text=text,text_color=color))
         def sync_status(status):
@@ -382,6 +514,8 @@ class BrainBeamGuiBase():
                 action(api)
                 update_label(f"{action_name}: complete.",COLOR_SUCCESS)
                 sync_status('complete')
+                if on_complete:
+                    self.root.after(0,on_complete)
             except (PipelineError, NotImplementedError, ValueError, FileNotFoundError) as e:
                 update_label(f"{action_name} failed: {e}",COLOR_ERROR)
                 sync_status('error')
@@ -497,12 +631,23 @@ class BrainBeamGuiBase():
         self.denoise_status_label = ctk.CTkLabel(self.pages["Denoise"],text="",font=FONT_STATUS)
         self.denoise_status_label.place(relx=0.01,rely=0.42)
 
+        self.denoise_preview = BeforeAfterPreview(self.pages["Denoise"], "Raw (converted)", "Denoised (destriped)")
+        self.denoise_preview.place(relx=0.01,rely=0.5)
+        self.webbtn = ctk.CTkButton(self.pages["Denoise"],text="Refresh Preview",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=self.refresh_denoise_preview)
+        self.webbtn.place(relx=0.01,rely=0.47)
+
+    def refresh_denoise_preview(self):
+        scratch_dir=self.denoise_scratch_entry.get().strip()
+        before=find_first_image(os.path.join(scratch_dir,'lightsheet','converted')) if scratch_dir else None
+        after=find_first_image(os.path.join(scratch_dir,'lightsheet','destriped')) if scratch_dir else None
+        self.denoise_preview.update_images(before,after)
+
     def start_denoise(self):
         scratch_dir=self.denoise_scratch_entry.get().strip()
         if not scratch_dir:
             self.throw_error('Please select a scratch directory before denoising.')
             return
-        self.run_backend_action(self.denoise_status_label,'Denoise',lambda api: api.denoise(scratch_dir),target_path=scratch_dir)
+        self.run_backend_action(self.denoise_status_label,'Denoise',lambda api: api.denoise(scratch_dir),target_path=scratch_dir,on_complete=self.refresh_denoise_preview)
 
     def set_up_stitch(self):
         #Set up the Stitch tab
@@ -522,13 +667,24 @@ class BrainBeamGuiBase():
         self.stitch_status_label = ctk.CTkLabel(self.pages["Stitch"],text="",font=FONT_STATUS)
         self.stitch_status_label.place(relx=0.01,rely=0.47)
 
+        self.stitch_preview = BeforeAfterPreview(self.pages["Stitch"], "Destriped tile", "Stitched output")
+        self.stitch_preview.place(relx=0.01,rely=0.55)
+        self.webbtn = ctk.CTkButton(self.pages["Stitch"],text="Refresh Preview",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=self.refresh_stitch_preview)
+        self.webbtn.place(relx=0.01,rely=0.52)
+
+    def refresh_stitch_preview(self):
+        scratch_dir=self.stitch_scratch_entry.get().strip()
+        before=find_first_image(os.path.join(scratch_dir,'lightsheet','destriped')) if scratch_dir else None
+        after=find_first_image(os.path.join(scratch_dir,'lightsheet','stitched')) if scratch_dir else None
+        self.stitch_preview.update_images(before,after)
+
     def start_stitch(self):
         scratch_dir=self.stitch_scratch_entry.get().strip()
         if not scratch_dir:
             self.throw_error('Please select a scratch directory before stitching.')
             return
         chain_next_stage=bool(self.stitch_chain_var.get())
-        self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage),target_path=scratch_dir)
+        self.run_backend_action(self.stitch_status_label,'Stitch',lambda api: api.stitch(scratch_dir,chain_next_stage=chain_next_stage),target_path=scratch_dir,on_complete=self.refresh_stitch_preview)
 
     def set_up_registration(self):
         #Set up the Registration tab
@@ -554,10 +710,97 @@ class BrainBeamGuiBase():
         self.webbtn.place(relx=0.65,rely=0.44)
         self.registration_conda_entry = ctk.CTkEntry(self.pages["Registration"], width=600, placeholder_text="Conda environment name (required for SLURM batch registration).")
         self.registration_conda_entry.place(relx=0.01,rely=0.52)
+
+        # Orientation / initial-direction picker (LOCAL only): lets the user tell the
+        # registration code how to reorient the brain volume before alignment starts,
+        # instead of guessing raw integer arrays on the command line.
+        self.orient_label = ctk.CTkLabel(self.pages["Registration"],text="Initial orientation (optional - leave (auto) to let registration detect it):",font=FONT_BODY)
+        self.orient_label.place(relx=0.01,rely=0.585)
+        axis_values=["(auto)","0","1","2"]
+        flip_values=["(auto)","Normal","Flipped"]
+        self.orientation_menus=[]
+        self.flip_menus=[]
+        axis_captions=["Axis 1 (source->A/P)","Axis 2 (source->D/V)","Axis 3 (source->L/R)"]
+        for i,caption in enumerate(axis_captions):
+            lbl=ctk.CTkLabel(self.pages["Registration"],text=caption,font=FONT_STATUS)
+            lbl.place(relx=0.01+i*0.22,rely=0.63)
+            menu=ctk.CTkOptionMenu(self.pages["Registration"],values=axis_values,width=120)
+            menu.place(relx=0.01+i*0.22,rely=0.665)
+            self.orientation_menus.append(menu)
+            flip_lbl=ctk.CTkLabel(self.pages["Registration"],text="Flip?",font=FONT_STATUS)
+            flip_lbl.place(relx=0.01+i*0.22,rely=0.705)
+            flip_menu=ctk.CTkOptionMenu(self.pages["Registration"],values=flip_values,width=120)
+            flip_menu.place(relx=0.01+i*0.22,rely=0.74)
+            self.flip_menus.append(flip_menu)
+
+        self.webbtn = ctk.CTkButton(self.pages["Registration"],text="Preview Orientation",font=FONT_BUTTON,fg_color=SECONDARY_BUTTON["fg_color"],hover_color=SECONDARY_BUTTON["hover_color"],command=self.start_register_preview)
+        self.webbtn.place(relx=0.01,rely=0.79)
         self.webbtn = ctk.CTkButton(self.pages["Registration"],text="Start Registering",font=FONT_BUTTON,command=self.start_register)
-        self.webbtn.place(relx=0.4,rely=0.6)
+        self.webbtn.place(relx=0.28,rely=0.79)
         self.registration_status_label = ctk.CTkLabel(self.pages["Registration"],text="",font=FONT_STATUS)
-        self.registration_status_label.place(relx=0.01,rely=0.67)
+        self.registration_status_label.place(relx=0.01,rely=0.85)
+
+        # Orientation preview: shows the two quick-look GIFs runregistr.py generates
+        # (atlas/target orientation, and your brain's orientation after the settings
+        # above are applied) so you can sanity-check direction/coordinates before
+        # committing to a full (slow) registration run.
+        self.registration_preview_atlas_title = ctk.CTkLabel(self.pages["Registration"],text="Atlas (target) orientation",font=FONT_BODY)
+        self.registration_preview_atlas_title.place(relx=0.01,rely=0.895)
+        self.registration_preview_atlas = AnimatedGifLabel(self.pages["Registration"])
+        self.registration_preview_atlas.place(relx=0.01,rely=0.925)
+        self.registration_preview_moving_title = ctk.CTkLabel(self.pages["Registration"],text="Your brain (moving) orientation",font=FONT_BODY)
+        self.registration_preview_moving_title.place(relx=0.34,rely=0.895)
+        self.registration_preview_moving = AnimatedGifLabel(self.pages["Registration"])
+        self.registration_preview_moving.place(relx=0.34,rely=0.925)
+
+    def _get_force_orientation_flips(self):
+        #Reads the orientation/flip pickers. Returns (force_orientation, force_flips), each
+        #either a list of 3 ints or None if left at "(auto)" for all three axes.
+        orient_raw=[m.get() for m in self.orientation_menus]
+        flip_raw=[m.get() for m in self.flip_menus]
+        force_orientation=None
+        if any(v!="(auto)" for v in orient_raw):
+            if any(v=="(auto)" for v in orient_raw):
+                raise ValueError("Please set all three orientation axes, or leave all three as (auto).")
+            force_orientation=[int(v) for v in orient_raw]
+        force_flips=None
+        if any(v!="(auto)" for v in flip_raw):
+            if any(v=="(auto)" for v in flip_raw):
+                raise ValueError("Please set all three flip options, or leave all three as (auto).")
+            force_flips=[1 if v=="Normal" else -1 for v in flip_raw]
+        return force_orientation,force_flips
+
+    def refresh_registration_preview(self):
+        output_path=self.registration_output_entry.get().strip()
+        if not output_path or not os.path.isdir(output_path):
+            self.registration_preview_atlas.load(None)
+            self.registration_preview_moving.load(None)
+            return
+        def latest(pattern):
+            matches=glob.glob(os.path.join(output_path,'**',pattern),recursive=True)
+            return max(matches,key=os.path.getmtime) if matches else None
+        self.registration_preview_atlas.load(latest('init_target_array_*.gif'))
+        self.registration_preview_moving.load(latest('init_moving_array_*.gif'))
+
+    def start_register_preview(self):
+        image_path=self.registration_image_entry.get().strip()
+        output_path=self.registration_output_entry.get().strip() or None
+        atlas_path=self.registration_atlas_entry.get().strip() or None
+        if not image_path or not output_path:
+            self.throw_error('Please select both an image path and an output path before previewing orientation.')
+            return
+        if self.get_computertype()!='local':
+            self.throw_error('Orientation preview is only available for LOCAL registration.')
+            return
+        try:
+            force_orientation,force_flips=self._get_force_orientation_flips()
+        except ValueError as e:
+            self.throw_error(str(e))
+            return
+        self.run_backend_action(self.registration_status_label,'Register preview',lambda api: api.register(
+            image_path,output_path=output_path,atlas_path=atlas_path,
+            force_orientation=force_orientation,force_flips=force_flips,preview_only=True),
+            on_complete=self.refresh_registration_preview)
 
     def start_register(self):
         image_path=self.registration_image_entry.get().strip()
@@ -571,9 +814,16 @@ class BrainBeamGuiBase():
         if self.get_computertype()=='slurm' and (not segmentation_path or not conda_env):
             self.throw_error('SLURM registration requires both a parent segmentation path and a conda environment name.')
             return
+        try:
+            force_orientation,force_flips=self._get_force_orientation_flips()
+        except ValueError as e:
+            self.throw_error(str(e))
+            return
         self.run_backend_action(self.registration_status_label,'Register',lambda api: api.register(
             image_path,output_path=output_path,atlas_path=atlas_path,
-            parent_segmentation_path=segmentation_path,conda_environment_name=conda_env),target_path=image_path)
+            parent_segmentation_path=segmentation_path,conda_environment_name=conda_env,
+            force_orientation=force_orientation,force_flips=force_flips),target_path=image_path,
+            on_complete=self.refresh_registration_preview)
 
     def set_up_segmentation(self):
         #Set up the Segmentation tab
