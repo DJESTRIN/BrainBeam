@@ -36,6 +36,10 @@ def cli_parser():
                         help="Optional: 3 integers defining forced orientation (or omitted)")
     parser.add_argument("--force_flips", nargs='*', type=int, default=None,
                         help="Optional: 3 integers defining forced flips (or omitted)")
+    parser.add_argument("--preview_only", action='store_true',
+                        help="Generate the initial atlas/moving-image orientation GIFs and exit "
+                             "before running the (slow) alignment optimization. Useful for quickly "
+                             "checking/iterating on --force_orientation and --force_flips values.")
     args = parser.parse_args()
 
     # Parse through force orientation and flips
@@ -88,6 +92,10 @@ def main(args, logger):
                            force_orientations=args.force_orientation, force_flips=args.force_flips, crop_border_noise_bool = args.crop_border_noise_bool)
     Image_oh()
     Image_oh.generate_gif(volume=Image_oh.downsampled_volume,full_filename=os.path.join(args.output_path,f'init_moving_array_{args.init_date_time}.gif'))
+
+    if args.preview_only:
+        logger.info("preview_only is set: skipping cell overlays and alignment; orientation GIFs are ready.")
+        return
 
     # Generate Cell Image object per csv file channel
     cell_count_files = glob.glob(os.path.join(args.output_path,'*cell_counts*csv'))
