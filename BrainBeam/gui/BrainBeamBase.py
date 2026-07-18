@@ -24,6 +24,7 @@ FONT_STATUS = ("Segoe UI", 12)
 COLOR_SUCCESS = "#2FA84F"
 COLOR_ERROR = "#D64545"
 COLOR_RUNNING = "#E0972F"
+COLOR_WARNING = "#C98A1E"
 COLOR_MUTED = "gray55"
 SECONDARY_BUTTON = {"fg_color": "gray35", "hover_color": "gray25"}
 
@@ -501,19 +502,46 @@ class BrainBeamGuiBase():
         #then marshals the status label update and overview sync back onto the Tkinter main thread.
         #on_complete (optional) is called on the main thread after a successful run - used to
         #refresh before/after image previews once a stage finishes.
+        #For SLURM, submitting the job successfully is NOT the same as the job finishing -
+        #once action(api) returns, any .job_id(s) found on the result(s) are polled via
+        #api.wait_for_jobs() so the status label reflects the *real* cluster outcome
+        #(complete/error/unknown) instead of just "sbatch accepted this".
         def update_label(text,color):
             self.root.after(0,lambda: status_label.configure(text=text,text_color=color))
         def sync_status(status):
             if target_path:
                 self.root.after(0,lambda: self.update_sample_status(target_path,action_name,status))
+        def extract_job_ids(result):
+            results=result if isinstance(result,list) else [result]
+            return [jid for r in results for jid in [getattr(r,'job_id',None)] if jid]
         def worker():
             update_label(f"{action_name}: running...",COLOR_RUNNING)
             sync_status('running')
             try:
                 api=API(self.get_computertype())
-                action(api)
-                update_label(f"{action_name}: complete.",COLOR_SUCCESS)
-                sync_status('complete')
+                result=action(api)
+                job_ids=extract_job_ids(result)
+                if job_ids and self.get_computertype()=='slurm':
+                    update_label(f"{action_name}: submitted, waiting on {len(job_ids)} SLURM job(s)...",COLOR_RUNNING)
+                    def on_poll(states):
+                        done=len(states)
+                        update_label(f"{action_name}: waiting on SLURM ({done}/{len(job_ids)} finished)...",COLOR_RUNNING)
+                    states=api.wait_for_jobs(job_ids,on_poll=on_poll)
+                    errored=[j for j,s in states.items() if s=='error']
+                    unknown=[j for j,s in states.items() if s=='unknown']
+                    if errored:
+                        update_label(f"{action_name} failed: SLURM job(s) {', '.join(errored)} did not complete successfully.",COLOR_ERROR)
+                        sync_status('error')
+                        return
+                    if unknown:
+                        update_label(f"{action_name}: finished, status unknown for job(s) {', '.join(unknown)} - check SLURM logs.",COLOR_WARNING)
+                        sync_status('complete')
+                    else:
+                        update_label(f"{action_name}: complete.",COLOR_SUCCESS)
+                        sync_status('complete')
+                else:
+                    update_label(f"{action_name}: complete.",COLOR_SUCCESS)
+                    sync_status('complete')
                 if on_complete:
                     self.root.after(0,on_complete)
             except (PipelineError, NotImplementedError, ValueError, FileNotFoundError) as e:
