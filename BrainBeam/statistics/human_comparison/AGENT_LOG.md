@@ -21,3 +21,5 @@
 - 2026-07-19 19:47 EDT - Compiled the ENIGMA table strictly from directly verified PubMed abstracts and open PMC tables; no raw ENIGMA imaging datasets were downloaded.
 - 2026-07-19 19:50 EDT - 10 GB safeguard check: no attempted download approached the 10 GB stop threshold. No raw fMRI, connectome-matrix, or bulk neuroimaging database download was initiated.
 - 2026-07-19 19:50 EDT - Committed incremental work as: `0258ba9` (`Add human comparison scaffold`), `0b43de0` (`Add Neurosynth human comparison analysis`), `b17d201` (`Add ENIGMA convergence table`), and `d9438ea` (`Update human comparison audit log`).
+- 2026-07-19 19:53 EDT - Added follow-up cleanup/logging commit 17ffc8 (Clean human comparison audit log).
+- 2026-07-19 19:53 EDT - Pushed branch human-connectome-comparison to origin successfully and confirmed upstream tracking was established.
