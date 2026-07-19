@@ -14,3 +14,9 @@
 eurosynth_coactivation.py, and uild_enigma_table.py under BrainBeam\\statistics\\human_comparison.
 - 2026-07-19 19:43 EDT - Noted an important schema nuance from ConnectomicDistance.py: the exported CSV includes id, connectivity_resolved_id, and connection_distance, but not an explicit parcel-level 
 ormalized_projection_volume column, so the human comparison code treats mouse cross-reference as optional unless an enriched mouse table is supplied.
+- 2026-07-19 19:44 EDT - Ran uild_enigma_table.py successfully and generated enigma_convergence_table.csv.
+- 2026-07-19 19:45 EDT - Ran 
+eurosynth_coactivation.py successfully and generated human_vmPFC_acc_coactivation_rankings.csv plus 
+eurosynth_term_region_details.csv. The script auto-checked for *_connection_distances.csv mouse outputs and found none, so the human ranking was generated with mouse_cross_reference_status=no_mouse_output_found.
+- 2026-07-19 19:46 EDT - Validated the generated human outputs by inspecting the CSV headers/top rows. The ranking output includes per-term scores, study counts, vmPFC/ACC aggregate means, and a 
+o_mouse_output_found status because no mouse *_connection_distances.csv file exists yet in the worktree.
