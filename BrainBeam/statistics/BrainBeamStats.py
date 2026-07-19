@@ -23,6 +23,7 @@ from scipy.stats import pearsonr
 # BrainBeam based code
 from BrainBeam.statistics.stability import slope_stability as sst 
 from BrainBeam.statistics.AtlasGraphics import AtlasGraph
+from BrainBeam.statistics.ConnectomicDistance import ConnectomicDistanceGraph
 from BrainBeam.statistics.AtlasOperations import AtlasGardener
 from BrainBeam.statistics.bootstrap import quick_boot, quick_boot_df
 from BrainBeam.statistics.NetworkSimulation import custom_naming, network
@@ -35,7 +36,9 @@ def CohensD(mean1, std1, mean2, std2):
 
 class gen:
     def __init__(self, df, ontology_dict, atlas_path, drop_directory=None, value='normalizedcount', bootstrap=False, 
-                 group1='control', group2='cort', group3='none', leveled_atlas=True, restricted_atlas=False, simulation=False, nboot=50, run_stability=True):
+                 group1='control', group2='cort', group3='none', leveled_atlas=True, restricted_atlas=False, simulation=False, nboot=50, run_stability=True,
+                 run_connectomic_distance=False, connectomic_seed_regions=None,
+                 connectomic_projection_metric='normalized_projection_volume', connectomic_edge_threshold=0.01):
         self.df_original = df
         self.df = df
         self.bootstrap = bootstrap
@@ -48,6 +51,13 @@ class gen:
         self.simulation = simulation
         self.atlas_path = atlas_path
         self.run_stability = run_stability
+
+        # Allen-connectivity-based (# synaptic hops) distance analysis, run alongside
+        # the physical-distance-from-seed analysis in AtlasGraphics.AtlasGraph.
+        self.run_connectomic_distance = run_connectomic_distance
+        self.connectomic_seed_regions = connectomic_seed_regions or ['prelimbic', 'infralimbic', 'anterior cingulate']
+        self.connectomic_projection_metric = connectomic_projection_metric
+        self.connectomic_edge_threshold = connectomic_edge_threshold
 
         # Level the atlas with atlas gardender
         if leveled_atlas:
@@ -495,6 +505,21 @@ class gen:
                 default_decrease_color=dec_color
             )
             self.atob()
+
+            if self.run_connectomic_distance:
+                try:
+                    self.connectomic_atob = ConnectomicDistanceGraph(
+                        dataframe=dfoh,
+                        atlas_path=self.atlas_path,
+                        drop_directory=self.drop_directory,
+                        filename=filename,
+                        seed_regions=self.connectomic_seed_regions,
+                        projection_metric=self.connectomic_projection_metric,
+                        edge_threshold=self.connectomic_edge_threshold,
+                    )
+                    self.connectomic_atob()
+                except ImportError as exc:
+                    print(f"Skipping connectomic-distance analysis for {comp}: {exc}")
 
 if __name__=='__main__':
     # ================================
