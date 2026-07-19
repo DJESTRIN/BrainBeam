@@ -20,3 +20,4 @@ eurosynth_coactivation.py successfully and generated human_vmPFC_acc_coactivatio
 eurosynth_term_region_details.csv. The script auto-checked for *_connection_distances.csv mouse outputs and found none, so the human ranking was generated with mouse_cross_reference_status=no_mouse_output_found.
 - 2026-07-19 19:46 EDT - Validated the generated human outputs by inspecting the CSV headers/top rows. The ranking output includes per-term scores, study counts, vmPFC/ACC aggregate means, and a 
 o_mouse_output_found status because no mouse *_connection_distances.csv file exists yet in the worktree.
+- 2026-07-19 19:47 EDT - Prepared the ENIGMA table as a literature-only CSV with only directly verified summary statistics from PubMed abstracts or open PMC tables; no raw ENIGMA imaging datasets were downloaded.
