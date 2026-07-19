@@ -7,9 +7,11 @@ Description:
     AtlasGraphics.py. Instead of Euclidean voxel distance from a seed region
     (default: mPFC), the "distance" assigned to each region is the number of
     synaptic hops separating it from the seed, based on the Allen Mouse Brain
-    Connectivity Atlas. E.g. if mPFC projects directly to a region, that
-    region gets a connectomic distance of 1; if mPFC only reaches a region via
-    one intermediate region, that region gets a connectomic distance of 2.
+    Connectivity Atlas -- specifically the number of hops needed for that
+    region to project INTO the seed (afferent/upstream direction). E.g. if a
+    region projects directly into mPFC, it gets a connectomic distance of 1;
+    if it only reaches mPFC via one intermediate region, it gets a
+    connectomic distance of 2.
 
     Requires the `allensdk` and `networkx` packages to build the connectivity
     graph (`pip install allensdk networkx`). The structure-to-structure
@@ -138,26 +140,31 @@ class AllenConnectivityGraph:
             self.graph = pickle.load(infile)
         return self.graph
 
-    def hop_distance(self, source_ids, target_id):
+    def hop_distance(self, region_id, seed_ids):
         """
-        Minimum number of synaptic hops from any of `source_ids` (e.g. the
-        prelimbic/infralimbic/anterior-cingulate sub-structures that make up
-        mPFC) to `target_id`. Returns np.nan if no directed path exists or
-        `target_id` isn't part of the graph.
+        Minimum number of monosynaptic hops needed for `region_id` to reach
+        ANY of `seed_ids` (e.g. the prelimbic/infralimbic/anterior-cingulate
+        sub-structures that make up mPFC), following edge direction (an edge
+        A->B means "A projects into B"). I.e. this answers "how many
+        sequential projection hops does it take for `region_id` to project
+        into the seed?" -- 1 if `region_id` directly projects into a seed
+        structure, 2 if it projects into an intermediate region that directly
+        projects into a seed structure, etc. Returns np.nan if no such
+        directed path exists or `region_id` isn't part of the graph.
         """
         if self.graph is None:
             raise RuntimeError("Call build() (or load()) before computing hop distances.")
 
-        source_ids = [s for s in source_ids if s in self.graph]
-        if target_id not in self.graph or not source_ids:
+        seed_ids = [s for s in seed_ids if s in self.graph]
+        if region_id not in self.graph or not seed_ids:
             return np.nan
 
         best = np.inf
-        for source_id in source_ids:
-            if source_id == target_id:
+        for seed_id in seed_ids:
+            if region_id == seed_id:
                 return 0
             try:
-                length = nx.shortest_path_length(self.graph, source=source_id, target=target_id)
+                length = nx.shortest_path_length(self.graph, source=region_id, target=seed_id)
                 best = min(best, length)
             except nx.NetworkXNoPath:
                 continue
@@ -284,8 +291,12 @@ class ConnectomicDistanceGraph:
 
         resolved_ids = [self._resolve_to_graph_id(region_id) for region_id in self.df['id']]
         self.df['connectivity_resolved_id'] = resolved_ids
+        # Distance = # hops for a region to project INTO the seed (afferent/upstream
+        # direction), i.e. "regions that project to mPFC" = 1, "regions that project to
+        # regions that project to mPFC" = 2, etc. -- NOT how far mPFC's own projections
+        # reach outward.
         self.df['connection_distance'] = [
-            self.conn_graph.hop_distance(resolved_seed_ids, rid) if rid is not None else np.nan
+            self.conn_graph.hop_distance(rid, resolved_seed_ids) if rid is not None else np.nan
             for rid in resolved_ids
         ]
         return self.df
