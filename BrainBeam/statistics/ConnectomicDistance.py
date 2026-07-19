@@ -56,8 +56,17 @@ class AllenConnectivityGraph:
                 "allensdk is required for connectomic-distance analysis. "
                 "Install it with `pip install allensdk`."
             )
-        # Preserve order but drop duplicates
-        self.structure_ids = list(dict.fromkeys(int(s) for s in structure_ids))
+        # `structure_ids=None` uses Allen's own curated "summary structure" set
+        # (MouseConnectivityCache.default_structure_ids, ~316 structures). Tracer
+        # experiments are almost never assigned a fine-grained structure (e.g. a
+        # single cortical layer) as their primary injection site, so building the
+        # graph over anything finer than this canonical set leaves most nodes with
+        # zero in/out edges. Fine-grained regions get mapped up to their nearest
+        # ancestor in this set at query time (see ConnectomicDistanceGraph).
+        self.structure_ids = (
+            None if structure_ids is None
+            else list(dict.fromkeys(int(s) for s in structure_ids))
+        )
         self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
         self.manifest_file = manifest_file or os.path.join(
@@ -68,26 +77,53 @@ class AllenConnectivityGraph:
         self.graph = None
 
     def build(self):
-        """Fetch the structure x structure projection matrix and threshold it into a directed graph."""
+        """
+        Fetch every Allen Mouse Connectivity Atlas tracer experiment injected into
+        one of `structure_ids` (Allen's canonical summary structures if None), pull
+        each experiment's projection strength into all of `structure_ids`, average
+        per (source structure -> target structure) pair across experiments, and
+        threshold the resulting structure x structure matrix into a directed graph
+        (one edge = one monosynaptic hop).
+        """
         mcc = MouseConnectivityCache(manifest_file=self.manifest_file)
+
+        if self.structure_ids is None:
+            self.structure_ids = list(dict.fromkeys(int(s) for s in mcc.default_structure_ids))
+
+        experiments = mcc.get_experiments(cre=False, injection_structure_ids=self.structure_ids)
+        if not experiments:
+            raise ValueError(
+                "No Allen Mouse Connectivity experiments found with injections in the "
+                "given structures; cannot build a connectivity graph.")
+
+        experiment_ids = [e['id'] for e in experiments]
+        source_by_experiment = {e['id']: e['primary_injection_structure'] for e in experiments}
+
         matrix_info = mcc.get_projection_matrix(
-            structure_ids=self.structure_ids,
+            experiment_ids=experiment_ids,
+            projection_structure_ids=self.structure_ids,
             hemisphere_ids=[self.hemisphere_id],
             parameter=self.projection_metric,
-            row_structure_ids=self.structure_ids,
-            column_structure_ids=self.structure_ids,
         )
         matrix = matrix_info['matrix']
-        row_ids = [r['structure_id'] for r in matrix_info['rows']]
-        col_ids = [c['structure_id'] for c in matrix_info['columns']]
+        target_ids = [c['structure_id'] for c in matrix_info['columns']]
+
+        # rows = experiments, columns = target structures
+        proj_df = pd.DataFrame(matrix, index=experiment_ids, columns=target_ids)
+        proj_df['__source_structure__'] = [source_by_experiment[eid] for eid in experiment_ids]
+
+        # Average projection strength per source structure -> target structure,
+        # ignoring experiments/targets with no measured value (NaN).
+        source_target = proj_df.groupby('__source_structure__').mean()
 
         graph = nx.DiGraph()
         graph.add_nodes_from(self.structure_ids)
-        for i, source_id in enumerate(row_ids):
-            for j, target_id in enumerate(col_ids):
-                weight = matrix[i, j]
+        for source_id, row in source_target.iterrows():
+            for target_id, weight in row.items():
+                if pd.isna(weight):
+                    continue
                 if source_id != target_id and weight >= self.edge_threshold:
-                    graph.add_edge(source_id, target_id, weight=float(weight))
+                    graph.add_edge(int(source_id), int(target_id), weight=float(weight))
 
         self.graph = graph
         return graph
@@ -198,9 +234,15 @@ class ConnectomicDistanceGraph:
         return self.df[is_seed]['id'].values.tolist()
 
     def build_connectivity_graph(self):
-        structure_ids = self.df['id'].unique().tolist()
+        # Build over Allen's canonical ~316 summary structures (structure_ids=None),
+        # not our atlas's fine-grained region ids. Tracer injections are almost
+        # never assigned a single cortical layer (etc.) as their primary injection
+        # site, so a graph built directly over fine-grained ids ends up with most
+        # nodes (including the mPFC seed sub-regions) having zero edges. Fine
+        # regions are instead mapped up to their nearest ancestor in this canonical
+        # set at query time (see _resolve_to_graph_id / compute_connection_distances).
         self.conn_graph = AllenConnectivityGraph(
-            structure_ids=structure_ids,
+            structure_ids=None,
             cache_dir=self.connectivity_cache_dir,
             projection_metric=self.projection_metric,
             edge_threshold=self.edge_threshold,
@@ -211,13 +253,40 @@ class ConnectomicDistanceGraph:
             self.conn_graph.build()
             self.conn_graph.save(self.graph_cache_path)
 
+    def _resolve_to_graph_id(self, region_id):
+        """
+        Map `region_id` to the nearest ancestor (inclusive) present in the
+        connectivity graph's node set, by walking up the atlas ontology tree.
+        Returns None if no such ancestor exists.
+        """
+        valid_ids = self.conn_graph.graph
+        if region_id in valid_ids:
+            return region_id
+
+        node = self.tree_obj.id_to_node.get(region_id)
+        while node is not None:
+            parent_id = node['parent']
+            if parent_id is None:
+                return None
+            if parent_id in valid_ids:
+                return parent_id
+            node = self.tree_obj.id_to_node.get(parent_id)
+        return None
+
     def compute_connection_distances(self):
         seed_ids = self._seed_ids()
         if not seed_ids:
             raise ValueError("No seed-region rows found in dataframe; check seed_regions.")
 
+        resolved_seed_ids = [rid for rid in (self._resolve_to_graph_id(sid) for sid in seed_ids) if rid is not None]
+        if not resolved_seed_ids:
+            raise ValueError("None of the seed regions could be mapped onto the Allen connectivity graph.")
+
+        resolved_ids = [self._resolve_to_graph_id(region_id) for region_id in self.df['id']]
+        self.df['connectivity_resolved_id'] = resolved_ids
         self.df['connection_distance'] = [
-            self.conn_graph.hop_distance(seed_ids, region_id) for region_id in self.df['id']
+            self.conn_graph.hop_distance(resolved_seed_ids, rid) if rid is not None else np.nan
+            for rid in resolved_ids
         ]
         return self.df
 
