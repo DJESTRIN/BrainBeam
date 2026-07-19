@@ -4,6 +4,7 @@ This folder contains two supplemental analyses for comparing the mouse mPFC conn
 
 1. `neurosynth_coactivation.py` builds parcel-level human meta-analytic rankings for fear/threat/stress-related terms using the small Neurosynth term-annotation release distributed through NiMARE plus the bundled Harvard-Oxford atlas from Nilearn.
 2. `build_enigma_table.py` compiles a literature-only ENIGMA PTSD/MDD convergence table from published summary statistics.
+3. `make_figures.py` turns the generated CSV outputs into reader-facing figure panels for the supplement.
 
 ## Why this exists
 
@@ -49,11 +50,36 @@ Optional arguments:
 C:\path\to\python.exe BrainBeam\statistics\human_comparison\build_enigma_table.py
 ```
 
+## Figures
+
+`make_figures.py` reads the existing CSV outputs and writes `.png` figures to `BrainBeam\statistics\human_comparison\figures\`:
+
+- `vmPFC_ACC_coactivation_ranked_bar.png` — horizontal ranking of the top non-seed human parcels by mean vmPFC/ACC coactivation proxy across `fear`, `threat`, `fear_conditioning`, and `stress`.
+- `vmPFC_ACC_coactivation_term_heatmap.png` — term-by-region heatmap for those top-ranked parcels, showing whether a region is driven broadly across terms or only by a subset.
+- `enigma_effect_size_forest.png` — lollipop/forest-style plot of the curated ENIGMA PTSD/MDD effect sizes, with modality colors and disorder-specific markers.
+- `enigma_convergence_table.png` — compact figure-table rendering of the ENIGMA convergence CSV for supplemental display.
+
+### Run
+
+```powershell
+C:\path\to\python.exe BrainBeam\statistics\human_comparison\make_figures.py
+```
+
+Optional argument for the future cross-species comparison scaffold:
+
+- `--mouse-csv C:\path\to\mouse_connection_distances.csv`
+
+If a compatible mouse CSV is supplied later, `make_figures.py` also contains a scaffolded `mouse_vs_human_region_group_scatter.png` generator that aggregates broad region groups across species. That comparison is **not runnable yet in this folder's current state**, because no mouse `*_connection_distances.csv` output is present here yet.
+
 ## Outputs
 
 - `human_vmPFC_acc_coactivation_rankings.csv`
 - `neurosynth_term_region_details.csv`
 - `enigma_convergence_table.csv`
+- `figures\vmPFC_ACC_coactivation_ranked_bar.png`
+- `figures\vmPFC_ACC_coactivation_term_heatmap.png`
+- `figures\enigma_effect_size_forest.png`
+- `figures\enigma_convergence_table.png`
 - `AGENT_LOG.md`
 
 ## Interpretation caveats
