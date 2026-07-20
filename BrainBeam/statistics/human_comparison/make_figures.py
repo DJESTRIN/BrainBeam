@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Generate reader-friendly figures for the human comparison supplement."""
+"""Generate reader-friendly figures for the human comparison supplement.
+
+These figures visualize parcel-level Neurosynth term-associated activation-density
+summaries and curated ENIGMA case-control morphometry findings. They should be
+presented as translational context only: neither analysis measures anatomical
+projections, true functional connectivity, or the multivalent single-cell /
+population coding phenomena quantified in the mouse calcium-imaging data.
+"""
 
 from __future__ import annotations
 
@@ -12,30 +19,15 @@ import numpy as np
 import pandas as pd
 
 
-TERM_COLUMNS = [
-    "fear",
-    "threat",
-    "fear_conditioning",
-    "stress",
-    "amygdala",
-]
+TERM_NAMES = ["fear", "threat", "fear_conditioning", "stress", "amygdala"]
+PRIMARY_TERM_NAMES = ["fear", "threat", "fear_conditioning", "stress"]
+TERM_SCORE_COLUMNS = [f"{term}_seed_scaled_activation_density" for term in TERM_NAMES]
 TERM_LABELS = {
     "fear": "Fear",
     "threat": "Threat",
-    "fear_conditioning": "Fear\nconditioning",
+    "fear_conditioning": "Fear conditioning\n(two-word co-occurrence)",
     "stress": "Stress",
-    "amygdala": "Amygdala",
-}
-KEYWORD_GROUPS = {
-    "amygdala": ("amygdala",),
-    "hippocampus": ("hippocamp", "dentate", "subiculum", "entorhinal", "parahippocamp"),
-    "cingulate": ("cingulate", "acc"),
-    "orbitofrontal": ("orbitofrontal", "orbital", "ofc"),
-    "insula": ("insula", "insular", "claustr"),
-    "thalamus": ("thalam",),
-    "striatum": ("caudate", "putamen", "striat", "accumbens", "pallid"),
-    "septal": ("sept",),
-    "temporal": ("temporal", "auditory"),
+    "amygdala": "Amygdala\n(reference only)",
 }
 MODALITY_COLORS = {
     "cortical thickness": "#4C78A8",
@@ -48,6 +40,8 @@ ATLAS_COLORS = {
     "harvard_oxford_cortical": "#4C78A8",
     "harvard_oxford_subcortical": "#F58518",
 }
+PRIMARY_COMPOSITE_COLUMN = "secondary_mean_primary_term_seed_scaled_activation_density"
+PRIMARY_COMPOSITE_RANK_COLUMN = "secondary_rank_primary_term_seed_scaled_activation_density"
 
 
 def default_paths() -> dict[str, Path]:
@@ -56,8 +50,8 @@ def default_paths() -> dict[str, Path]:
     base_dir = Path(__file__).resolve().parent
     return {
         "base_dir": base_dir,
-        "ranking_csv": base_dir / "human_vmPFC_acc_coactivation_rankings.csv",
-        "detail_csv": base_dir / "neurosynth_term_region_details.csv",
+        "ranking_csv": base_dir / "human_vmPFC_acc_term_associated_activation_rankings.csv",
+        "detail_csv": base_dir / "neurosynth_term_activation_details.csv",
         "enigma_csv": base_dir / "enigma_convergence_table.csv",
         "figure_dir": base_dir / "figures",
     }
@@ -74,13 +68,13 @@ def parse_args() -> argparse.Namespace:
         "--ranking-csv",
         type=Path,
         default=paths["ranking_csv"],
-        help="Path to human_vmPFC_acc_coactivation_rankings.csv",
+        help="Path to human_vmPFC_acc_term_associated_activation_rankings.csv",
     )
     parser.add_argument(
         "--detail-csv",
         type=Path,
         default=paths["detail_csv"],
-        help="Path to neurosynth_term_region_details.csv",
+        help="Path to neurosynth_term_activation_details.csv",
     )
     parser.add_argument(
         "--enigma-csv",
@@ -98,16 +92,7 @@ def parse_args() -> argparse.Namespace:
         "--top-n",
         type=int,
         default=15,
-        help="Number of top coactivation regions to show in ranking plots.",
-    )
-    parser.add_argument(
-        "--mouse-csv",
-        type=Path,
-        default=None,
-        help=(
-            "Optional mouse connection-distance CSV for the scaffolded mouse-vs-human "
-            "comparison plot."
-        ),
+        help="Number of top-ranked regions to show in ranking plots.",
     )
     return parser.parse_args()
 
@@ -139,13 +124,13 @@ def load_inputs(args: argparse.Namespace) -> tuple[pd.DataFrame, pd.DataFrame, p
 
     require_columns(
         ranking_df,
-        ["region", "atlas", "mean_score_fear_threat_stress", "rank_fear_threat_stress"]
-        + TERM_COLUMNS,
+        ["region", "atlas", PRIMARY_COMPOSITE_COLUMN, PRIMARY_COMPOSITE_RANK_COLUMN]
+        + TERM_SCORE_COLUMNS,
         "Ranking CSV",
     )
     require_columns(
         detail_df,
-        ["term", "term_study_count", "region", "coactivation_proxy"],
+        ["term", "term_study_count", "region", "seed_scaled_activation_density"],
         "Detail CSV",
     )
     require_columns(
@@ -159,13 +144,13 @@ def load_inputs(args: argparse.Namespace) -> tuple[pd.DataFrame, pd.DataFrame, p
 def make_ranked_bar_chart(
     ranking_df: pd.DataFrame, detail_df: pd.DataFrame, output_path: Path, top_n: int
 ) -> None:
-    """Plot top-ranked human regions by vmPFC/ACC coactivation strength."""
+    """Plot top-ranked human regions by seed-scaled activation-density summary."""
 
     plot_df = (
-        ranking_df.sort_values("rank_fear_threat_stress")
+        ranking_df.sort_values(PRIMARY_COMPOSITE_RANK_COLUMN)
         .head(top_n)
         .copy()
-        .sort_values("mean_score_fear_threat_stress", ascending=True)
+        .sort_values(PRIMARY_COMPOSITE_COLUMN, ascending=True)
     )
     plot_df["region_label"] = plot_df["region"].map(lambda value: textwrap.fill(str(value), 28))
 
@@ -177,25 +162,27 @@ def make_ranked_bar_chart(
     )
     subtitle = (
         f"Fear n={study_counts.get('fear', 'NA')}, threat n={study_counts.get('threat', 'NA')}, "
-        f"fear conditioning n={study_counts.get('fear_conditioning', 'NA')}, "
+        f"fear conditioning n={study_counts.get('fear_conditioning', 'NA')} (two-word co-occurrence), "
         f"stress n={study_counts.get('stress', 'NA')}"
     )
 
-    fig, ax = plt.subplots(figsize=(11, 8.5))
+    fig, ax = plt.subplots(figsize=(11.5, 8.5))
     y_positions = np.arange(len(plot_df))
     colors = [ATLAS_COLORS.get(atlas, "#7F7F7F") for atlas in plot_df["atlas"]]
     ax.barh(
         y_positions,
-        plot_df["mean_score_fear_threat_stress"],
+        plot_df[PRIMARY_COMPOSITE_COLUMN],
         color=colors,
         edgecolor="black",
         linewidth=0.6,
     )
     ax.set_yticks(y_positions)
     ax.set_yticklabels(plot_df["region_label"])
-    ax.set_xlabel("Mean vmPFC/ACC coactivation proxy")
+    ax.set_xlabel("Secondary mean seed-scaled term-associated activation density")
     ax.set_ylabel("")
-    ax.set_title("Top human regions coactivating with vmPFC/ACC\nacross fear/threat/stress terms")
+    ax.set_title(
+        "Top human parcels by secondary mean\nseed-scaled term-associated activation density"
+    )
     ax.text(
         0.0,
         1.02,
@@ -205,7 +192,7 @@ def make_ranked_bar_chart(
         ha="left",
         va="bottom",
     )
-    for y_position, value in zip(y_positions, plot_df["mean_score_fear_threat_stress"].tolist()):
+    for y_position, value in zip(y_positions, plot_df[PRIMARY_COMPOSITE_COLUMN].tolist()):
         ax.text(
             value + 0.15,
             y_position,
@@ -214,31 +201,49 @@ def make_ranked_bar_chart(
             fontsize=9,
         )
     legend_handles = [
-        plt.Rectangle((0, 0), 1, 1, facecolor=color, edgecolor="black", label=label.replace("harvard_oxford_", "").replace("_", " ").title())
+        plt.Rectangle(
+            (0, 0),
+            1,
+            1,
+            facecolor=color,
+            edgecolor="black",
+            label=label.replace("harvard_oxford_", "").replace("_", " ").title(),
+        )
         for label, color in ATLAS_COLORS.items()
         if label in plot_df["atlas"].unique()
     ]
     if legend_handles:
-        ax.legend(handles=legend_handles, title="Atlas", loc="lower right", fontsize=9, title_fontsize=10, frameon=True)
+        ax.legend(
+            handles=legend_handles,
+            title="Atlas",
+            loc="lower right",
+            fontsize=9,
+            title_fontsize=10,
+            frameon=True,
+        )
     plt.tight_layout()
     plt.savefig(output_path, bbox_inches="tight")
     plt.close(fig)
 
 
 def make_term_heatmap(ranking_df: pd.DataFrame, output_path: Path, top_n: int) -> None:
-    """Plot a term-by-region heatmap for the top-ranked parcels."""
+    """Plot term-by-region heatmap for the top-ranked parcels."""
 
-    plot_df = ranking_df.sort_values("rank_fear_threat_stress").head(top_n).copy()
+    plot_df = ranking_df.sort_values(PRIMARY_COMPOSITE_RANK_COLUMN).head(top_n).copy()
     plot_df["region_label"] = plot_df["region"].map(lambda value: textwrap.fill(str(value), 24))
-    heatmap_df = plot_df.set_index("region_label")[TERM_COLUMNS].rename(columns=TERM_LABELS)
+    heatmap_df = plot_df.set_index("region_label")[[f"{term}_seed_scaled_activation_density" for term in TERM_NAMES]]
+    heatmap_df = heatmap_df.rename(columns={
+        f"{term}_seed_scaled_activation_density": TERM_LABELS[term] for term in TERM_NAMES
+    })
 
-    fig, ax = plt.subplots(figsize=(9.5, max(6, 0.42 * len(heatmap_df) + 2.4)))
+    fig, ax = plt.subplots(figsize=(11, max(6, 0.42 * len(heatmap_df) + 2.6)))
     heatmap_array = heatmap_df.to_numpy(dtype=float)
     image = ax.imshow(heatmap_array, cmap="magma_r", aspect="auto")
     ax.set_xticks(np.arange(len(heatmap_df.columns)))
     ax.set_xticklabels(heatmap_df.columns)
     ax.set_yticks(np.arange(len(heatmap_df.index)))
     ax.set_yticklabels(heatmap_df.index)
+    threshold = np.nanmax(heatmap_array) * 0.55 if np.isfinite(np.nanmax(heatmap_array)) else 0
     for row_index in range(heatmap_array.shape[0]):
         for column_index in range(heatmap_array.shape[1]):
             ax.text(
@@ -248,20 +253,23 @@ def make_term_heatmap(ranking_df: pd.DataFrame, output_path: Path, top_n: int) -
                 ha="center",
                 va="center",
                 fontsize=8,
-                color="white" if heatmap_array[row_index, column_index] < np.nanmax(heatmap_array) * 0.55 else "black",
+                color="white" if heatmap_array[row_index, column_index] < threshold else "black",
             )
     ax.set_xlabel("")
     ax.set_ylabel("")
-    ax.set_title("Term-specific human coactivation profile\nfor top vmPFC/ACC-linked regions")
+    ax.set_title(
+        "Term-specific seed-scaled activation-density profile\n"
+        "for top-ranked human parcels"
+    )
     colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.02)
-    colorbar.set_label("Coactivation proxy")
+    colorbar.set_label("Seed-scaled term-associated activation density")
     plt.tight_layout()
     plt.savefig(output_path, bbox_inches="tight")
     plt.close(fig)
 
 
 def make_enigma_forest_plot(enigma_df: pd.DataFrame, output_path: Path) -> None:
-    """Plot published ENIGMA effect sizes by region and modality."""
+    """Plot published ENIGMA effect sizes as clinical background context."""
 
     plot_df = enigma_df.copy().sort_values(["disorder_group", "effect_size", "region"])
     plot_df["label"] = plot_df.apply(
@@ -304,7 +312,7 @@ def make_enigma_forest_plot(enigma_df: pd.DataFrame, output_path: Path) -> None:
     ax.set_yticklabels(plot_df["label"], fontsize=9)
     ax.set_xlabel("Published effect size")
     ax.set_ylabel("")
-    ax.set_title("ENIGMA PTSD/MDD convergence effects in stress-relevant human regions")
+    ax.set_title("ENIGMA PTSD/MDD findings as clinical background context")
 
     modality_handles = [
         plt.Line2D([0], [0], marker="o", color=color, linestyle="", markersize=8, label=label)
@@ -350,7 +358,7 @@ def make_enigma_forest_plot(enigma_df: pd.DataFrame, output_path: Path) -> None:
 
 
 def make_enigma_table_figure(enigma_df: pd.DataFrame, output_path: Path) -> None:
-    """Render a compact table-like figure for the ENIGMA convergence rows."""
+    """Render a compact table-like figure for the ENIGMA background rows."""
 
     table_df = enigma_df.copy()
     table_df["effect_display"] = table_df.apply(
@@ -401,7 +409,7 @@ def make_enigma_table_figure(enigma_df: pd.DataFrame, output_path: Path) -> None
             cell.set_facecolor(base_color)
 
     ax.set_title(
-        "Compact ENIGMA convergence table for PTSD/MDD stress-circuit findings",
+        "Compact ENIGMA PTSD/MDD table (clinical context, not circuit validation)",
         fontsize=15,
         pad=18,
     )
@@ -410,80 +418,8 @@ def make_enigma_table_figure(enigma_df: pd.DataFrame, output_path: Path) -> None
     plt.close(fig)
 
 
-def keyword_group(region_name: str) -> str | None:
-    """Map a region label to a coarse group for future mouse-human comparison plots."""
-
-    normalized = str(region_name).lower()
-    for group_name, markers in KEYWORD_GROUPS.items():
-        if any(marker in normalized for marker in markers):
-            return group_name
-    return None
-
-
-def make_mouse_human_comparison_scatter(
-    ranking_df: pd.DataFrame, mouse_csv: Path, output_path: Path
-) -> None:
-    """Scaffolded cross-species plot for future mouse outputs."""
-
-    mouse_df = pd.read_csv(mouse_csv)
-    require_columns(mouse_df, ["regionname"], "Mouse comparison CSV")
-    if (
-        "normalized_projection_volume" not in mouse_df.columns
-        and "connection_distance" not in mouse_df.columns
-    ):
-        raise ValueError(
-            "Mouse comparison CSV needs normalized_projection_volume or connection_distance."
-        )
-
-    human_df = ranking_df.copy()
-    human_df["group"] = human_df["region"].map(keyword_group)
-    human_df = human_df.dropna(subset=["group"])
-    if human_df.empty:
-        raise ValueError("No human ranking regions mapped onto the scaffold keyword groups.")
-
-    mouse_df = mouse_df.copy()
-    mouse_df["group"] = mouse_df["regionname"].map(keyword_group)
-    mouse_df = mouse_df.dropna(subset=["group"])
-    if mouse_df.empty:
-        raise ValueError("No mouse regions mapped onto the scaffold keyword groups.")
-
-    human_summary = (
-        human_df.groupby("group", as_index=False)["mean_score_fear_threat_stress"].mean()
-        .rename(columns={"mean_score_fear_threat_stress": "human_score"})
-    )
-
-    if "normalized_projection_volume" in mouse_df.columns:
-        mouse_summary = (
-            mouse_df.groupby("group", as_index=False)["normalized_projection_volume"].max()
-            .rename(columns={"normalized_projection_volume": "mouse_score"})
-        )
-        mouse_axis_label = "Mouse normalized projection volume"
-    else:
-        mouse_summary = (
-            mouse_df.groupby("group", as_index=False)["connection_distance"].min()
-            .assign(mouse_score=lambda frame: -frame["connection_distance"])
-            .drop(columns=["connection_distance"])
-        )
-        mouse_axis_label = "Mouse proximity proxy (-connection distance)"
-
-    comparison_df = human_summary.merge(mouse_summary, on="group", how="inner")
-    if comparison_df.empty:
-        raise ValueError("No overlapping keyword groups were available for comparison.")
-
-    fig, ax = plt.subplots(figsize=(8, 6.5))
-    ax.scatter(comparison_df["mouse_score"], comparison_df["human_score"], s=120, color="#4C78A8", edgecolor="black")
-    for _, row in comparison_df.iterrows():
-        ax.text(row["mouse_score"], row["human_score"] + 0.1, row["group"], fontsize=9, ha="center")
-    ax.set_xlabel(mouse_axis_label)
-    ax.set_ylabel("Mean human fear/threat/stress coactivation proxy")
-    ax.set_title("Scaffolded mouse-vs-human region-group comparison")
-    plt.tight_layout()
-    plt.savefig(output_path, bbox_inches="tight")
-    plt.close(fig)
-
-
 def main() -> None:
-    """Generate the missing reader-facing figures."""
+    """Generate the reader-facing supplemental figures."""
 
     args = parse_args()
     args.figure_dir.mkdir(parents=True, exist_ok=True)
@@ -491,8 +427,8 @@ def main() -> None:
     ranking_df, detail_df, enigma_df = load_inputs(args)
 
     outputs = [
-        args.figure_dir / "vmPFC_ACC_coactivation_ranked_bar.png",
-        args.figure_dir / "vmPFC_ACC_coactivation_term_heatmap.png",
+        args.figure_dir / "vmPFC_ACC_activation_density_ranked_bar.png",
+        args.figure_dir / "vmPFC_ACC_activation_density_term_heatmap.png",
         args.figure_dir / "enigma_effect_size_forest.png",
         args.figure_dir / "enigma_convergence_table.png",
     ]
@@ -504,16 +440,6 @@ def main() -> None:
 
     for output in outputs:
         print(f"Wrote figure: {output}")
-
-    if args.mouse_csv and args.mouse_csv.exists():
-        mouse_output = args.figure_dir / "mouse_vs_human_region_group_scatter.png"
-        make_mouse_human_comparison_scatter(ranking_df, args.mouse_csv, mouse_output)
-        print(f"Wrote figure: {mouse_output}")
-    else:
-        print(
-            "Skipped mouse-vs-human scatter scaffold: no mouse CSV supplied. "
-            "Function is implemented but not runnable until mouse output exists."
-        )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Compile a small ENIGMA PTSD/MDD convergence table from verified sources."""
+"""Compile a small ENIGMA PTSD/MDD convergence table from verified sources.
+
+This table is intended as clinical-background context only. ENIGMA case-control
+morphometry findings do not directly measure stimulus multivalence, vmPFC/ACC
+afferent architecture, or the causal circuit properties tested in the mouse
+experiments, so they should not be treated as quantitative validation of the
+mouse connectomic, CORT, or ketamine results.
+"""
 
 from __future__ import annotations
 
