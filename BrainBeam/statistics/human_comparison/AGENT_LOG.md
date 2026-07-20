@@ -40,3 +40,5 @@
 - 2026-07-19 20:45 EDT - Re-ran `make_figures.py` after regenerating the renamed ranking CSV; generated `figures\vmPFC_ACC_activation_density_ranked_bar.png`, `figures\vmPFC_ACC_activation_density_term_heatmap.png`, `figures\enigma_effect_size_forest.png`, and `figures\enigma_convergence_table.png` successfully.
 - 2026-07-19 20:47 EDT - Removed the obsolete coactivation-named CSV and figure outputs after regenerating the renamed activation-density outputs so the folder no longer presents the deprecated framing as current deliverables.
 - 2026-07-19 20:57 EDT - Committed the pooled-seed / renamed-output fix pass as `85eb70b` (`Fix Neurosynth activation ranking outputs`).
+- 2026-07-19 21:00 EDT - Committed the documentation / caveat / figure-script reframing pass as `1bace9c` (`Reframe human comparison figures and caveats`).
+- 2026-07-19 21:01 EDT - Force-added the renamed activation-density figure files because `figures\*.png` is ignored by default, then committed them as `c153892` (`Add renamed activation density figures`).
