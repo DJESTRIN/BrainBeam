@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Build a human vmPFC/ACC coactivation ranking from small Neurosynth releases.
+"""Build parcel-level human term-associated activation rankings from small Neurosynth releases.
 
-This script uses the small Neurosynth v7 term-annotation release distributed via
+This workflow uses the small Neurosynth v7 term-annotation release distributed via
 NiMARE, not raw fMRI downloads. For each term of interest, it fits a
 term-conditioned MKDA density map, averages the resulting z-statistics within
-Harvard-Oxford cortical and subcortical parcels, and ranks non-seed parcels by
-their coactivation proxy with a vmPFC/ACC seed set.
+Harvard-Oxford cortical and subcortical parcels, and reports parcel-level
+term-associated activation-density summaries.
 
-If a mouse `*_connection_distances.csv` output is available, the script adds a
-lightweight keyword-based cross-reference column so the human ranking is ready
-to compare against mouse afferent candidates. If no mouse CSV exists, the
-script still completes and marks the comparison as pending mouse-side output.
+The vmPFC/ACC seed set is used only to compute a pooled seed mean per term and a
+secondary seed-scaled activation-density column. That seed-scaled summary is not
+functional connectivity, structural connectivity, or a true seed-based
+coactivation estimate; because the seed multiplier is constant within each term,
+it does not change within-term parcel ordering.
 """
 
 from __future__ import annotations
@@ -18,7 +19,6 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import Iterable
 
 import numpy as np
@@ -44,26 +44,20 @@ TERM_LABELS = {
     "stress": ["terms_abstract_tfidf__stress"],
     "amygdala": ["terms_abstract_tfidf__amygdala"],
 }
-
-SEED_LABELS = {
+PRIMARY_COMPOSITE_TERMS = ("fear", "threat", "fear_conditioning", "stress")
+VM_PFC_ACC_SEED_LABELS = {
     "Frontal Medial Cortex",
     "Subcallosal Cortex",
     "Paracingulate Gyrus",
     "Cingulate Gyrus, anterior division",
     "Frontal Orbital Cortex",
 }
-
-KEYWORD_GROUPS = {
-    "amygdala": ("amygdala",),
-    "hippocampus": ("hippocamp", "dentate", "subiculum", "entorhinal", "parahippocamp"),
-    "cingulate": ("cingulate", "acc"),
-    "orbitofrontal": ("orbitofrontal", "orbital", "ofc"),
-    "insula": ("insula", "insular", "claustr"),
-    "thalamus": ("thalam",),
-    "striatum": ("caudate", "putamen", "striat", "accumbens", "pallid"),
-    "septal": ("sept",),
-    "temporal": ("temporal", "auditory"),
-}
+CROSS_SPECIES_MAPPING_STATUS = "requires_curated_domain_expert_mapping"
+CROSS_SPECIES_MAPPING_NOTE = (
+    "Automatic lexical mouse-human matching is disabled. A scientifically meaningful "
+    "cross-species comparison requires a curated, literature-cited mapping defined "
+    "by a domain expert before quantitative comparison is attempted."
+)
 
 
 @dataclass(frozen=True)
@@ -79,13 +73,11 @@ def default_paths() -> dict[str, Path]:
     """Return script-local default input and output paths."""
 
     base_dir = Path(__file__).resolve().parent
-    repo_root = Path(__file__).resolve().parents[3]
     return {
         "base_dir": base_dir,
-        "repo_root": repo_root,
         "cache_dir": base_dir / "data_cache",
-        "output_csv": base_dir / "human_vmPFC_acc_coactivation_rankings.csv",
-        "detail_csv": base_dir / "neurosynth_term_region_details.csv",
+        "output_csv": base_dir / "human_vmPFC_acc_term_associated_activation_rankings.csv",
+        "detail_csv": base_dir / "neurosynth_term_activation_details.csv",
     }
 
 
@@ -94,7 +86,10 @@ def parse_args() -> argparse.Namespace:
 
     paths = default_paths()
     parser = argparse.ArgumentParser(
-        description="Build parcel-level human vmPFC/ACC coactivation rankings."
+        description=(
+            "Build parcel-level human term-associated activation-density rankings "
+            "from small Neurosynth releases."
+        )
     )
     parser.add_argument(
         "--cache-dir",
@@ -113,12 +108,6 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=paths["detail_csv"],
         help="Long-form per-term parcel detail CSV path.",
-    )
-    parser.add_argument(
-        "--mouse-csv",
-        type=Path,
-        default=None,
-        help="Optional mouse `*_connection_distances.csv` output to cross-reference.",
     )
     return parser.parse_args()
 
@@ -170,8 +159,47 @@ def study_ids_for_term(annotations: pd.DataFrame, term_columns: Iterable[str]) -
     return annotations.loc[mask, "id"].tolist()
 
 
-def compute_term_detail(dataset, atlases: list[AtlasSpec]) -> pd.DataFrame:
-    """Run MKDA maps for each term and extract parcel scores."""
+def extract_atlas_activation_rows(
+    atlas: AtlasSpec, z_map, term_name: str, study_count: int, term_columns: list[str]
+) -> pd.DataFrame:
+    """Extract parcel summaries from one atlas for one term-conditioned MKDA map."""
+
+    aligned_map = image.resample_to_img(
+        z_map,
+        atlas.image_obj,
+        interpolation="continuous",
+        force_resample=True,
+        copy_header=True,
+    )
+    atlas_data = np.asarray(atlas.image_obj.get_fdata(), dtype=int)
+    z_data = np.asarray(aligned_map.get_fdata(), dtype=float)
+
+    rows = []
+    for index, label in enumerate(atlas.labels):
+        if index == 0:
+            continue
+        voxel_mask = atlas_data == index
+        if not np.any(voxel_mask):
+            continue
+        rows.append(
+            {
+                "term": term_name,
+                "term_study_count": study_count,
+                "atlas": atlas.name,
+                "region": label,
+                "activation_density_mean_z": float(np.nanmean(z_data[voxel_mask])),
+                "activation_density_peak_z": float(np.nanmax(z_data[voxel_mask])),
+                "voxel_count": int(np.count_nonzero(voxel_mask)),
+                "is_vmPFC_acc_seed": label in VM_PFC_ACC_SEED_LABELS,
+                "term_columns": ", ".join(term_columns),
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def compute_term_activation_details(dataset, atlases: list[AtlasSpec]) -> pd.DataFrame:
+    """Run MKDA maps for each term and extract parcel activation-density summaries."""
 
     annotations = dataset.annotations.copy()
     meta = MKDADensity()
@@ -184,186 +212,95 @@ def compute_term_detail(dataset, atlases: list[AtlasSpec]) -> pd.DataFrame:
 
         result = meta.fit(dataset.slice(ids))
         z_map = result.get_map("z")
+        atlas_frames = [
+            extract_atlas_activation_rows(atlas, z_map, term_name, len(ids), list(term_columns))
+            for atlas in atlases
+        ]
+        term_df = pd.concat(atlas_frames, ignore_index=True)
 
-        for atlas in atlases:
-            aligned_map = image.resample_to_img(
-                z_map,
-                atlas.image_obj,
-                interpolation="continuous",
-                force_resample=True,
-                copy_header=True,
+        pooled_seed_mean = term_df.loc[
+            term_df["is_vmPFC_acc_seed"], "activation_density_mean_z"
+        ].mean()
+        if pd.isna(pooled_seed_mean):
+            raise ValueError(
+                f"No vmPFC/ACC seed parcels were found for term '{term_name}'."
             )
-            atlas_data = np.asarray(atlas.image_obj.get_fdata(), dtype=int)
-            z_data = np.asarray(aligned_map.get_fdata(), dtype=float)
 
-            rows = []
-            for index, label in enumerate(atlas.labels):
-                if index == 0:
-                    continue
-                voxel_mask = atlas_data == index
-                if not np.any(voxel_mask):
-                    continue
-                rows.append(
-                    {
-                        "term": term_name,
-                        "term_study_count": len(ids),
-                        "atlas": atlas.name,
-                        "region": label,
-                        "mean_z": float(np.nanmean(z_data[voxel_mask])),
-                        "max_z": float(np.nanmax(z_data[voxel_mask])),
-                        "voxel_count": int(np.count_nonzero(voxel_mask)),
-                        "is_vmPFC_acc_seed": label in SEED_LABELS,
-                    }
-                )
-
-            atlas_df = pd.DataFrame(rows)
-            seed_mean = atlas_df.loc[atlas_df["is_vmPFC_acc_seed"], "mean_z"].mean()
-            atlas_df["seed_mean_z"] = float(seed_mean)
-            atlas_df["coactivation_proxy"] = atlas_df["mean_z"] * atlas_df["seed_mean_z"]
-            atlas_df["term_columns"] = ", ".join(term_columns)
-            detail_frames.append(atlas_df)
+        term_df["pooled_seed_activation_density_mean_z"] = float(pooled_seed_mean)
+        # This is a seed-scaled parcel summary of term-associated MKDA density, not a
+        # measure of functional/structural connectivity or genuine seed-based coupling.
+        # The pooled vmPFC/ACC seed multiplier is constant within a term, so it rescales
+        # parcel density without changing within-term parcel ordering.
+        term_df["seed_scaled_activation_density"] = (
+            term_df["activation_density_mean_z"]
+            * term_df["pooled_seed_activation_density_mean_z"]
+        )
+        detail_frames.append(term_df)
 
     detail_df = pd.concat(detail_frames, ignore_index=True)
-    detail_df["coactivation_rank_within_term"] = (
-        detail_df.loc[~detail_df["is_vmPFC_acc_seed"]]
-        .groupby("term")["coactivation_proxy"]
+    non_seed_mask = ~detail_df["is_vmPFC_acc_seed"]
+    detail_df["activation_density_rank_within_term"] = (
+        detail_df.loc[non_seed_mask]
+        .groupby("term")["activation_density_mean_z"]
+        .rank(ascending=False, method="min")
+    )
+    detail_df["seed_scaled_activation_density_rank_within_term"] = (
+        detail_df.loc[non_seed_mask]
+        .groupby("term")["seed_scaled_activation_density"]
         .rank(ascending=False, method="min")
     )
     return detail_df
 
 
-def normalized_text(text: str) -> str:
-    """Normalize a region label for light keyword matching."""
-
-    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
-
-
-def region_keywords(region_name: str) -> set[str]:
-    """Map a region name to a coarse keyword set for mouse-human comparisons."""
-
-    normalized = normalized_text(region_name)
-    keywords = {token for token in normalized.split() if len(token) > 3}
-    for group_name, markers in KEYWORD_GROUPS.items():
-        if any(marker in normalized for marker in markers):
-            keywords.add(group_name)
-    return keywords
-
-
-def find_mouse_csv(repo_root: Path) -> Path | None:
-    """Auto-discover a mouse connection-distance CSV if one exists."""
-
-    candidates = sorted(repo_root.glob("**/*connection_distances.csv"))
-    return candidates[0] if candidates else None
-
-
-def attach_mouse_cross_reference(ranking_df: pd.DataFrame, mouse_csv: Path | None) -> pd.DataFrame:
-    """Add optional mouse cross-reference columns to the human ranking table."""
-
-    output = ranking_df.copy()
-    if mouse_csv is None or not mouse_csv.exists():
-        output["mouse_source_file"] = ""
-        output["mouse_cross_reference_status"] = "no_mouse_output_found"
-        output["mouse_match_count"] = 0
-        output["mouse_top_matches"] = ""
-        output["mouse_best_connection_distance"] = np.nan
-        output["mouse_best_projection_metric"] = np.nan
-        return output
-
-    mouse_df = pd.read_csv(mouse_csv)
-    if "regionname" not in mouse_df.columns:
-        output["mouse_source_file"] = str(mouse_csv)
-        output["mouse_cross_reference_status"] = "mouse_csv_missing_regionname"
-        output["mouse_match_count"] = 0
-        output["mouse_top_matches"] = ""
-        output["mouse_best_connection_distance"] = np.nan
-        output["mouse_best_projection_metric"] = np.nan
-        return output
-
-    mouse_df = mouse_df.copy()
-    mouse_df["normalized_regionname"] = mouse_df["regionname"].astype(str).map(normalized_text)
-    mouse_df["keyword_set"] = mouse_df["regionname"].astype(str).map(region_keywords)
-
-    sort_columns: list[str] = []
-    ascending: list[bool] = []
-    if "normalized_projection_volume" in mouse_df.columns:
-        sort_columns.append("normalized_projection_volume")
-        ascending.append(False)
-    if "connection_distance" in mouse_df.columns:
-        sort_columns.append("connection_distance")
-        ascending.append(True)
-    if sort_columns:
-        mouse_df = mouse_df.sort_values(sort_columns, ascending=ascending, na_position="last")
-
-    top_matches = []
-    for _, row in output.iterrows():
-        keywords = region_keywords(row["region"])
-        match_scores = mouse_df["keyword_set"].map(lambda items: len(keywords.intersection(items)))
-        matched = mouse_df.loc[match_scores > 0].copy()
-        matched["match_score"] = match_scores[match_scores > 0]
-        matched = matched.sort_values(
-            ["match_score"] + sort_columns,
-            ascending=[False] + ascending,
-            na_position="last",
-        )
-        best = matched.head(5)
-        top_matches.append(
-            {
-                "mouse_source_file": str(mouse_csv),
-                "mouse_cross_reference_status": "matched" if not best.empty else "no_keyword_overlap",
-                "mouse_match_count": int(len(best)),
-                "mouse_top_matches": "; ".join(best["regionname"].astype(str).tolist()),
-                "mouse_best_connection_distance": (
-                    float(best.iloc[0]["connection_distance"])
-                    if not best.empty and "connection_distance" in best.columns and pd.notna(best.iloc[0]["connection_distance"])
-                    else np.nan
-                ),
-                "mouse_best_projection_metric": (
-                    float(best.iloc[0]["normalized_projection_volume"])
-                    if not best.empty and "normalized_projection_volume" in best.columns and pd.notna(best.iloc[0]["normalized_projection_volume"])
-                    else np.nan
-                ),
-            }
-        )
-
-    return pd.concat([output.reset_index(drop=True), pd.DataFrame(top_matches)], axis=1)
-
-
-def build_ranking_table(detail_df: pd.DataFrame, mouse_csv: Path | None) -> pd.DataFrame:
+def build_activation_summary_table(detail_df: pd.DataFrame) -> pd.DataFrame:
     """Convert long-form parcel detail into a wide ranking table."""
 
     non_seed = detail_df.loc[~detail_df["is_vmPFC_acc_seed"]].copy()
-    ranking_df = non_seed.pivot_table(
-        index=["atlas", "region"],
-        columns="term",
-        values="coactivation_proxy",
-        aggfunc="first",
-    ).reset_index()
-
-    study_counts = (
-        detail_df[["term", "term_study_count"]]
+    ranking_df = (
+        non_seed[["atlas", "region"]]
         .drop_duplicates()
-        .set_index("term")["term_study_count"]
-        .to_dict()
+        .sort_values(["atlas", "region"], ignore_index=True)
     )
-    for term_name, study_count in study_counts.items():
-        ranking_df[f"{term_name}_study_count"] = study_count
 
-    ranking_df["mean_score_fear_threat_stress"] = ranking_df[
-        ["fear", "threat", "fear_conditioning", "stress"]
+    for term_name in TERM_LABELS:
+        term_rows = non_seed.loc[non_seed["term"] == term_name, [
+            "atlas",
+            "region",
+            "term_study_count",
+            "activation_density_mean_z",
+            "activation_density_rank_within_term",
+            "pooled_seed_activation_density_mean_z",
+            "seed_scaled_activation_density",
+            "seed_scaled_activation_density_rank_within_term",
+        ]].rename(
+            columns={
+                "term_study_count": f"{term_name}_study_count",
+                "activation_density_mean_z": f"{term_name}_activation_density_mean_z",
+                "activation_density_rank_within_term": f"{term_name}_activation_density_rank",
+                "pooled_seed_activation_density_mean_z": f"{term_name}_pooled_seed_activation_density_mean_z",
+                "seed_scaled_activation_density": f"{term_name}_seed_scaled_activation_density",
+                "seed_scaled_activation_density_rank_within_term": f"{term_name}_seed_scaled_activation_density_rank",
+            }
+        )
+        ranking_df = ranking_df.merge(term_rows, on=["atlas", "region"], how="left")
+
+    composite_columns = [f"{term}_seed_scaled_activation_density" for term in PRIMARY_COMPOSITE_TERMS]
+    ranking_df["secondary_mean_primary_term_seed_scaled_activation_density"] = ranking_df[
+        composite_columns
     ].mean(axis=1)
-    ranking_df["mean_score_all_terms"] = ranking_df[
-        ["fear", "threat", "fear_conditioning", "stress", "amygdala"]
-    ].mean(axis=1)
-    ranking_df["rank_fear_threat_stress"] = ranking_df["mean_score_fear_threat_stress"].rank(
-        ascending=False, method="min"
+    ranking_df["secondary_rank_primary_term_seed_scaled_activation_density"] = ranking_df[
+        "secondary_mean_primary_term_seed_scaled_activation_density"
+    ].rank(ascending=False, method="min")
+    ranking_df["cross_species_mapping_status"] = CROSS_SPECIES_MAPPING_STATUS
+    ranking_df["cross_species_mapping_notes"] = CROSS_SPECIES_MAPPING_NOTE
+    return ranking_df.sort_values(
+        [
+            "secondary_rank_primary_term_seed_scaled_activation_density",
+            "atlas",
+            "region",
+        ],
+        ignore_index=True,
     )
-    ranking_df["rank_all_terms"] = ranking_df["mean_score_all_terms"].rank(
-        ascending=False, method="min"
-    )
-    ranking_df = ranking_df.sort_values(
-        ["rank_fear_threat_stress", "rank_all_terms", "atlas", "region"]
-    ).reset_index(drop=True)
-    return attach_mouse_cross_reference(ranking_df, mouse_csv)
 
 
 def main() -> None:
@@ -373,23 +310,20 @@ def main() -> None:
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
     args.detail_csv.parent.mkdir(parents=True, exist_ok=True)
 
-    paths = default_paths()
     dataset = load_neurosynth_dataset(args.cache_dir)
     atlases = load_atlases(args.cache_dir)
-    detail_df = compute_term_detail(dataset, atlases)
-
-    mouse_csv = args.mouse_csv or find_mouse_csv(paths["repo_root"])
-    ranking_df = build_ranking_table(detail_df, mouse_csv)
+    detail_df = compute_term_activation_details(dataset, atlases)
+    ranking_df = build_activation_summary_table(detail_df)
 
     detail_df.to_csv(args.detail_csv, index=False)
     ranking_df.to_csv(args.output_csv, index=False)
 
     print(f"Wrote detail table to: {args.detail_csv}")
     print(f"Wrote ranking table to: {args.output_csv}")
-    if mouse_csv and Path(mouse_csv).exists():
-        print(f"Mouse cross-reference source: {mouse_csv}")
-    else:
-        print("Mouse cross-reference source: none found; outputs marked as pending mouse CSV.")
+    print(
+        "Cross-species mapping status: automatic lexical matching disabled; "
+        "curated domain-expert mapping required before quantitative mouse-human comparison."
+    )
 
 
 if __name__ == "__main__":

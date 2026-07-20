@@ -1,0 +1,346 @@
+term,term_study_count,atlas,region,activation_density_mean_z,activation_density_peak_z,voxel_count,is_vmPFC_acc_seed,term_columns,pooled_seed_activation_density_mean_z,seed_scaled_activation_density,activation_density_rank_within_term,seed_scaled_activation_density_rank_within_term
+fear,363,harvard_oxford_cortical,Frontal Pole,0.30051471456723716,4.8975324630737305,15397,False,terms_abstract_tfidf__fear,3.3616106779233936,1.0102134733623251,48.0,48.0
+fear,363,harvard_oxford_cortical,Insular Cortex,5.272750752812927,13.032444953918457,2341,False,terms_abstract_tfidf__fear,3.3616106779233936,17.724935232684548,6.0,6.0
+fear,363,harvard_oxford_cortical,Superior Frontal Gyrus,0.468035838263124,5.470284938812256,5080,False,terms_abstract_tfidf__fear,3.3616106779233936,1.5733542715561442,44.0,44.0
+fear,363,harvard_oxford_cortical,Middle Frontal Gyrus,0.5096944670667318,5.089841842651367,5316,False,terms_abstract_tfidf__fear,3.3616106779233936,1.7133943629699993,43.0,43.0
+fear,363,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars triangularis",1.904822243038136,8.346386909484863,1103,False,terms_abstract_tfidf__fear,3.3616106779233936,6.403270791742988,20.0,20.0
+fear,363,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars opercularis",2.5829021502393865,8.000937461853027,1384,False,terms_abstract_tfidf__fear,3.3616106779233936,8.682711448276015,17.0,17.0
+fear,363,harvard_oxford_cortical,Precentral Gyrus,0.2789652742385503,4.703770160675049,8573,False,terms_abstract_tfidf__fear,3.3616106779233936,0.9377726446501384,49.0,49.0
+fear,363,harvard_oxford_cortical,Temporal Pole,0.9204616079415721,13.185304641723633,4711,False,terms_abstract_tfidf__fear,3.3616106779233936,3.094233569874925,37.0,37.0
+fear,363,harvard_oxford_cortical,"Superior Temporal Gyrus, anterior division",0.2709616245040509,1.804280161857605,521,False,terms_abstract_tfidf__fear,3.3616106779233936,0.9108674902402867,51.0,51.0
+fear,363,harvard_oxford_cortical,"Superior Temporal Gyrus, posterior division",0.7923145160241857,4.113255500793457,1830,False,terms_abstract_tfidf__fear,3.3616106779233936,2.663452937340608,38.0,38.0
+fear,363,harvard_oxford_cortical,"Middle Temporal Gyrus, anterior division",0.06891107191946709,2.2438418865203857,848,False,terms_abstract_tfidf__fear,3.3616106779233936,0.2316521951916275,60.0,60.0
+fear,363,harvard_oxford_cortical,"Middle Temporal Gyrus, posterior division",0.33069518411513604,3.5077009201049805,2525,False,terms_abstract_tfidf__fear,3.3616106779233936,1.111668462059284,47.0,47.0
+fear,363,harvard_oxford_cortical,"Middle Temporal Gyrus, temporooccipital part",1.0520485408619016,4.8975324630737305,2004,False,terms_abstract_tfidf__fear,3.3616106779233936,3.536577608655094,32.0,32.0
+fear,363,harvard_oxford_cortical,"Inferior Temporal Gyrus, anterior division",0.0,0.0,647,False,terms_abstract_tfidf__fear,3.3616106779233936,0.0,64.0,64.0
+fear,363,harvard_oxford_cortical,"Inferior Temporal Gyrus, posterior division",0.031110085071238136,3.5077009201049805,1942,False,terms_abstract_tfidf__fear,3.3616106779233936,0.10457999416657927,61.0,61.0
+fear,363,harvard_oxford_cortical,"Inferior Temporal Gyrus, temporooccipital part",1.0431068442609845,5.470284938812256,1470,False,terms_abstract_tfidf__fear,3.3616106779233936,3.5065191058827,33.0,33.0
+fear,363,harvard_oxford_cortical,Postcentral Gyrus,0.08305947555200703,4.311685085296631,6895,False,terms_abstract_tfidf__fear,3.3616106779233936,0.27921361991834387,59.0,59.0
+fear,363,harvard_oxford_cortical,Superior Parietal Lobule,0.18109249583915635,2.6737217903137207,2908,False,terms_abstract_tfidf__fear,3.3616106779233936,0.6087624677047057,57.0,57.0
+fear,363,harvard_oxford_cortical,"Supramarginal Gyrus, anterior division",1.1014094324750412,5.280745029449463,1742,False,terms_abstract_tfidf__fear,3.3616106779233936,3.7025097089736434,30.0,30.0
+fear,363,harvard_oxford_cortical,"Supramarginal Gyrus, posterior division",1.0187856085720501,5.089841842651367,2259,False,terms_abstract_tfidf__fear,3.3616106779233936,3.424760580290487,35.0,35.0
+fear,363,harvard_oxford_cortical,Angular Gyrus,1.0317214427832104,4.8975324630737305,2409,False,terms_abstract_tfidf__fear,3.3616106779233936,3.4682458187025698,34.0,34.0
+fear,363,harvard_oxford_cortical,"Lateral Occipital Cortex, superior division",0.21917714206752315,3.9131572246551514,9779,False,terms_abstract_tfidf__fear,3.3616106779233936,0.7367882211309185,53.0,53.0
+fear,363,harvard_oxford_cortical,"Lateral Occipital Cortex, inferior division",2.0509949085997556,6.215627193450928,4089,False,terms_abstract_tfidf__fear,3.3616106779233936,6.894646385115453,18.0,18.0
+fear,363,harvard_oxford_cortical,Intracalcarine Cortex,0.25249556007979174,3.0947659015655518,1401,False,terms_abstract_tfidf__fear,3.3616106779233936,0.8487917708924757,52.0,52.0
+fear,363,harvard_oxford_cortical,Frontal Medial Cortex,3.127789511849157,8.174103736877441,976,True,terms_abstract_tfidf__fear,3.3616106779233936,10.514410621328926,,
+fear,363,harvard_oxford_cortical,Juxtapositional Lobule Cortex (formerly Supplementary Motor Cortex),1.3614967250317898,6.398942470550537,1484,False,terms_abstract_tfidf__fear,3.3616106779233936,4.576821928824595,26.0,26.0
+fear,363,harvard_oxford_cortical,Subcallosal Cortex,2.0940337379816953,6.762183666229248,1142,True,terms_abstract_tfidf__fear,3.3616106779233936,7.039326173531105,,
+fear,363,harvard_oxford_cortical,Paracingulate Gyrus,3.89380888187367,9.195267677307129,2944,True,terms_abstract_tfidf__fear,3.3616106779233936,13.089469515099479,,
+fear,363,harvard_oxford_cortical,"Cingulate Gyrus, anterior division",4.043462939640898,10.188666343688965,2592,True,terms_abstract_tfidf__fear,3.3616106779233936,13.592548193684358,,
+fear,363,harvard_oxford_cortical,"Cingulate Gyrus, posterior division",0.6700901091840137,5.089841842651367,2412,False,terms_abstract_tfidf__fear,3.3616106779233936,2.252582066203833,41.0,41.0
+fear,363,harvard_oxford_cortical,Precuneous Cortex,0.3604369259709547,5.089841842651367,5623,False,terms_abstract_tfidf__fear,3.3616106779233936,1.2116486190618452,46.0,46.0
+fear,363,harvard_oxford_cortical,Cuneal Cortex,0.005013701822472085,0.891933798789978,1227,False,terms_abstract_tfidf__fear,3.3616106779233936,0.01685411358234614,63.0,63.0
+fear,363,harvard_oxford_cortical,Frontal Orbital Cortex,3.6489583182715477,12.260671615600586,3148,True,terms_abstract_tfidf__fear,3.3616106779233936,12.266377245999024,,
+fear,363,harvard_oxford_cortical,"Parahippocampal Gyrus, anterior division",3.093392294473373,14.121426582336426,1248,False,terms_abstract_tfidf__fear,3.3616106779233936,10.398780568107638,12.0,12.0
+fear,363,harvard_oxford_cortical,"Parahippocampal Gyrus, posterior division",1.277264783269083,4.311685085296631,710,False,terms_abstract_tfidf__fear,3.3616106779233936,4.293666933972859,27.0,27.0
+fear,363,harvard_oxford_cortical,Lingual Gyrus,0.27817194431323833,3.5077009201049805,3381,False,terms_abstract_tfidf__fear,3.3616106779233936,0.9351057783020936,50.0,50.0
+fear,363,harvard_oxford_cortical,"Temporal Fusiform Cortex, anterior division",0.015990660107526623,2.4599361419677734,610,False,terms_abstract_tfidf__fear,3.3616106779233936,0.05375437376450514,62.0,62.0
+fear,363,harvard_oxford_cortical,"Temporal Fusiform Cortex, posterior division",0.6685570243797457,5.845443248748779,1594,False,terms_abstract_tfidf__fear,3.3616106779233936,2.247428431955644,42.0,42.0
+fear,363,harvard_oxford_cortical,Temporal Occipital Fusiform Cortex,3.237071443123425,7.121106147766113,1469,False,terms_abstract_tfidf__fear,3.3616106779233936,10.881773928404595,11.0,11.0
+fear,363,harvard_oxford_cortical,Occipital Fusiform Gyrus,1.6443811722042025,6.581117630004883,1806,False,terms_abstract_tfidf__fear,3.3616106779233936,5.527769307057834,23.0,23.0
+fear,363,harvard_oxford_cortical,Frontal Opercular Cortex,6.630238525970707,11.791306495666504,687,False,terms_abstract_tfidf__fear,3.3616106779233936,22.28828062608219,3.0,3.0
+fear,363,harvard_oxford_cortical,Central Opercular Cortex,1.6007947131580538,9.529309272766113,1886,False,terms_abstract_tfidf__fear,3.3616106779233936,5.38124860091543,24.0,24.0
+fear,363,harvard_oxford_cortical,Parietal Opercular Cortex,1.7149695169456949,4.703770160675049,1119,False,terms_abstract_tfidf__fear,3.3616106779233936,5.765059840477773,22.0,22.0
+fear,363,harvard_oxford_cortical,Planum Polare,1.7596276156574449,5.658504486083984,749,False,terms_abstract_tfidf__fear,3.3616106779233936,5.915182981962948,21.0,21.0
+fear,363,harvard_oxford_cortical,Heschl's Gyrus (includes H1 and H2),1.9525678673426048,4.508504867553711,604,False,terms_abstract_tfidf__fear,3.3616106779233936,6.5637729922290085,19.0,19.0
+fear,363,harvard_oxford_cortical,Planum Temporale,1.2620411220343173,4.703770160675049,952,False,terms_abstract_tfidf__fear,3.3616106779233936,4.242490911808981,28.0,28.0
+fear,363,harvard_oxford_cortical,Supracalcarine Cortex,0.1016892818198807,1.3540401458740234,261,False,terms_abstract_tfidf__fear,3.3616106779233936,0.3418397755960722,58.0,58.0
+fear,363,harvard_oxford_cortical,Occipital Pole,0.2069111536959521,4.703770160675049,5276,False,terms_abstract_tfidf__fear,3.3616106779233936,0.695554743645761,54.0,54.0
+fear,363,harvard_oxford_subcortical,Left Cerebral White Matter,0.7000314086440045,14.121426582336426,31371,False,terms_abstract_tfidf__fear,3.3616106779233936,2.3532330581794403,40.0,40.0
+fear,363,harvard_oxford_subcortical,Left Cerebral Cortex,0.9934634400276026,14.121426582336426,65070,False,terms_abstract_tfidf__fear,3.3616106779233936,3.339637308123296,36.0,36.0
+fear,363,harvard_oxford_subcortical,Left Lateral Ventricle,0.20024523306882017,4.703770160675049,1145,False,terms_abstract_tfidf__fear,3.3616106779233936,0.6731465136874045,55.0,55.0
+fear,363,harvard_oxford_subcortical,Left Thalamus,3.0337751513173594,7.475933074951172,1321,False,terms_abstract_tfidf__fear,3.3616106779233936,10.198370943087095,13.0,13.0
+fear,363,harvard_oxford_subcortical,Left Caudate,1.4147181366197383,5.470284938812256,487,False,terms_abstract_tfidf__fear,3.3616106779233936,4.755731594312799,25.0,25.0
+fear,363,harvard_oxford_subcortical,Left Putamen,2.751198591014023,10.997682571411133,799,False,terms_abstract_tfidf__fear,3.3616106779233936,9.248458560640536,16.0,16.0
+fear,363,harvard_oxford_subcortical,Left Pallidum,4.122650188788046,10.188666343688965,267,False,terms_abstract_tfidf__fear,3.3616106779233936,13.858744895972789,8.0,8.0
+fear,363,harvard_oxford_subcortical,Brain-Stem,0.36694610651224424,7.121106147766113,4890,False,terms_abstract_tfidf__fear,3.3616106779233936,1.2335299498739751,45.0,45.0
+fear,363,harvard_oxford_subcortical,Left Hippocampus,5.86392687854132,14.121426582336426,691,False,terms_abstract_tfidf__fear,3.3616106779233936,19.712239209466496,4.0,4.0
+fear,363,harvard_oxford_subcortical,Left Amygdala,13.59767428878086,14.121426582336426,306,False,terms_abstract_tfidf__fear,3.3616106779233936,45.71008708409013,1.0,1.0
+fear,363,harvard_oxford_subcortical,Left Accumbens,3.912964348042949,5.658504486083984,89,False,terms_abstract_tfidf__fear,3.3616106779233936,13.153862734714727,9.0,9.0
+fear,363,harvard_oxford_subcortical,Right Cerebral White Matter,0.7300605788379827,14.121426582336426,31361,False,terms_abstract_tfidf__fear,3.3616106779233936,2.454179437352696,39.0,39.0
+fear,363,harvard_oxford_subcortical,Right Cerebral Cortex,1.0541356019083676,14.121426582336426,64054,False,terms_abstract_tfidf__fear,3.3616106779233936,3.543593495354372,31.0,31.0
+fear,363,harvard_oxford_subcortical,Right Lateral Ventricle,0.18695021169927334,5.280745029449463,1019,False,terms_abstract_tfidf__fear,3.3616106779233936,0.6284538278883162,56.0,56.0
+fear,363,harvard_oxford_subcortical,Right Thalamus,2.924193191126465,6.762183666229248,1283,False,terms_abstract_tfidf__fear,3.3616106779233936,9.829999055601608,15.0,15.0
+fear,363,harvard_oxford_subcortical,Right Caudate,1.1199386913307492,5.470284938812256,511,False,terms_abstract_tfidf__fear,3.3616106779233936,3.764797863396998,29.0,29.0
+fear,363,harvard_oxford_subcortical,Right Putamen,2.9385044764933275,12.416051864624023,796,False,terms_abstract_tfidf__fear,3.3616106779233936,9.87810802530566,14.0,14.0
+fear,363,harvard_oxford_subcortical,Right Pallidum,4.12680855135505,10.514216423034668,260,False,terms_abstract_tfidf__fear,3.3616106779233936,13.872723691980708,7.0,7.0
+fear,363,harvard_oxford_subcortical,Right Hippocampus,5.348717373907566,14.121426582336426,700,False,terms_abstract_tfidf__fear,3.3616106779233936,17.980305437322045,5.0,5.0
+fear,363,harvard_oxford_subcortical,Right Amygdala,13.587052609751133,14.121426582336426,366,False,terms_abstract_tfidf__fear,3.3616106779233936,45.67438113444632,2.0,2.0
+fear,363,harvard_oxford_subcortical,Right Accumbens,3.2498812661284493,5.089841842651367,84,False,terms_abstract_tfidf__fear,3.3616106779233936,10.924835566200594,10.0,10.0
+threat,228,harvard_oxford_cortical,Frontal Pole,0.5870862850866017,5.319850444793701,15397,False,terms_abstract_tfidf__threat,2.4951846645384195,1.464888695308919,40.0,40.0
+threat,228,harvard_oxford_cortical,Insular Cortex,3.577029598365223,12.443557739257812,2341,False,terms_abstract_tfidf__threat,2.4951846645384195,8.925349398440927,7.0,7.0
+threat,228,harvard_oxford_cortical,Superior Frontal Gyrus,0.612350792361526,6.6259636878967285,5080,False,terms_abstract_tfidf__threat,2.4951846645384195,1.5279283064184297,38.0,38.0
+threat,228,harvard_oxford_cortical,Middle Frontal Gyrus,0.8131064030463037,5.9812211990356445,5316,False,terms_abstract_tfidf__threat,2.4951846645384195,2.028850627519132,32.0,32.0
+threat,228,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars triangularis",2.5563863045717516,6.6259636878967285,1103,False,terms_abstract_tfidf__threat,2.4951846645384195,6.378655903803476,11.0,11.0
+threat,228,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars opercularis",2.4023958066467603,6.837496757507324,1384,False,terms_abstract_tfidf__threat,2.4951846645384195,5.994421174896402,14.0,14.0
+threat,228,harvard_oxford_cortical,Precentral Gyrus,0.4271217590658748,5.542278289794922,8573,False,terms_abstract_tfidf__threat,2.4951846645384195,1.0657476631118443,48.0,48.0
+threat,228,harvard_oxford_cortical,Temporal Pole,0.3912128726784729,10.416622161865234,4711,False,terms_abstract_tfidf__threat,2.4951846645384195,0.9761483604773468,49.0,49.0
+threat,228,harvard_oxford_cortical,"Superior Temporal Gyrus, anterior division",0.1403507319155673,1.6664888858795166,521,False,terms_abstract_tfidf__threat,2.4951846645384195,0.3502009939324664,58.0,58.0
+threat,228,harvard_oxford_cortical,"Superior Temporal Gyrus, posterior division",0.520404613636882,3.9381630420684814,1830,False,terms_abstract_tfidf__threat,2.4951846645384195,1.298505611301789,44.0,44.0
+threat,228,harvard_oxford_cortical,"Middle Temporal Gyrus, anterior division",0.05441420075466048,1.1166125535964966,848,False,terms_abstract_tfidf__threat,2.4951846645384195,0.13577347925614372,60.0,60.0
+threat,228,harvard_oxford_cortical,"Middle Temporal Gyrus, posterior division",0.2221375295195249,3.2118844985961914,2525,False,terms_abstract_tfidf__threat,2.4951846645384195,0.5542741570755689,56.0,56.0
+threat,228,harvard_oxford_cortical,"Middle Temporal Gyrus, temporooccipital part",0.834233081269407,3.6990067958831787,2004,False,terms_abstract_tfidf__threat,2.4951846645384195,2.081565591034057,30.0,30.0
+threat,228,harvard_oxford_cortical,"Inferior Temporal Gyrus, anterior division",0.0,0.0,647,False,terms_abstract_tfidf__threat,2.4951846645384195,0.0,63.0,63.0
+threat,228,harvard_oxford_cortical,"Inferior Temporal Gyrus, posterior division",0.016241965775141143,1.9341514110565186,1942,False,terms_abstract_tfidf__threat,2.4951846645384195,0.040526703924090045,62.0,62.0
+threat,228,harvard_oxford_cortical,"Inferior Temporal Gyrus, temporooccipital part",0.8875286638736725,5.762709140777588,1470,False,terms_abstract_tfidf__threat,2.4951846645384195,2.214547911435861,26.0,26.0
+threat,228,harvard_oxford_cortical,Postcentral Gyrus,0.025938066734275237,1.6664888858795166,6895,False,terms_abstract_tfidf__threat,2.4951846645384195,0.0647202663431377,61.0,61.0
+threat,228,harvard_oxford_cortical,Superior Parietal Lobule,0.2546263412358508,2.7118890285491943,2908,False,terms_abstract_tfidf__threat,2.4951846645384195,0.6353397418392216,54.0,54.0
+threat,228,harvard_oxford_cortical,"Supramarginal Gyrus, anterior division",0.4666276883791563,3.4569664001464844,1742,False,terms_abstract_tfidf__threat,2.4951846645384195,1.1643222520926833,46.0,46.0
+threat,228,harvard_oxford_cortical,"Supramarginal Gyrus, posterior division",0.8389295865445604,4.17457914352417,2259,False,terms_abstract_tfidf__threat,2.4951846645384195,2.0932842389735438,28.0,28.0
+threat,228,harvard_oxford_cortical,Angular Gyrus,1.0278255593336287,4.639710426330566,2409,False,terms_abstract_tfidf__threat,2.4951846645384195,2.564614573469894,23.0,23.0
+threat,228,harvard_oxford_cortical,"Lateral Occipital Cortex, superior division",0.35831538839005705,3.6990067958831787,9779,False,terms_abstract_tfidf__threat,2.4951846645384195,0.894063062178998,53.0,53.0
+threat,228,harvard_oxford_cortical,"Lateral Occipital Cortex, inferior division",1.1585587470535545,6.19788932800293,4089,False,terms_abstract_tfidf__threat,2.4951846645384195,2.8908180186148753,22.0,22.0
+threat,228,harvard_oxford_cortical,Intracalcarine Cortex,0.7549865863137718,3.2118844985961914,1401,False,terms_abstract_tfidf__threat,2.4951846645384195,1.883830952102335,35.0,35.0
+threat,228,harvard_oxford_cortical,Frontal Medial Cortex,1.9004440509149285,5.762709140777588,976,True,terms_abstract_tfidf__threat,2.4951846645384195,4.741958851656201,,
+threat,228,harvard_oxford_cortical,Juxtapositional Lobule Cortex (formerly Supplementary Motor Cortex),1.5979351393296068,6.412781715393066,1484,False,terms_abstract_tfidf__threat,2.4951846645384195,3.9871432545822976,19.0,19.0
+threat,228,harvard_oxford_cortical,Subcallosal Cortex,2.029277327286174,5.762709140777588,1142,True,terms_abstract_tfidf__threat,2.4951846645384195,5.0634216671399725,,
+threat,228,harvard_oxford_cortical,Paracingulate Gyrus,3.068818852831812,8.075094223022461,2944,True,terms_abstract_tfidf__threat,2.4951846645384195,7.657269739832322,,
+threat,228,harvard_oxford_cortical,"Cingulate Gyrus, anterior division",2.895785504170222,7.872344493865967,2592,True,terms_abstract_tfidf__threat,2.4951846645384195,7.225519581798194,,
+threat,228,harvard_oxford_cortical,"Cingulate Gyrus, posterior division",0.3697876979660237,3.6990067958831787,2412,False,terms_abstract_tfidf__threat,2.4951846645384195,0.9226885930997871,50.0,50.0
+threat,228,harvard_oxford_cortical,Precuneous Cortex,0.539321516674438,3.9381630420684814,5623,False,terms_abstract_tfidf__threat,2.4951846645384195,1.3457067776616591,42.0,42.0
+threat,228,harvard_oxford_cortical,Cuneal Cortex,0.4473045374575726,2.456576108932495,1227,False,terms_abstract_tfidf__threat,2.4951846645384195,1.1161074222425862,47.0,47.0
+threat,228,harvard_oxford_cortical,Frontal Orbital Cortex,2.581597587488961,11.350107192993164,3148,True,terms_abstract_tfidf__threat,2.4951846645384195,6.441562710311836,,
+threat,228,harvard_oxford_cortical,"Parahippocampal Gyrus, anterior division",2.1294985418327346,12.802210807800293,1248,False,terms_abstract_tfidf__threat,2.4951846645384195,5.313492104737965,16.0,16.0
+threat,228,harvard_oxford_cortical,"Parahippocampal Gyrus, posterior division",0.9601198013399689,3.9381630420684814,710,False,terms_abstract_tfidf__threat,2.4951846645384195,2.395676204423164,25.0,25.0
+threat,228,harvard_oxford_cortical,Lingual Gyrus,0.3609955118662223,2.9635887145996094,3381,False,terms_abstract_tfidf__threat,2.4951846645384195,0.9007504651757949,52.0,52.0
+threat,228,harvard_oxford_cortical,"Temporal Fusiform Cortex, anterior division",0.0,0.0,610,False,terms_abstract_tfidf__threat,2.4951846645384195,0.0,63.0,63.0
+threat,228,harvard_oxford_cortical,"Temporal Fusiform Cortex, posterior division",0.520860209219728,4.868659973144531,1594,False,terms_abstract_tfidf__threat,2.4951846645384195,1.2996424064133378,43.0,43.0
+threat,228,harvard_oxford_cortical,Temporal Occipital Fusiform Cortex,2.4587434460874964,6.19788932800293,1469,False,terms_abstract_tfidf__threat,2.4951846645384195,6.135018940711867,12.0,12.0
+threat,228,harvard_oxford_cortical,Occipital Fusiform Gyrus,0.8154515932630727,5.9812211990356445,1806,False,terms_abstract_tfidf__threat,2.4951846645384195,2.0347023101834396,31.0,31.0
+threat,228,harvard_oxford_cortical,Frontal Opercular Cortex,6.675007577112495,12.623229026794434,687,False,terms_abstract_tfidf__threat,2.4951846645384195,16.65537654208885,3.0,3.0
+threat,228,harvard_oxford_cortical,Central Opercular Cortex,0.7057438699779429,6.412781715393066,1886,False,terms_abstract_tfidf__threat,2.4951846645384195,1.7609612814609594,37.0,37.0
+threat,228,harvard_oxford_cortical,Parietal Opercular Cortex,0.9766333875004152,3.6990067958831787,1119,False,terms_abstract_tfidf__threat,2.4951846645384195,2.4368806513672436,24.0,24.0
+threat,228,harvard_oxford_cortical,Planum Polare,0.7420375089301605,3.4569664001464844,749,False,terms_abstract_tfidf__threat,2.4951846645384195,1.851520612794827,36.0,36.0
+threat,228,harvard_oxford_cortical,Heschl's Gyrus (includes H1 and H2),0.8061588958201819,3.2118844985961914,604,False,terms_abstract_tfidf__threat,2.4951846645384195,2.011515314031743,33.0,33.0
+threat,228,harvard_oxford_cortical,Planum Temporale,0.49502365122071834,2.7118890285491943,952,False,terms_abstract_tfidf__threat,2.4951846645384195,1.2351754231097516,45.0,45.0
+threat,228,harvard_oxford_cortical,Supracalcarine Cortex,1.200997359222836,3.2118844985961914,261,False,terms_abstract_tfidf__threat,2.4951846645384195,2.9967101928839597,21.0,21.0
+threat,228,harvard_oxford_cortical,Occipital Pole,0.09163371868392027,2.7118890285491943,5276,False,terms_abstract_tfidf__threat,2.4951846645384195,0.2286430496147455,59.0,59.0
+threat,228,harvard_oxford_subcortical,Left Cerebral White Matter,0.5794792510907532,13.335177421569824,31371,False,terms_abstract_tfidf__threat,2.4951846645384195,1.4459077407398555,41.0,41.0
+threat,228,harvard_oxford_subcortical,Left Cerebral Cortex,0.8644710399559681,13.335177421569824,65070,False,terms_abstract_tfidf__threat,2.4951846645384195,2.157014881835711,27.0,27.0
+threat,228,harvard_oxford_subcortical,Left Lateral Ventricle,0.17005969473368215,3.4569664001464844,1145,False,terms_abstract_tfidf__threat,2.4951846645384195,0.4243303423555687,57.0,57.0
+threat,228,harvard_oxford_subcortical,Left Thalamus,2.402694918367558,6.837496757507324,1321,False,terms_abstract_tfidf__threat,2.4951846645384195,5.99516751387512,13.0,13.0
+threat,228,harvard_oxford_subcortical,Left Caudate,0.7757957012256802,3.6990067958831787,487,False,terms_abstract_tfidf__threat,2.4951846645384195,1.9357535365131469,34.0,34.0
+threat,228,harvard_oxford_subcortical,Left Putamen,2.0645551653916905,8.476722717285156,799,False,terms_abstract_tfidf__threat,2.4951846645384195,5.151446387778926,17.0,17.0
+threat,228,harvard_oxford_subcortical,Left Pallidum,2.188861112246353,7.668249607086182,267,False,terms_abstract_tfidf__threat,2.4951846645384195,5.461612680081608,15.0,15.0
+threat,228,harvard_oxford_subcortical,Brain-Stem,0.367289242715192,5.9812211990356445,4890,False,terms_abstract_tfidf__threat,2.4951846645384195,0.9164544858728764,51.0,51.0
+threat,228,harvard_oxford_subcortical,Left Hippocampus,4.08985489210068,13.158169746398926,691,False,terms_abstract_tfidf__threat,2.4951846645384195,10.204943206957049,5.0,5.0
+threat,228,harvard_oxford_subcortical,Left Amygdala,12.004201684901917,14.121426582336426,306,False,terms_abstract_tfidf__threat,2.4951846645384195,29.95269995419352,1.0,1.0
+threat,228,harvard_oxford_subcortical,Left Accumbens,2.8763752264922924,4.639710426330566,89,False,terms_abstract_tfidf__threat,2.4951846645384195,7.177087354601791,8.0,8.0
+threat,228,harvard_oxford_subcortical,Right Cerebral White Matter,0.6108300713840361,10.792632102966309,31361,False,terms_abstract_tfidf__threat,2.4951846645384195,1.524133826756355,39.0,39.0
+threat,228,harvard_oxford_subcortical,Right Cerebral Cortex,0.834262714967535,11.165124893188477,64054,False,terms_abstract_tfidf__threat,2.4951846645384195,2.08163953258318,29.0,29.0
+threat,228,harvard_oxford_subcortical,Right Lateral Ventricle,0.24587726680757488,5.9812211990356445,1019,False,terms_abstract_tfidf__threat,2.4951846645384195,0.6135091854968822,55.0,55.0
+threat,228,harvard_oxford_subcortical,Right Thalamus,2.7196449492930994,6.837496757507324,1283,False,terms_abstract_tfidf__threat,2.4951846645384195,6.786016370465509,9.0,9.0
+threat,228,harvard_oxford_subcortical,Right Caudate,1.3941423625862062,5.762709140777588,511,False,terms_abstract_tfidf__threat,2.4951846645384195,3.4786426433084623,20.0,20.0
+threat,228,harvard_oxford_subcortical,Right Putamen,1.878883372524276,5.9812211990356445,796,False,terms_abstract_tfidf__threat,2.4951846645384195,4.6881609775788,18.0,18.0
+threat,228,harvard_oxford_subcortical,Right Pallidum,2.564435783257851,6.412781715393066,260,False,terms_abstract_tfidf__threat,2.4951846645384195,6.39874083957856,10.0,10.0
+threat,228,harvard_oxford_subcortical,Right Hippocampus,4.006919417466436,13.687376976013184,700,False,terms_abstract_tfidf__threat,2.4951846645384195,9.99800388250347,6.0,6.0
+threat,228,harvard_oxford_subcortical,Right Amygdala,10.955478448033984,14.121426582336426,366,False,terms_abstract_tfidf__threat,2.4951846645384195,27.335941816215563,2.0,2.0
+threat,228,harvard_oxford_subcortical,Right Accumbens,4.3197874540374395,6.19788932800293,84,False,terms_abstract_tfidf__threat,2.4951846645384195,10.77866740937968,4.0,4.0
+fear_conditioning,77,harvard_oxford_cortical,Frontal Pole,0.17937850119456414,3.2626678943634033,15397,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.3087327003430428,46.0,46.0
+fear_conditioning,77,harvard_oxford_cortical,Insular Cortex,3.152673557457991,7.788513660430908,2341,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,5.42614312312923,6.0,6.0
+fear_conditioning,77,harvard_oxford_cortical,Superior Frontal Gyrus,0.14317843204173517,2.858365535736084,5080,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.24642788104903224,47.0,47.0
+fear_conditioning,77,harvard_oxford_cortical,Middle Frontal Gyrus,0.3050324810574923,3.6553401947021484,5316,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.5249988206059973,39.0,39.0
+fear_conditioning,77,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars triangularis",0.45435927459735387,5.483962535858154,1103,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.7820087961388209,30.0,30.0
+fear_conditioning,77,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars opercularis",0.8343300779775388,5.483962535858154,1384,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,1.4359857855654377,21.0,21.0
+fear_conditioning,77,harvard_oxford_cortical,Precentral Gyrus,0.07672574093082356,2.858365535736084,8573,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.1320545384516331,52.0,52.0
+fear_conditioning,77,harvard_oxford_cortical,Temporal Pole,0.5733402363910111,7.152933120727539,4711,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.9867898227353423,22.0,22.0
+fear_conditioning,77,harvard_oxford_cortical,"Superior Temporal Gyrus, anterior division",0.4552559854602173,2.440769910812378,521,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.7835521470101635,29.0,29.0
+fear_conditioning,77,harvard_oxford_cortical,"Superior Temporal Gyrus, posterior division",0.05993446914550385,1.5566272735595703,1830,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.10315467226949335,56.0,56.0
+fear_conditioning,77,harvard_oxford_cortical,"Middle Temporal Gyrus, anterior division",0.055061404066125176,1.0836222171783447,848,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.09476752146332107,57.0,57.0
+fear_conditioning,77,harvard_oxford_cortical,"Middle Temporal Gyrus, posterior division",0.08202868475772367,1.5566272735595703,2525,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.14118156402350218,51.0,51.0
+fear_conditioning,77,harvard_oxford_cortical,"Middle Temporal Gyrus, temporooccipital part",0.04676552363736425,1.5566272735595703,2004,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.08048927992691574,60.0,60.0
+fear_conditioning,77,harvard_oxford_cortical,"Inferior Temporal Gyrus, anterior division",0.03774324407256921,1.0836222171783447,647,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.06496081517367452,61.0,61.0
+fear_conditioning,77,harvard_oxford_cortical,"Inferior Temporal Gyrus, posterior division",0.007328145029493267,1.5566272735595703,1942,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.012612648608357665,64.0,64.0
+fear_conditioning,77,harvard_oxford_cortical,"Inferior Temporal Gyrus, temporooccipital part",0.21660495945790997,2.0077731609344482,1470,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.3728040628938111,44.0,44.0
+fear_conditioning,77,harvard_oxford_cortical,Postcentral Gyrus,0.08320823432614269,2.858365535736084,6895,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.1432117154687497,50.0,50.0
+fear_conditioning,77,harvard_oxford_cortical,Superior Parietal Lobule,0.07088519595409686,1.5566272735595703,2908,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.12200223446798004,53.0,53.0
+fear_conditioning,77,harvard_oxford_cortical,"Supramarginal Gyrus, anterior division",0.3817066170198225,3.2626678943634033,1742,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.6569645404914813,33.0,33.0
+fear_conditioning,77,harvard_oxford_cortical,"Supramarginal Gyrus, posterior division",0.3540305365709775,3.6553401947021484,2259,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.6093305654332587,37.0,37.0
+fear_conditioning,77,harvard_oxford_cortical,Angular Gyrus,0.2730440787071012,3.2626678943634033,2409,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.46994280346053086,40.0,40.0
+fear_conditioning,77,harvard_oxford_cortical,"Lateral Occipital Cortex, superior division",0.0652098851020332,1.5566272735595703,9779,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.11223431895427363,55.0,55.0
+fear_conditioning,77,harvard_oxford_cortical,"Lateral Occipital Cortex, inferior division",0.24991561870363296,2.440769910812378,4089,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.4301358485350808,42.0,42.0
+fear_conditioning,77,harvard_oxford_cortical,Intracalcarine Cortex,0.41621014992736394,2.858365535736084,1401,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.7163494099991495,31.0,31.0
+fear_conditioning,77,harvard_oxford_cortical,Frontal Medial Cortex,1.5686992633568704,5.13331937789917,976,True,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,2.6999264481366123,,
+fear_conditioning,77,harvard_oxford_cortical,Juxtapositional Lobule Cortex (formerly Supplementary Motor Cortex),1.0642059517376667,4.410925388336182,1484,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,1.8316307417728843,19.0,19.0
+fear_conditioning,77,harvard_oxford_cortical,Subcallosal Cortex,1.200624018294277,4.03772497177124,1142,True,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,2.066423193394035,,
+fear_conditioning,77,harvard_oxford_cortical,Paracingulate Gyrus,1.6438522684468848,6.500450134277344,2944,True,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,2.8292741126884984,,
+fear_conditioning,77,harvard_oxford_cortical,"Cingulate Gyrus, anterior division",2.3451795180868586,7.788513660430908,2592,True,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,4.036345496179743,,
+fear_conditioning,77,harvard_oxford_cortical,"Cingulate Gyrus, posterior division",0.37033654864920706,2.440769910812378,2412,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.6373952393334922,35.0,35.0
+fear_conditioning,77,harvard_oxford_cortical,Precuneous Cortex,0.1327071166931046,2.0077731609344482,5623,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.2284054455721088,48.0,48.0
+fear_conditioning,77,harvard_oxford_cortical,Cuneal Cortex,0.03719084257504371,1.0836222171783447,1227,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.06401006352356677,62.0,62.0
+fear_conditioning,77,harvard_oxford_cortical,Frontal Orbital Cortex,1.8472665165381783,7.152933120727539,3148,True,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.179375321491428,,
+fear_conditioning,77,harvard_oxford_cortical,"Parahippocampal Gyrus, anterior division",2.0057937488891184,9.614056587219238,1248,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.4522203959885602,11.0,11.0
+fear_conditioning,77,harvard_oxford_cortical,"Parahippocampal Gyrus, posterior division",0.5458300967451553,2.858365535736084,710,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.9394414524283178,23.0,23.0
+fear_conditioning,77,harvard_oxford_cortical,Lingual Gyrus,0.32119350807883973,3.2626678943634033,3381,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.5528139571992373,38.0,38.0
+fear_conditioning,77,harvard_oxford_cortical,"Temporal Fusiform Cortex, anterior division",0.0665796055901246,2.0077731609344482,610,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.114591778193745,54.0,54.0
+fear_conditioning,77,harvard_oxford_cortical,"Temporal Fusiform Cortex, posterior division",0.3563338681083252,3.6553401947021484,1594,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.6132948853521732,36.0,36.0
+fear_conditioning,77,harvard_oxford_cortical,Temporal Occipital Fusiform Cortex,1.0312947492927333,3.6553401947021484,1469,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,1.7749864709450225,20.0,20.0
+fear_conditioning,77,harvard_oxford_cortical,Occipital Fusiform Gyrus,0.5386014188560404,3.2626678943634033,1806,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.9269999991340023,25.0,25.0
+fear_conditioning,77,harvard_oxford_cortical,Frontal Opercular Cortex,3.2335313571592605,7.152933120727539,687,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,5.565309448409722,5.0,5.0
+fear_conditioning,77,harvard_oxford_cortical,Central Opercular Cortex,1.0809057195565228,4.775863170623779,1886,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,1.8603731182532466,18.0,18.0
+fear_conditioning,77,harvard_oxford_cortical,Parietal Opercular Cortex,1.081890652190904,3.2626678943634033,1119,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,1.8620683097608324,17.0,17.0
+fear_conditioning,77,harvard_oxford_cortical,Planum Polare,1.289923589860645,4.03772497177124,749,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,2.2201188575096467,16.0,16.0
+fear_conditioning,77,harvard_oxford_cortical,Heschl's Gyrus (includes H1 and H2),0.5051386061537739,2.440769910812378,604,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.8694063384787685,27.0,27.0
+fear_conditioning,77,harvard_oxford_cortical,Planum Temporale,0.2629449490551688,3.6553401947021484,952,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.45256094583661366,41.0,41.0
+fear_conditioning,77,harvard_oxford_cortical,Supracalcarine Cortex,0.054470100450789795,2.0077731609344482,261,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.09374981443227008,58.0,58.0
+fear_conditioning,77,harvard_oxford_cortical,Occipital Pole,0.01847745952922978,1.0836222171783447,5276,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.03180200491111735,63.0,63.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Cerebral White Matter,0.3769276495281349,7.788513660430908,31371,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.64873934333165,34.0,34.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Cerebral Cortex,0.3958761607190422,8.100666999816895,65070,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.6813520867122176,32.0,32.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Lateral Ventricle,0.05338891302133752,2.440769910812378,1145,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.09188895645626494,59.0,59.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Thalamus,1.863080171226643,5.13331937789917,1321,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.2065925871155097,12.0,12.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Caudate,0.23592426653882562,2.440769910812378,487,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.40605499209729523,43.0,43.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Putamen,1.4029183785742305,5.483962535858154,799,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,2.4145969360526176,15.0,15.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Pallidum,1.7990123235554285,4.775863170623779,267,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.0963238565542794,13.0,13.0
+fear_conditioning,77,harvard_oxford_subcortical,Brain-Stem,0.1811340402240402,4.775863170623779,4890,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.3117542012560194,45.0,45.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Hippocampus,3.5050005332476495,8.714892387390137,691,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,6.032541648676368,4.0,4.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Amygdala,7.193147572037441,9.614056587219238,306,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,12.380301201604748,2.0,2.0
+fear_conditioning,77,harvard_oxford_subcortical,Left Accumbens,1.7490622225437271,3.2626678943634033,89,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.0103535230692002,14.0,14.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Cerebral White Matter,0.4768004357963986,11.064589500427246,31361,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.8206328243789707,28.0,28.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Cerebral Cortex,0.5396798860474676,10.20074462890625,64054,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.9288561752421948,24.0,24.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Lateral Ventricle,0.1326669200713782,3.2626678943634033,1019,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.22833626218899647,49.0,49.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Thalamus,2.283657605770688,5.828372001647949,1283,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.9304586368674475,9.0,9.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Caudate,0.5378324396747899,3.6553401947021484,511,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,0.9256764903659279,26.0,26.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Putamen,2.0408686065494117,9.01738452911377,796,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.512588586421062,10.0,10.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Pallidum,2.368768306305775,6.500450134277344,260,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,4.076944733190577,7.0,7.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Hippocampus,3.8568571586268288,9.90857219696045,700,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,6.638130642694544,3.0,3.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Amygdala,8.856832048280642,12.746058464050293,366,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,15.243709009390185,1.0,1.0
+fear_conditioning,77,harvard_oxford_subcortical,Right Accumbens,2.310592818827856,3.6553401947021484,84,False,"terms_abstract_tfidf__fear, terms_abstract_tfidf__conditioning",1.7211243169446138,3.976817487042223,8.0,8.0
+stress,321,harvard_oxford_cortical,Frontal Pole,0.43704302833592373,5.230605125427246,15397,False,terms_abstract_tfidf__stress,2.4537854873939593,1.0724098402973965,44.0,44.0
+stress,321,harvard_oxford_cortical,Insular Cortex,3.57682834961561,9.16089153289795,2341,False,terms_abstract_tfidf__stress,2.4537854873939593,8.776769495186072,10.0,10.0
+stress,321,harvard_oxford_cortical,Superior Frontal Gyrus,0.4197155168353338,6.267388820648193,5080,False,terms_abstract_tfidf__stress,2.4537854873939593,1.0298918440445972,45.0,45.0
+stress,321,harvard_oxford_cortical,Middle Frontal Gyrus,0.6687585934015527,4.5861287117004395,5316,False,terms_abstract_tfidf__stress,2.4537854873939593,1.6409901310587278,30.0,30.0
+stress,321,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars triangularis",1.927225554532499,4.802995681762695,1103,False,terms_abstract_tfidf__stress,2.4537854873939593,4.728998096646621,19.0,19.0
+stress,321,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars opercularis",2.4644810058219586,5.857863426208496,1384,False,terms_abstract_tfidf__stress,2.4537854873939593,6.047307726043989,15.0,15.0
+stress,321,harvard_oxford_cortical,Precentral Gyrus,0.5621815931765045,5.230605125427246,8573,False,terms_abstract_tfidf__stress,2.4537854873939593,1.3794730346165216,36.0,36.0
+stress,321,harvard_oxford_cortical,Temporal Pole,0.3186384617928056,6.267388820648193,4711,False,terms_abstract_tfidf__stress,2.4537854873939593,0.7818704332727209,49.0,49.0
+stress,321,harvard_oxford_cortical,"Superior Temporal Gyrus, anterior division",0.4641813145031627,2.524106979370117,521,False,terms_abstract_tfidf__stress,2.4537854873939593,1.1390013730473119,42.0,42.0
+stress,321,harvard_oxford_cortical,"Superior Temporal Gyrus, posterior division",0.4196778782404186,3.0017895698547363,1830,False,terms_abstract_tfidf__stress,2.4537854873939593,1.0297994870066283,46.0,46.0
+stress,321,harvard_oxford_cortical,"Middle Temporal Gyrus, anterior division",0.3815125739026182,2.524106979370117,848,False,terms_abstract_tfidf__stress,2.4537854873939593,0.93615001710056,48.0,48.0
+stress,321,harvard_oxford_cortical,"Middle Temporal Gyrus, posterior division",0.21445110339929563,3.236034393310547,2525,False,terms_abstract_tfidf__stress,2.4537854873939593,0.526217005276813,55.0,55.0
+stress,321,harvard_oxford_cortical,"Middle Temporal Gyrus, temporooccipital part",0.20174653716608434,2.524106979370117,2004,False,terms_abstract_tfidf__stress,2.4537854873939593,0.4950427250301238,57.0,57.0
+stress,321,harvard_oxford_cortical,"Inferior Temporal Gyrus, anterior division",0.0032528673616774853,0.7336307764053345,647,False,terms_abstract_tfidf__stress,2.4537854873939593,0.007981838724501691,62.0,62.0
+stress,321,harvard_oxford_cortical,"Inferior Temporal Gyrus, posterior division",0.0001837043235525412,0.17837689816951752,1942,False,terms_abstract_tfidf__stress,2.4537854873939593,0.0004507710031047499,64.0,64.0
+stress,321,harvard_oxford_cortical,"Inferior Temporal Gyrus, temporooccipital part",0.13508408869407615,2.032954692840576,1470,False,terms_abstract_tfidf__stress,2.4537854873939593,0.33146737641536245,60.0,60.0
+stress,321,harvard_oxford_cortical,Postcentral Gyrus,0.2052525519092849,3.4674253463745117,6895,False,terms_abstract_tfidf__stress,2.4537854873939593,0.5036457331255786,56.0,56.0
+stress,321,harvard_oxford_cortical,Superior Parietal Lobule,0.5980166947210344,4.802995681762695,2908,False,terms_abstract_tfidf__stress,2.4537854873939593,1.467404686725778,33.0,33.0
+stress,321,harvard_oxford_cortical,"Supramarginal Gyrus, anterior division",0.5310945923426258,4.1458282470703125,1742,False,terms_abstract_tfidf__stress,2.4537854873939593,1.3031922031237462,39.0,39.0
+stress,321,harvard_oxford_cortical,"Supramarginal Gyrus, posterior division",0.6362458138787256,3.69610333442688,2259,False,terms_abstract_tfidf__stress,2.4537854873939593,1.561210744510775,32.0,32.0
+stress,321,harvard_oxford_cortical,Angular Gyrus,0.6828147209917871,4.1458282470703125,2409,False,terms_abstract_tfidf__stress,2.4537854873939593,1.6754808529486025,29.0,29.0
+stress,321,harvard_oxford_cortical,"Lateral Occipital Cortex, superior division",0.31664694543660865,4.1458282470703125,9779,False,terms_abstract_tfidf__stress,2.4537854873939593,0.7769836793399771,50.0,50.0
+stress,321,harvard_oxford_cortical,"Lateral Occipital Cortex, inferior division",0.24998131989120825,2.7645366191864014,4089,False,terms_abstract_tfidf__stress,2.4537854873939593,0.6134005348686337,53.0,53.0
+stress,321,harvard_oxford_cortical,Intracalcarine Cortex,0.31621853034041936,2.032954692840576,1401,False,terms_abstract_tfidf__stress,2.4537854873939593,0.7759324405943674,51.0,51.0
+stress,321,harvard_oxford_cortical,Frontal Medial Cortex,2.1285823766050522,7.264243125915527,976,True,terms_abstract_tfidf__stress,2.4537854873939593,5.22308454443602,,
+stress,321,harvard_oxford_cortical,Juxtapositional Lobule Cortex (formerly Supplementary Motor Cortex),2.1872692512112324,8.037075996398926,1484,False,terms_abstract_tfidf__stress,2.4537854873939593,5.367089545645174,18.0,18.0
+stress,321,harvard_oxford_cortical,Subcallosal Cortex,1.5144067336063043,5.441506862640381,1142,True,terms_abstract_tfidf__stress,2.4537854873939593,3.716029264934839,,
+stress,321,harvard_oxford_cortical,Paracingulate Gyrus,3.691965450745319,9.16089153289795,2944,True,terms_abstract_tfidf__stress,2.4537854873939593,9.05929124299876,,
+stress,321,harvard_oxford_cortical,"Cingulate Gyrus, anterior division",3.3872185161360253,9.344460487365723,2592,True,terms_abstract_tfidf__stress,2.4537854873939593,8.311507637526681,,
+stress,321,harvard_oxford_cortical,"Cingulate Gyrus, posterior division",1.4237212153278278,5.230605125427246,2412,False,terms_abstract_tfidf__stress,2.4537854873939593,3.493506456266314,24.0,24.0
+stress,321,harvard_oxford_cortical,Precuneous Cortex,0.5706018395622536,5.230605125427246,5623,False,terms_abstract_tfidf__stress,2.4537854873939593,1.4001345129981544,35.0,35.0
+stress,321,harvard_oxford_cortical,Cuneal Cortex,0.1634684433491131,2.2803149223327637,1227,False,terms_abstract_tfidf__stress,2.4537854873939593,0.40111649393693527,59.0,59.0
+stress,321,harvard_oxford_cortical,Frontal Orbital Cortex,1.5467543598770943,7.84575891494751,3148,True,terms_abstract_tfidf__stress,2.4537854873939593,3.7954034008297475,,
+stress,321,harvard_oxford_cortical,"Parahippocampal Gyrus, anterior division",1.1786234205564818,7.264243125915527,1248,False,terms_abstract_tfidf__stress,2.4537854873939593,2.892089044464122,25.0,25.0
+stress,321,harvard_oxford_cortical,"Parahippocampal Gyrus, posterior division",1.6237012459148823,4.5861287117004395,710,False,terms_abstract_tfidf__stress,2.4537854873939593,3.9842145530894286,21.0,21.0
+stress,321,harvard_oxford_cortical,Lingual Gyrus,0.24839776988408158,3.9221978187561035,3381,False,terms_abstract_tfidf__stress,2.4537854873939593,0.6095148428425836,54.0,54.0
+stress,321,harvard_oxford_cortical,"Temporal Fusiform Cortex, anterior division",0.002539920171753305,0.7336307764053345,610,False,terms_abstract_tfidf__stress,2.4537854873939593,0.006232419256587432,63.0,63.0
+stress,321,harvard_oxford_cortical,"Temporal Fusiform Cortex, posterior division",0.47870914117343155,5.017794132232666,1594,False,terms_abstract_tfidf__stress,2.4537854873939593,1.1746495432941924,40.0,40.0
+stress,321,harvard_oxford_cortical,Temporal Occipital Fusiform Cortex,0.5915322731026506,3.4674253463745117,1469,False,terms_abstract_tfidf__stress,2.4537854873939593,1.451493307064444,34.0,34.0
+stress,321,harvard_oxford_cortical,Occipital Fusiform Gyrus,0.25400601324118915,3.0017895698547363,1806,False,terms_abstract_tfidf__stress,2.4537854873939593,0.6232762690020278,52.0,52.0
+stress,321,harvard_oxford_cortical,Frontal Opercular Cortex,4.5481353231219055,8.790668487548828,687,False,terms_abstract_tfidf__stress,2.4537854873939593,11.160148450580367,6.0,6.0
+stress,321,harvard_oxford_cortical,Central Opercular Cortex,1.4494970590824288,6.267388820648193,1886,False,terms_abstract_tfidf__stress,2.4537854873939593,3.556754847596688,23.0,23.0
+stress,321,harvard_oxford_cortical,Parietal Opercular Cortex,0.9942342305391147,4.5861287117004395,1119,False,terms_abstract_tfidf__stress,2.4537854873939593,2.43963752596718,26.0,26.0
+stress,321,harvard_oxford_cortical,Planum Polare,1.7177198543965577,4.367104530334473,749,False,terms_abstract_tfidf__stress,2.4537854873939593,4.214916050126738,20.0,20.0
+stress,321,harvard_oxford_cortical,Heschl's Gyrus (includes H1 and H2),1.5567467121641763,3.69610333442688,604,False,terms_abstract_tfidf__stress,2.4537854873939593,3.819922489856717,22.0,22.0
+stress,321,harvard_oxford_cortical,Planum Temporale,0.5350779163486817,2.7645366191864014,952,False,terms_abstract_tfidf__stress,2.4537854873939593,1.3129664257613942,38.0,38.0
+stress,321,harvard_oxford_cortical,Supracalcarine Cortex,0.3887973544241368,1.7817989587783813,261,False,terms_abstract_tfidf__stress,2.4537854873939593,0.9540253058231125,47.0,47.0
+stress,321,harvard_oxford_cortical,Occipital Pole,0.0833864477466597,2.032954692840576,5276,False,terms_abstract_tfidf__stress,2.4537854873939593,0.20461245532608827,61.0,61.0
+stress,321,harvard_oxford_subcortical,Left Cerebral White Matter,0.7684284955104489,11.129228591918945,31371,False,terms_abstract_tfidf__stress,2.4537854873939593,1.8855586903835138,28.0,28.0
+stress,321,harvard_oxford_subcortical,Left Cerebral Cortex,0.860479009741597,10.954598426818848,65070,False,terms_abstract_tfidf__stress,2.4537854873939593,2.111430906311056,27.0,27.0
+stress,321,harvard_oxford_subcortical,Left Lateral Ventricle,0.4684313570958558,6.4697370529174805,1145,False,terms_abstract_tfidf__stress,2.4537854873939593,1.1494300658820684,41.0,41.0
+stress,321,harvard_oxford_subcortical,Left Thalamus,2.606545032492016,6.063449859619141,1321,False,terms_abstract_tfidf__stress,2.4537854873939593,6.395902372967725,13.0,13.0
+stress,321,harvard_oxford_subcortical,Left Caudate,2.8014452338708256,7.264243125915527,487,False,terms_abstract_tfidf__stress,2.4537854873939593,6.874145658601208,12.0,12.0
+stress,321,harvard_oxford_subcortical,Left Putamen,4.118564795623434,8.976304054260254,799,False,terms_abstract_tfidf__stress,2.4537854873939593,10.10607452439245,9.0,9.0
+stress,321,harvard_oxford_subcortical,Left Pallidum,5.259875397557177,8.976304054260254,267,False,terms_abstract_tfidf__stress,2.4537854873939593,12.906605916026331,3.0,3.0
+stress,321,harvard_oxford_subcortical,Brain-Stem,0.1791598264973588,3.9221978187561035,4890,False,terms_abstract_tfidf__stress,2.4537854873939593,0.4396197821832387,58.0,58.0
+stress,321,harvard_oxford_subcortical,Left Hippocampus,4.424541119814954,9.527033805847168,691,False,terms_abstract_tfidf__stress,2.4537854873939593,10.856874788179752,7.0,7.0
+stress,321,harvard_oxford_subcortical,Left Amygdala,8.305471851934794,11.990933418273926,306,False,terms_abstract_tfidf__stress,2.4537854873939593,20.37984629623663,1.0,1.0
+stress,321,harvard_oxford_subcortical,Left Accumbens,4.924197494313958,7.459380149841309,89,False,terms_abstract_tfidf__stress,2.4537854873939593,12.08292434860929,4.0,4.0
+stress,321,harvard_oxford_subcortical,Right Cerebral White Matter,0.5421513750113827,7.264243125915527,31361,False,terms_abstract_tfidf__stress,2.4537854873939593,1.3303231759736107,37.0,37.0
+stress,321,harvard_oxford_subcortical,Right Cerebral Cortex,0.6650278228014483,9.16089153289795,64054,False,terms_abstract_tfidf__stress,2.4537854873939593,1.6318356203033955,31.0,31.0
+stress,321,harvard_oxford_subcortical,Right Lateral Ventricle,0.4492033051292141,5.857863426208496,1019,False,terms_abstract_tfidf__stress,2.4537854873939593,1.102248551015466,43.0,43.0
+stress,321,harvard_oxford_subcortical,Right Thalamus,2.600348334222312,5.230605125427246,1283,False,terms_abstract_tfidf__stress,2.4537854873939593,6.380697004683766,14.0,14.0
+stress,321,harvard_oxford_subcortical,Right Caudate,2.4305198732945783,6.063449859619141,511,False,terms_abstract_tfidf__stress,2.4537854873939593,5.963974391912841,17.0,17.0
+stress,321,harvard_oxford_subcortical,Right Putamen,2.442492126969237,6.267388820648193,796,False,terms_abstract_tfidf__stress,2.4537854873939593,5.993351734231117,16.0,16.0
+stress,321,harvard_oxford_subcortical,Right Pallidum,3.3978231957325566,6.267388820648193,260,False,terms_abstract_tfidf__stress,2.4537854873939593,8.337529246419113,11.0,11.0
+stress,321,harvard_oxford_subcortical,Right Hippocampus,4.2040883037022185,8.603958129882812,700,False,terms_abstract_tfidf__stress,2.4537854873939593,10.315930867347191,8.0,8.0
+stress,321,harvard_oxford_subcortical,Right Amygdala,6.964033605622464,10.425817489624023,366,False,terms_abstract_tfidf__stress,2.4537854873939593,17.08824459520023,2.0,2.0
+stress,321,harvard_oxford_subcortical,Right Accumbens,4.723525410606747,6.4697370529174805,84,False,terms_abstract_tfidf__stress,2.4537854873939593,11.59051810188343,5.0,5.0
+amygdala,1579,harvard_oxford_cortical,Frontal Pole,0.8431851948191839,10.218293190002441,15397,False,terms_abstract_tfidf__amygdala,5.770496467759316,4.865597188371051,48.0,48.0
+amygdala,1579,harvard_oxford_cortical,Insular Cortex,8.226149464649893,14.121426582336426,2341,False,terms_abstract_tfidf__amygdala,5.770496467759316,47.4689664290224,10.0,10.0
+amygdala,1579,harvard_oxford_cortical,Superior Frontal Gyrus,1.0896393934701107,11.931188583374023,5080,False,terms_abstract_tfidf__amygdala,5.770496467759316,6.2877602711506775,45.0,45.0
+amygdala,1579,harvard_oxford_cortical,Middle Frontal Gyrus,1.4893714002308354,11.753287315368652,5316,False,terms_abstract_tfidf__amygdala,5.770496467759316,8.594412404213783,37.0,37.0
+amygdala,1579,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars triangularis",6.393983965746362,12.987531661987305,1103,False,terms_abstract_tfidf__amygdala,5.770496467759316,36.89646188924909,14.0,14.0
+amygdala,1579,harvard_oxford_cortical,"Inferior Frontal Gyrus, pars opercularis",6.094728274783995,12.285382270812988,1384,False,terms_abstract_tfidf__amygdala,5.770496467759316,35.16960798159387,16.0,16.0
+amygdala,1579,harvard_oxford_cortical,Precentral Gyrus,0.918059565653827,11.931188583374023,8573,False,terms_abstract_tfidf__amygdala,5.770496467759316,5.29765948079806,47.0,47.0
+amygdala,1579,harvard_oxford_cortical,Temporal Pole,1.8581614105316162,14.121426582336426,4711,False,terms_abstract_tfidf__amygdala,5.770496467759316,10.72251385599936,34.0,34.0
+amygdala,1579,harvard_oxford_cortical,"Superior Temporal Gyrus, anterior division",2.109695016481554,6.221041679382324,521,False,terms_abstract_tfidf__amygdala,5.770496467759316,12.173987640656241,28.0,28.0
+amygdala,1579,harvard_oxford_cortical,"Superior Temporal Gyrus, posterior division",1.8278747656581098,7.299929141998291,1830,False,terms_abstract_tfidf__amygdala,5.770496467759316,10.547744878736511,35.0,35.0
+amygdala,1579,harvard_oxford_cortical,"Middle Temporal Gyrus, anterior division",1.3036206245196122,6.517797470092773,848,False,terms_abstract_tfidf__amygdala,5.770496467759316,7.522538209088617,42.0,42.0
+amygdala,1579,harvard_oxford_cortical,"Middle Temporal Gyrus, posterior division",0.9654007159485158,5.722045421600342,2525,False,terms_abstract_tfidf__amygdala,5.770496467759316,5.570841421353226,46.0,46.0
+amygdala,1579,harvard_oxford_cortical,"Middle Temporal Gyrus, temporooccipital part",2.2977340219418303,8.638687133789062,2004,False,terms_abstract_tfidf__amygdala,5.770496467759316,13.25906605746574,25.0,25.0
+amygdala,1579,harvard_oxford_cortical,"Inferior Temporal Gyrus, anterior division",0.0,0.0,647,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.0,63.0,63.0
+amygdala,1579,harvard_oxford_cortical,"Inferior Temporal Gyrus, posterior division",0.06364998175406754,7.878166198730469,1942,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.36729199488479164,60.0,60.0
+amygdala,1579,harvard_oxford_cortical,"Inferior Temporal Gyrus, temporooccipital part",2.568688789353117,13.161808013916016,1470,False,terms_abstract_tfidf__amygdala,5.770496467759316,14.822609585735115,24.0,24.0
+amygdala,1579,harvard_oxford_cortical,Postcentral Gyrus,0.04637298017586267,3.134676694869995,6895,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.26759511830428834,61.0,61.0
+amygdala,1579,harvard_oxford_cortical,Superior Parietal Lobule,0.5992018004726911,4.706542015075684,2908,False,terms_abstract_tfidf__amygdala,5.770496467759316,3.4576918731026867,51.0,51.0
+amygdala,1579,harvard_oxford_cortical,"Supramarginal Gyrus, anterior division",0.5434879272396705,3.7709128856658936,1742,False,terms_abstract_tfidf__amygdala,5.770496467759316,3.136195164406351,52.0,52.0
+amygdala,1579,harvard_oxford_cortical,"Supramarginal Gyrus, posterior division",1.3049689268226636,8.354849815368652,2259,False,terms_abstract_tfidf__amygdala,5.770496467759316,7.5303185827658465,41.0,41.0
+amygdala,1579,harvard_oxford_cortical,Angular Gyrus,1.9726430281245562,8.259880065917969,2409,False,terms_abstract_tfidf__amygdala,5.770496467759316,11.383129625942793,29.0,29.0
+amygdala,1579,harvard_oxford_cortical,"Lateral Occipital Cortex, superior division",0.4921079930756613,7.878166198730469,9779,False,terms_abstract_tfidf__amygdala,5.770496467759316,2.8397074357992294,54.0,54.0
+amygdala,1579,harvard_oxford_cortical,"Lateral Occipital Cortex, inferior division",3.1087368057152918,9.850845336914062,4089,False,terms_abstract_tfidf__amygdala,5.770496467759316,17.93895475657347,23.0,23.0
+amygdala,1579,harvard_oxford_cortical,Intracalcarine Cortex,0.14115198948244423,2.5962440967559814,1401,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.8145170567256446,58.0,58.0
+amygdala,1579,harvard_oxford_cortical,Frontal Medial Cortex,4.779972378105368,13.335594177246094,976,True,terms_abstract_tfidf__amygdala,5.770496467759316,27.582813723844126,,
+amygdala,1579,harvard_oxford_cortical,Juxtapositional Lobule Cortex (formerly Supplementary Motor Cortex),2.2318503535616228,10.9458646774292,1484,False,terms_abstract_tfidf__amygdala,5.770496467759316,12.878884581794726,27.0,27.0
+amygdala,1579,harvard_oxford_cortical,Subcallosal Cortex,3.67178012402981,10.58327579498291,1142,True,terms_abstract_tfidf__amygdala,5.770496467759316,21.187994236102885,,
+amygdala,1579,harvard_oxford_cortical,Paracingulate Gyrus,7.418189351664573,14.121426582336426,2944,True,terms_abstract_tfidf__amygdala,5.770496467759316,42.80663545095019,,
+amygdala,1579,harvard_oxford_cortical,"Cingulate Gyrus, anterior division",6.082662611373379,13.422304153442383,2592,True,terms_abstract_tfidf__amygdala,5.770496467759316,35.09998311350174,,
+amygdala,1579,harvard_oxford_cortical,"Cingulate Gyrus, posterior division",1.4603163583461307,9.108253479003906,2412,False,terms_abstract_tfidf__amygdala,5.770496467759316,8.426750387647495,39.0,39.0
+amygdala,1579,harvard_oxford_cortical,Precuneous Cortex,0.6973864659729954,8.638687133789062,5623,False,terms_abstract_tfidf__amygdala,5.770496467759316,4.024266138560322,50.0,50.0
+amygdala,1579,harvard_oxford_cortical,Cuneal Cortex,0.0,0.0,1227,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.0,63.0,63.0
+amygdala,1579,harvard_oxford_cortical,Frontal Orbital Cortex,6.899877873623449,14.121426582336426,3148,True,terms_abstract_tfidf__amygdala,5.770496467759316,39.815720897714776,,
+amygdala,1579,harvard_oxford_cortical,"Parahippocampal Gyrus, anterior division",6.128354873730971,14.121426582336426,1248,False,terms_abstract_tfidf__amygdala,5.770496467759316,35.36365015204016,15.0,15.0
+amygdala,1579,harvard_oxford_cortical,"Parahippocampal Gyrus, posterior division",3.824499035242315,10.492257118225098,710,False,terms_abstract_tfidf__amygdala,5.770496467759316,22.069258173814692,20.0,20.0
+amygdala,1579,harvard_oxford_cortical,Lingual Gyrus,0.40390171262421015,6.517797470092773,3381,False,terms_abstract_tfidf__amygdala,5.770496467759316,2.3307134060199433,55.0,55.0
+amygdala,1579,harvard_oxford_cortical,"Temporal Fusiform Cortex, anterior division",0.10024496623711875,5.6215667724609375,610,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.5784632235819457,59.0,59.0
+amygdala,1579,harvard_oxford_cortical,"Temporal Fusiform Cortex, posterior division",1.3016088365508802,11.216277122497559,1594,False,terms_abstract_tfidf__amygdala,5.770496467759316,7.510929193721167,43.0,43.0
+amygdala,1579,harvard_oxford_cortical,Temporal Occipital Fusiform Cortex,7.28012766970139,13.68170166015625,1469,False,terms_abstract_tfidf__amygdala,5.770496467759316,42.00995100284873,12.0,12.0
+amygdala,1579,harvard_oxford_cortical,Occipital Fusiform Gyrus,1.966215084723567,10.674144744873047,1806,False,terms_abstract_tfidf__amygdala,5.770496467759316,11.346037201252429,30.0,30.0
+amygdala,1579,harvard_oxford_cortical,Frontal Opercular Cortex,10.88191954466193,14.121426582336426,687,False,terms_abstract_tfidf__amygdala,5.770496467759316,62.79407829491273,5.0,5.0
+amygdala,1579,harvard_oxford_cortical,Central Opercular Cortex,2.2401308246262563,12.019936561584473,1886,False,terms_abstract_tfidf__amygdala,5.770496467759316,12.926667010824577,26.0,26.0
+amygdala,1579,harvard_oxford_cortical,Parietal Opercular Cortex,1.190220405127507,4.293368816375732,1119,False,terms_abstract_tfidf__amygdala,5.770496467759316,6.868162643643341,44.0,44.0
+amygdala,1579,harvard_oxford_cortical,Planum Polare,3.5459614968069086,10.218293190002441,749,False,terms_abstract_tfidf__amygdala,5.770496467759316,20.461958292134803,22.0,22.0
+amygdala,1579,harvard_oxford_cortical,Heschl's Gyrus (includes H1 and H2),1.8584121165963643,4.809193134307861,604,False,terms_abstract_tfidf__amygdala,5.770496467759316,10.723960554460435,33.0,33.0
+amygdala,1579,harvard_oxford_cortical,Planum Temporale,1.6026305911647736,4.911592960357666,952,False,terms_abstract_tfidf__amygdala,5.770496467759316,9.24797416543935,36.0,36.0
+amygdala,1579,harvard_oxford_cortical,Supracalcarine Cortex,0.04339194934907944,1.8289037942886353,261,False,terms_abstract_tfidf__amygdala,5.770496467759316,0.2503930904480541,62.0,62.0
+amygdala,1579,harvard_oxford_cortical,Occipital Pole,0.19887070292910566,5.318730354309082,5276,False,terms_abstract_tfidf__amygdala,5.770496467759316,1.1475826887932166,57.0,57.0
+amygdala,1579,harvard_oxford_subcortical,Left Cerebral White Matter,1.4019358344501516,14.121426582336426,31371,False,terms_abstract_tfidf__amygdala,5.770496467759316,8.089865780719808,40.0,40.0
+amygdala,1579,harvard_oxford_subcortical,Left Cerebral Cortex,1.912465484763742,14.121426582336426,65070,False,terms_abstract_tfidf__amygdala,5.770496467759316,11.03587532454078,31.0,31.0
+amygdala,1579,harvard_oxford_subcortical,Left Lateral Ventricle,0.3953309196214228,10.492257118225098,1145,False,terms_abstract_tfidf__amygdala,5.770496467759316,2.2812556752714626,56.0,56.0
+amygdala,1579,harvard_oxford_subcortical,Left Thalamus,5.596997709217623,12.549647331237793,1321,False,terms_abstract_tfidf__amygdala,5.770496467759316,32.29745551109728,17.0,17.0
+amygdala,1579,harvard_oxford_subcortical,Left Caudate,3.592113477517363,13.422304153442383,487,False,terms_abstract_tfidf__amygdala,5.770496467759316,20.728278133804576,21.0,21.0
+amygdala,1579,harvard_oxford_subcortical,Left Putamen,7.081808293036048,14.121426582336426,799,False,terms_abstract_tfidf__amygdala,5.770496467759316,40.86554974031315,13.0,13.0
+amygdala,1579,harvard_oxford_subcortical,Left Pallidum,9.482875150687686,14.121426582336426,267,False,terms_abstract_tfidf__amygdala,5.770496467759316,54.720897561245884,8.0,8.0
+amygdala,1579,harvard_oxford_subcortical,Brain-Stem,0.7008046201395027,10.855438232421875,4890,False,terms_abstract_tfidf__amygdala,5.770496467759316,4.04399058510441,49.0,49.0
+amygdala,1579,harvard_oxford_subcortical,Left Hippocampus,10.461470052266328,14.121426582336426,691,False,terms_abstract_tfidf__amygdala,5.770496467759316,60.36787598417272,6.0,6.0
+amygdala,1579,harvard_oxford_subcortical,Left Amygdala,14.121426582336426,14.121426582336426,306,False,terms_abstract_tfidf__amygdala,5.770496467759316,81.48764221309486,1.0,1.0
+amygdala,1579,harvard_oxford_subcortical,Left Accumbens,11.276696564106459,14.121426582336426,89,False,terms_abstract_tfidf__amygdala,5.770496467759316,65.07213769116994,4.0,4.0
+amygdala,1579,harvard_oxford_subcortical,Right Cerebral White Matter,1.4735076791477335,14.121426582336426,31361,False,terms_abstract_tfidf__amygdala,5.770496467759316,8.502870857738223,38.0,38.0
+amygdala,1579,harvard_oxford_subcortical,Right Cerebral Cortex,1.903131855072673,14.121426582336426,64054,False,terms_abstract_tfidf__amygdala,5.770496467759316,10.982015647377095,32.0,32.0
+amygdala,1579,harvard_oxford_subcortical,Right Lateral Ventricle,0.5343473736339334,13.508893966674805,1019,False,terms_abstract_tfidf__amygdala,5.770496467759316,3.0834496321110803,53.0,53.0
+amygdala,1579,harvard_oxford_subcortical,Right Thalamus,5.3183907489615345,11.931188583374023,1283,False,terms_abstract_tfidf__amygdala,5.770496467759316,30.68975503104636,18.0,18.0
+amygdala,1579,harvard_oxford_subcortical,Right Caudate,4.047547164426865,14.121426582336426,511,False,terms_abstract_tfidf__amygdala,5.770496467759316,23.35635661541446,19.0,19.0
+amygdala,1579,harvard_oxford_subcortical,Right Putamen,7.347536578139141,14.121426582336426,796,False,terms_abstract_tfidf__amygdala,5.770496467759316,42.398933870884285,11.0,11.0
+amygdala,1579,harvard_oxford_subcortical,Right Pallidum,9.24721419100578,14.121426582336426,260,False,terms_abstract_tfidf__amygdala,5.770496467759316,53.361016825812676,9.0,9.0
+amygdala,1579,harvard_oxford_subcortical,Right Hippocampus,10.36252201730718,14.121426582336426,700,False,terms_abstract_tfidf__amygdala,5.770496467759316,59.79689669794923,7.0,7.0
+amygdala,1579,harvard_oxford_subcortical,Right Amygdala,14.121426582336426,14.121426582336426,366,False,terms_abstract_tfidf__amygdala,5.770496467759316,81.48764221309486,1.0,1.0
+amygdala,1579,harvard_oxford_subcortical,Right Accumbens,11.381785387084598,14.121426582336426,84,False,terms_abstract_tfidf__amygdala,5.770496467759316,65.67855237296628,3.0,3.0
