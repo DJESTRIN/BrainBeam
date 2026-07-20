@@ -1,0 +1,110 @@
+category,mouse_regionname
+Hippocampus,Hippocampal formation
+Amygdala,Anterior amygdalar area
+Amygdala,"Basolateral amygdalar nucleus, anterior part"
+Amygdala,"Basolateral amygdalar nucleus, posterior part"
+Amygdala,"Basolateral amygdalar nucleus, ventral part"
+Amygdala,"Basomedial amygdalar nucleus, anterior part"
+Amygdala,"Basomedial amygdalar nucleus, posterior part"
+Amygdala,"Central amygdalar nucleus, capsular part"
+Amygdala,"Central amygdalar nucleus, lateral part"
+Amygdala,"Central amygdalar nucleus, medial part"
+Amygdala,"Cortical amygdalar area, anterior part"
+Amygdala,"Cortical amygdalar area, posterior part, lateral zone"
+Amygdala,"Cortical amygdalar area, posterior part, medial zone"
+Amygdala,Intercalated amygdalar nucleus
+Amygdala,Lateral amygdalar nucleus
+Amygdala,Medial amygdalar nucleus
+Amygdala,Piriform-amygdalar area
+Amygdala,Posterior amygdalar nucleus
+Anterior cingulate cortex (ACC),"Anterior cingulate area, dorsal part, layer 1"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, dorsal part, layer 2/3"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, dorsal part, layer 5"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, dorsal part, layer 6a"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, dorsal part, layer 6b"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, ventral part, 6a"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, ventral part, 6b"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, ventral part, layer 1"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, ventral part, layer 2/3"
+Anterior cingulate cortex (ACC),"Anterior cingulate area, ventral part, layer 5"
+Orbitofrontal cortex (OFC),"Orbital area, lateral part, layer 1"
+Orbitofrontal cortex (OFC),"Orbital area, lateral part, layer 2/3"
+Orbitofrontal cortex (OFC),"Orbital area, lateral part, layer 5"
+Orbitofrontal cortex (OFC),"Orbital area, lateral part, layer 6a"
+Orbitofrontal cortex (OFC),"Orbital area, lateral part, layer 6b"
+Orbitofrontal cortex (OFC),"Orbital area, medial part, layer 1"
+Orbitofrontal cortex (OFC),"Orbital area, medial part, layer 2/3"
+Orbitofrontal cortex (OFC),"Orbital area, medial part, layer 5"
+Orbitofrontal cortex (OFC),"Orbital area, medial part, layer 6a"
+Orbitofrontal cortex (OFC),"Orbital area, medial part, layer 6b"
+Orbitofrontal cortex (OFC),"Orbital area, ventrolateral part, layer 1"
+Orbitofrontal cortex (OFC),"Orbital area, ventrolateral part, layer 2/3"
+Orbitofrontal cortex (OFC),"Orbital area, ventrolateral part, layer 5"
+Orbitofrontal cortex (OFC),"Orbital area, ventrolateral part, layer 6a"
+Orbitofrontal cortex (OFC),"Orbital area, ventrolateral part, layer 6b"
+Insula,"Agranular insular area, dorsal part, layer 1"
+Insula,"Agranular insular area, dorsal part, layer 2/3"
+Insula,"Agranular insular area, dorsal part, layer 5"
+Insula,"Agranular insular area, dorsal part, layer 6a"
+Insula,"Agranular insular area, dorsal part, layer 6b"
+Insula,"Agranular insular area, posterior part, layer 1"
+Insula,"Agranular insular area, posterior part, layer 2/3"
+Insula,"Agranular insular area, posterior part, layer 5"
+Insula,"Agranular insular area, posterior part, layer 6a"
+Insula,"Agranular insular area, posterior part, layer 6b"
+Insula,"Agranular insular area, ventral part, layer 1"
+Insula,"Agranular insular area, ventral part, layer 2/3"
+Insula,"Agranular insular area, ventral part, layer 5"
+Insula,"Agranular insular area, ventral part, layer 6a"
+Insula,"Agranular insular area, ventral part, layer 6b"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, dorsal part, layer 1"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, dorsal part, layer 2/3"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, dorsal part, layer 5"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, dorsal part, layer 6a"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, dorsal part, layer 6b"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, lateral agranular part, layer 1"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, lateral agranular part, layer 2/3"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, lateral agranular part, layer 5"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, lateral agranular part, layer 6a"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, lateral agranular part, layer 6b"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, ventral part, layer 1"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, ventral part, layer 2/3"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, ventral part, layer 5"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, ventral part, layer 6a"
+Posterior cingulate cortex (PCC) / retrosplenial cortex,"Retrosplenial area, ventral part, layer 6b"
+Nucleus accumbens,Nucleus accumbens
+Caudate + putamen (caudoputamen),Caudoputamen
+Thalamus,Anteroventral nucleus of thalamus
+Thalamus,Central lateral nucleus of the thalamus
+Thalamus,Central medial nucleus of the thalamus
+Thalamus,Dorsomedial nucleus of the hypothalamus
+Thalamus,Ethmoid nucleus of the thalamus
+Thalamus,Hypothalamus
+Thalamus,Interanterodorsal nucleus of the thalamus
+Thalamus,Interanteromedial nucleus of the thalamus
+Thalamus,Intermediodorsal nucleus of the thalamus
+Thalamus,Lateral dorsal nucleus of thalamus
+Thalamus,Lateral posterior nucleus of the thalamus
+Thalamus,Mediodorsal nucleus of thalamus
+Thalamus,Paraventricular nucleus of the thalamus
+Thalamus,Posterior complex of the thalamus
+Thalamus,Posterior limiting nucleus of the thalamus
+Thalamus,Reticular nucleus of the thalamus
+Thalamus,Submedial nucleus of the thalamus
+Thalamus,Thalamus
+Thalamus,Ventral anterior-lateral complex of the thalamus
+Thalamus,Ventral medial nucleus of the thalamus
+Thalamus,Ventral posterolateral nucleus of the thalamus
+Thalamus,"Ventral posterolateral nucleus of the thalamus, parvicellular part"
+Thalamus,Ventral posteromedial nucleus of the thalamus
+Thalamus,"Ventral posteromedial nucleus of the thalamus, parvicellular part"
+Pallidum,"Globus pallidus, external segment"
+Pallidum,"Globus pallidus, internal segment"
+Pallidum,Pallidum
+Lateral ventricle,lateral ventricle
+Corpus callosum (proxy for tapetum),"corpus callosum, anterior forceps"
+Corpus callosum (proxy for tapetum),"corpus callosum, body"
+Corpus callosum (proxy for tapetum),"corpus callosum, extreme capsule"
+Corpus callosum (proxy for tapetum),"corpus callosum, posterior forceps"
+Corpus callosum (proxy for tapetum),"corpus callosum, splenium"
+Corpus callosum (proxy for tapetum),genu of corpus callosum

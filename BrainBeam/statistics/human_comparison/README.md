@@ -5,6 +5,7 @@ This folder contains supplemental analyses meant to place the mouse mPFC circuit
 1. `neurosynth_coactivation.py` builds parcel-level human **term-associated activation-density** summaries for fear/threat/stress-related Neurosynth terms using the small term-annotation release distributed through NiMARE plus the bundled Harvard-Oxford atlas from Nilearn.
 2. `build_enigma_table.py` compiles a literature-only ENIGMA PTSD/MDD convergence table from published summary statistics.
 3. `make_figures.py` turns the generated CSV outputs into reader-facing figure panels for the supplement, including atlas-backprojected Nilearn brain renderings.
+4. `mouse_human_rabies_correlation.py` is the **real quantitative comparison**: it aggregates actual mouse mPFC rabies-tracing input data (CORT vs. control) into anatomically-matched categories and compares the direction/magnitude of change against the ENIGMA effect sizes above.
 
 ## Why this exists
 
@@ -63,6 +64,24 @@ These ENIGMA PTSD/MDD case-control morphometry findings do **not** measure stimu
 C:\path\to\python.exe BrainBeam\statistics\human_comparison\build_enigma_table.py
 ```
 
+## Analysis 3: Mouse rabies-tracing vs. human ENIGMA effect sizes (real quantitative comparison)
+
+`mouse_human_rabies_correlation.py` uses actual mouse mPFC monosynaptic-input rabies-tracing data (channel 647, `normalizedcount`, 9 control vs. 8 CORT/stress mice; source data at `C:\Users\listo\communal_registration_logcal_drop\rabies_experiment\{control,experimental}\df_tall.csv`, not tracked in this repo) and compares control-vs-CORT effect sizes (Cohen's d) against the ENIGMA table above, category by category.
+
+**Anatomical matching:** only regions with a defensible, literature-recognized mouse<->human homolog are compared (hippocampus, amygdala, ACC, OFC, insula, retrosplenial/PCC, accumbens, caudoputamen/caudate+putamen, thalamus, pallidum, lateral ventricle, and whole corpus callosum as a proxy for the human "tapetum" DTI label). Primate/gyral-pattern-specific regions added in the Wang 2021 expansion (precuneus, superior/middle temporal gyrus, superior/inferior parietal gyrus, banks of the superior temporal sulcus, lingual gyrus) have **no clear rodent homolog and are deliberately excluded** rather than force-matched. `mouse_rabies_region_manifest.csv` lists exactly which fine-grained Allen regions were pooled into each category, for auditing.
+
+### Result (as of the current run) -- reported honestly, not spun
+
+Across 21 human-vs-mouse category comparisons (12 anatomical categories x MDD/PTSD, where matched rows existed), **direction of effect agreed in only 9/21 (43%) -- at or below chance**, and the exploratory Pearson/Spearman correlations were weak and in some cases *negative* (MDD: r=-0.46, p=0.208; PTSD: r=-0.31, p=0.327). After Bonferroni correction across the 12 mouse category tests (alpha=0.0042), only 2 categories (lateral ventricle, posterior cingulate/retrosplenial cortex) showed a statistically robust CORT-vs-control mouse effect, and even those did not consistently line up with the human effect direction across both disorder groups.
+
+**Honest interpretation:** this analysis does **not** show meaningful cross-species convergence between the mouse CORT rabies-input changes and human ENIGMA PTSD/MDD structural effect sizes. This could reflect any combination of: (1) genuinely different biology (input-tracing cell counts vs. structural MRI volume are different measurement modalities entirely), (2) the small mouse sample size (n=9/8), (3) imperfect category matching, or (4) the ENIGMA effect sizes themselves being very small (most |d| < 0.2). Report this as a negative/null convergence check, not evidence either for or against the ENIGMA literature -- it should not be oversold as validation, and the earlier caution against treating any of this supplement as validation-strength evidence applies here as well.
+
+### Run
+
+```powershell
+C:\path\to\python.exe BrainBeam\statistics\human_comparison\mouse_human_rabies_correlation.py
+```
+
 ## Figures
 
 `make_figures.py` reads the existing CSV outputs and writes `.png` figures to `BrainBeam\statistics\human_comparison\figures\`:
@@ -74,6 +93,7 @@ C:\path\to\python.exe BrainBeam\statistics\human_comparison\build_enigma_table.p
 - `enigma_effect_size_forest.png` - lollipop/forest-style plot of the curated ENIGMA PTSD/MDD effect sizes.
 - `enigma_convergence_table.png` - compact figure-table rendering of the ENIGMA convergence CSV for supplemental display.
 - `enigma_effect_size_brain_slices.png` - an optional within-human atlas rendering of the subset of ENIGMA rows with explicit Harvard-Oxford parcel mappings; unmatched rows are skipped and bilateral cortical parcel labels necessarily collapse laterality.
+- `mouse_rabies_vs_enigma_comparison.png` - paired bar chart of human ENIGMA effect size vs. mouse rabies Cohen's d per matched category, colored by direction agreement.
 
 ### Run
 
@@ -93,6 +113,9 @@ C:\path\to\python.exe BrainBeam\statistics\human_comparison\make_figures.py
 - `figures\enigma_effect_size_forest.png`
 - `figures\enigma_convergence_table.png`
 - `figures\enigma_effect_size_brain_slices.png`
+- `figures\mouse_rabies_vs_enigma_comparison.png`
+- `mouse_rabies_vs_enigma_comparison.csv`
+- `mouse_rabies_region_manifest.csv`
 - `AGENT_LOG.md`
 
 ## Interpretation summary
@@ -102,4 +125,5 @@ C:\path\to\python.exe BrainBeam\statistics\human_comparison\make_figures.py
 - The Neurosynth analysis is literature-scale coordinate-based context, not tract tracing, projection mapping, or direct connectivity analysis.
 - ENIGMA effect sizes mix Cohen's `d` and standardized regression coefficients depending on what each paper reported.
 - The ENIGMA brain-rendered figure uses only explicit within-human atlas mappings and should be read as a sparse visual aid, not a comprehensive anatomical recoding of the literature table.
+- **The real mouse-rabies-vs-ENIGMA quantitative comparison (Analysis 3) showed only 43% direction agreement (at/below chance) and weak/negative exploratory correlations -- this is a genuine null result for cross-species convergence, not a positive finding, and should be reported as such.**
 - Taken together, these materials should be framed as supportive translational context only.
