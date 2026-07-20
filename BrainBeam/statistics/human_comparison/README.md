@@ -51,7 +51,7 @@ Optional arguments:
 
 ## Analysis 2: ENIGMA convergence table
 
-`build_enigma_table.py` writes `enigma_convergence_table.csv` from directly verifiable summary statistics reported in ENIGMA PTSD/MDD abstracts or open full-text tables. Only published numbers that were explicitly confirmed are included.
+`build_enigma_table.py` writes `enigma_convergence_table.csv` from directly verifiable summary statistics reported in ENIGMA PTSD/MDD abstracts or open full-text tables. Only published numbers that were explicitly confirmed are included. The table currently has 42 rows (30 PTSD, 12 MDD) drawn from 4 papers (Schmaal et al. 2016/2017, Logue et al. 2018, Dennis et al. 2021, Wang et al. 2021). Every row's effect size, sample size, and significance value was independently re-fetched and adversarially re-verified against the primary PMC source by a second agent before being added; no new papers or estimated/interpolated numbers were introduced during the expansion.
 
 ### ENIGMA caveat
 
