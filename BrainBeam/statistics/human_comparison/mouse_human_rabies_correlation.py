@@ -100,6 +100,17 @@ def parse_args() -> argparse.Namespace:
         default=base_dir / "figures" / "mouse_rabies_vs_enigma_comparison.png",
         help="Output path for the paired human-vs-mouse effect size comparison figure.",
     )
+    parser.add_argument(
+        "--value-column",
+        type=str,
+        default="normalizedcount",
+        choices=["normalizedcount", "rawcount"],
+        help=(
+            "Mouse value column to use. normalizedcount (default) is roughly compositional "
+            "(percent of a subject's total channel count, not a strict closed 1.0); rawcount "
+            "is provided as a non-compositional sensitivity check."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -213,7 +224,10 @@ HUMAN_CATEGORY_KEYWORDS: dict[str, list[str]] = {
 
 
 def load_mouse_data(args: argparse.Namespace) -> pd.DataFrame:
-    """Load and concatenate control + CORT rabies data for the target channel."""
+    """Load and concatenate control + CORT rabies data for the target channel,
+    dropping subjects with a failed rabies channel (near-zero total counts
+    across the whole brain, indicating a failed injection/registration
+    rather than a real biological zero)."""
 
     control_df = pd.read_csv(args.control_csv)
     experimental_df = pd.read_csv(args.experimental_csv)
@@ -226,14 +240,44 @@ def load_mouse_data(args: argparse.Namespace) -> pd.DataFrame:
 
     df = pd.concat([control_df, experimental_df], ignore_index=True)
     df = df[df["channel"] == args.channel].copy()
+
+    # QC: exclude any subject whose total rawcount for this channel is
+    # near zero across the ENTIRE brain (not just one region) -- this
+    # indicates a failed rabies injection/registration for that subject,
+    # not a genuine biological absence of input. Verified manually: subject
+    # 4467196_5 has rawcount==0 in channels 647/488/785 and ~3 total counts
+    # (out of ~1340 regions) in channel 561, i.e. no usable signal in any
+    # channel, and was silently included (uncorrected) in the first pass of
+    # this analysis, biasing every single region's CORT-group mean toward
+    # zero. A subject total below this threshold cannot represent real
+    # rabies labeling and must be dropped before computing group effects.
+    subject_totals = df.groupby("suid")["rawcount"].sum()
+    qc_fail_threshold = 10.0
+    failed_subjects = subject_totals[subject_totals < qc_fail_threshold].index.tolist()
+    if failed_subjects:
+        print(
+            f"QC: excluding {len(failed_subjects)} subject(s) with near-zero total "
+            f"channel-{args.channel} counts (likely failed injection/registration): {failed_subjects}"
+        )
+        df = df[~df["suid"].isin(failed_subjects)].copy()
+
     return df
 
 
 def compute_mouse_category_effects(
-    mouse_df: pd.DataFrame, matchers: dict[str, "callable"]
+    mouse_df: pd.DataFrame, matchers: dict[str, "callable"], value_col: str = "normalizedcount"
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Sum bilateral counts per subject per category, then compute
-    control-vs-CORT Cohen's d / t-test per category."""
+    control-vs-CORT Cohen's d / t-test per category.
+
+    `value_col` defaults to `normalizedcount` (percent of that subject's
+    total channel-647 count, roughly compositional -- summing to ~0.7-0.97
+    rather than a strict 1.0 across subjects, per manual inspection). This
+    is not a fully closed compositional system, but a region's share can
+    still be pulled up or down mechanically by changes in other regions'
+    shares rather than by a true independent biological change in that
+    region alone. `rawcount` is provided as a non-compositional sensitivity
+    check via `--value-column rawcount` on the command line."""
 
     manifest_rows = []
     result_rows = []
@@ -263,10 +307,10 @@ def compute_mouse_category_effects(
         cat_df = mouse_df[region_mask]
         # Sum ipsilateral + contralateral + all pooled subregions per subject
         # to get one bilateral, whole-category value per animal.
-        per_subject = cat_df.groupby(["suid", "group"], as_index=False)["normalizedcount"].sum()
+        per_subject = cat_df.groupby(["suid", "group"], as_index=False)[value_col].sum()
 
-        control_vals = per_subject.loc[per_subject["group"] == "control", "normalizedcount"].to_numpy()
-        cort_vals = per_subject.loc[per_subject["group"] == "cort", "normalizedcount"].to_numpy()
+        control_vals = per_subject.loc[per_subject["group"] == "control", value_col].to_numpy()
+        cort_vals = per_subject.loc[per_subject["group"] == "cort", value_col].to_numpy()
 
         if len(control_vals) < 2 or len(cort_vals) < 2:
             d = np.nan
@@ -368,7 +412,7 @@ def main() -> None:
 
     mouse_df = load_mouse_data(args)
     matchers = build_mouse_category_matchers()
-    mouse_effects_df, manifest_df = compute_mouse_category_effects(mouse_df, matchers)
+    mouse_effects_df, manifest_df = compute_mouse_category_effects(mouse_df, matchers, value_col=args.value_column)
 
     enigma_df = pd.read_csv(args.enigma_csv)
     human_effects_df = compute_human_category_effects(enigma_df)
@@ -396,12 +440,45 @@ def main() -> None:
     n_categories_tested = mouse_effects_df["category"].nunique()
     bonferroni_alpha = 0.05 / max(n_categories_tested, 1)
 
-    print(f"\n{n_matched} human-vs-mouse category comparisons available (across both disorder groups).")
-    print(f"Direction of effect agrees in {n_agree} / {n_matched} comparisons "
+    print(f"\n{n_matched} human-vs-mouse ROW comparisons available (category x disorder_group; NOT independent "
+          f"tests -- see per-category deduplicated count below).")
+    print(f"Direction of effect agrees in {n_agree} / {n_matched} row comparisons "
           f"({100 * n_agree / n_matched:.0f}%, if n_matched > 0).")
     print(f"Bonferroni-corrected alpha for {n_categories_tested} mouse category tests: {bonferroni_alpha:.4f}")
     sig_categories = mouse_effects_df.loc[mouse_effects_df["p_value"] < bonferroni_alpha, "category"].tolist()
     print(f"Mouse categories surviving Bonferroni correction: {sig_categories if sig_categories else 'none'}")
+
+    # IMPORTANT: because the mouse Cohen's d is identical across disorder
+    # groups within a category (mouse data has no MDD/PTSD distinction),
+    # the row-level count above double-counts categories that appear for
+    # both MDD and PTSD -- these are NOT independent comparisons. The
+    # deduplicated per-CATEGORY agreement below is the more honest primary
+    # statistic, with a category counted as "agree" only if ALL available
+    # human rows for it agree in direction with the single mouse value.
+    category_level = (
+        valid_df.groupby("category")
+        .agg(
+            all_agree=("direction_agreement", "all"),
+            any_disagree=("direction_agreement", lambda s: not s.all() and s.any()),
+            n_disorder_rows=("direction_agreement", "size"),
+        )
+        .reset_index()
+    )
+    n_cat = len(category_level)
+    n_cat_agree = int(category_level["all_agree"].sum())
+    n_cat_mixed = int(category_level["any_disagree"].sum())
+    print(f"\nDeduplicated per-CATEGORY agreement (the more honest primary statistic): "
+          f"{n_cat_agree} / {n_cat} categories fully agree in direction across all available human rows.")
+    if n_cat_mixed:
+        mixed_cats = category_level.loc[category_level["any_disagree"], "category"].tolist()
+        print(f"  {n_cat_mixed} categor(y/ies) had MDD/PTSD disagree with each other on direction "
+              f"(near-zero/unstable human effect size, not a meaningful signal): {mixed_cats}")
+
+    binom_result = stats.binomtest(n_cat_agree, n_cat, p=0.5, alternative="two-sided")
+    print(f"Binomial test vs. chance (p=0.5): {n_cat_agree}/{n_cat} agree, "
+          f"two-sided p={binom_result.pvalue:.3f} (NOT significantly different from chance)"
+          if binom_result.pvalue >= 0.05 else
+          f"Binomial test vs. chance (p=0.5): {n_cat_agree}/{n_cat} agree, two-sided p={binom_result.pvalue:.3f}")
 
     for disorder_group, group_df in valid_df.groupby("disorder_group"):
         n = len(group_df)
