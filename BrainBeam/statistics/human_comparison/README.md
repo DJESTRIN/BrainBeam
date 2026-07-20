@@ -4,7 +4,7 @@ This folder contains supplemental analyses meant to place the mouse mPFC circuit
 
 1. `neurosynth_coactivation.py` builds parcel-level human **term-associated activation-density** summaries for fear/threat/stress-related Neurosynth terms using the small term-annotation release distributed through NiMARE plus the bundled Harvard-Oxford atlas from Nilearn.
 2. `build_enigma_table.py` compiles a literature-only ENIGMA PTSD/MDD convergence table from published summary statistics.
-3. `make_figures.py` turns the generated CSV outputs into reader-facing figure panels for the supplement.
+3. `make_figures.py` turns the generated CSV outputs into reader-facing figure panels for the supplement, including atlas-backprojected Nilearn brain renderings.
 
 ## Why this exists
 
@@ -69,8 +69,11 @@ C:\path\to\python.exe BrainBeam\statistics\human_comparison\build_enigma_table.p
 
 - `vmPFC_ACC_activation_density_ranked_bar.png` - horizontal ranking of the top non-seed human parcels by the **secondary** mean seed-scaled activation-density summary across `fear`, `threat`, `fear_conditioning`, and `stress`.
 - `vmPFC_ACC_activation_density_term_heatmap.png` - term-by-region heatmap for those top-ranked parcels, keeping `amygdala` as a diagnostic/reference column rather than folding it into the main composite.
+- `vmPFC_ACC_activation_density_brain_slices.png` - orthographic Nilearn slice renderings that back-project parcel `activation_density_mean_z` values onto the combined Harvard-Oxford cortical + subcortical atlas for `fear`, `threat`, `fear_conditioning`, `stress`, and their mean.
+- `vmPFC_ACC_activation_density_glass_brain.png` - transparent glass-brain projections of the same parcelwise activation-density maps.
 - `enigma_effect_size_forest.png` - lollipop/forest-style plot of the curated ENIGMA PTSD/MDD effect sizes.
 - `enigma_convergence_table.png` - compact figure-table rendering of the ENIGMA convergence CSV for supplemental display.
+- `enigma_effect_size_brain_slices.png` - an optional within-human atlas rendering of the subset of ENIGMA rows with explicit Harvard-Oxford parcel mappings; unmatched rows are skipped and bilateral cortical parcel labels necessarily collapse laterality.
 
 ### Run
 
@@ -85,8 +88,11 @@ C:\path\to\python.exe BrainBeam\statistics\human_comparison\make_figures.py
 - `enigma_convergence_table.csv`
 - `figures\vmPFC_ACC_activation_density_ranked_bar.png`
 - `figures\vmPFC_ACC_activation_density_term_heatmap.png`
+- `figures\vmPFC_ACC_activation_density_brain_slices.png`
+- `figures\vmPFC_ACC_activation_density_glass_brain.png`
 - `figures\enigma_effect_size_forest.png`
 - `figures\enigma_convergence_table.png`
+- `figures\enigma_effect_size_brain_slices.png`
 - `AGENT_LOG.md`
 
 ## Interpretation summary
@@ -95,5 +101,5 @@ C:\path\to\python.exe BrainBeam\statistics\human_comparison\make_figures.py
 - No automatic mouse-human parcel crosswalk is used here; curated cross-species mapping is a prerequisite future task.
 - The Neurosynth analysis is literature-scale coordinate-based context, not tract tracing, projection mapping, or direct connectivity analysis.
 - ENIGMA effect sizes mix Cohen's `d` and standardized regression coefficients depending on what each paper reported.
+- The ENIGMA brain-rendered figure uses only explicit within-human atlas mappings and should be read as a sparse visual aid, not a comprehensive anatomical recoding of the literature table.
 - Taken together, these materials should be framed as supportive translational context only.
-
